@@ -31,7 +31,7 @@ MD_PATH = "page_results/05_university_type.md"
 def load_uni_data():
     """Load only the 'uni' subset directly (avoids load_data memory overhead)."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus_Lite.parquet")
+    table = pq.read_table("dataset/NMAT_Exodus.parquet")
     df = table.to_pandas()
     # Free table
     del table

@@ -42,7 +42,7 @@ def run():
     lines.append("")
     lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
-    lines.append("**Data source:** NMAT_Exodus_Lite.parquet (Pipeline 4)")
+    lines.append("**Data source:** NMAT_Exodus.parquet (Pipeline 4)")
     lines.append("")
     lines.append("**Data subset:** `besttrend`/`uni` for bins; ALL records for citizenship")
     lines.append("")
@@ -215,7 +215,7 @@ def run():
     lines.append("")
     lines.append(
         "Citizenship labels (CITIZENSHIP_FINAL, FOREIGNER_STATUS) are baked into "
-        "NMAT_Exodus_Lite.parquet by Pipeline 4 using a 3-tier hierarchy: "
+        "NMAT_Exodus.parquet by Pipeline 4 using a 3-tier hierarchy: "
         "REAL_FOREIGNERS.csv ground truth -> pseudo-citizenship inference -> Filipino default."
     )
     lines.append("")

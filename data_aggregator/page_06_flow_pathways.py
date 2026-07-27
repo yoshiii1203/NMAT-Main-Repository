@@ -32,7 +32,7 @@ MD_PATH = "page_results/06_flow_pathways.md"
 def load_subsets():
     """Load required subsets directly from parquet (avoids load_data copies)."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus_Lite.parquet")
+    table = pq.read_table("dataset/NMAT_Exodus.parquet")
     df = table.to_pandas()
     del table
 

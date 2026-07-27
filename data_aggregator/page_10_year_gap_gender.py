@@ -34,7 +34,7 @@ MD_PATH = "page_results/10_year_gap_gender.md"
 def load_subsets():
     """Load besttrend and bestobservable subsets."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus_Lite.parquet")
+    table = pq.read_table("dataset/NMAT_Exodus.parquet")
     df = table.to_pandas()
     del table
 

@@ -36,7 +36,7 @@ RAW_ORDER = STD_ORDER  # same ordering
 def load_besttrend():
     """Load besttrend subset (best NMAT record, Year 2006-2018)."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus_Lite.parquet")
+    table = pq.read_table("dataset/NMAT_Exodus.parquet")
     df = table.to_pandas()
     del table
 

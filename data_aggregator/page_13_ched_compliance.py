@@ -49,7 +49,7 @@ def run() -> str:
     lines.append("")
     lines.append(f"**Generated:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
-    lines.append("**Data source:** NMAT_Exodus_Lite.parquet (Pipeline 4)")
+    lines.append("**Data source:** NMAT_Exodus.parquet (Pipeline 4)")
     lines.append("")
     lines.append("**Data subsets:**")
     lines.append("- `bestobservable` (Year <= 2014) — PLE-linked summaries")
@@ -260,7 +260,7 @@ def run() -> str:
             lines.append("*No foreign student records at SUCs under the current filters.*")
             lines.append("")
     else:
-        lines.append("*Citizenship columns not available. Run Pipeline 4 to generate NMAT_Exodus_Lite.parquet with CITIZENSHIP_FINAL.*")
+        lines.append("*Citizenship columns not available. Run Pipeline 4 to generate NMAT_Exodus.parquet with CITIZENSHIP_FINAL.*")
         lines.append("")
 
     # ================================================================
@@ -342,7 +342,7 @@ def run() -> str:
     # ── Footer ──
     lines.append("---")
     lines.append("")
-    lines.append("*Source: NMAT_Exodus_Lite.parquet (Pipeline 4). Observable best-record cohort (Year <= 2014) used for all PLE-linked summaries to avoid misclassifying later cohorts as non-passers before their licensure window closes.*")
+    lines.append("*Source: NMAT_Exodus.parquet (Pipeline 4). Observable best-record cohort (Year <= 2014) used for all PLE-linked summaries to avoid misclassifying later cohorts as non-passers before their licensure window closes.*")
     lines.append("")
 
     return "\n".join(lines)

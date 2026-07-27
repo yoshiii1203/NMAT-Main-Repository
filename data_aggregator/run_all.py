@@ -33,7 +33,7 @@ def main():
     print("  NMAT Data Extraction — Master Orchestrator v2")
     print("=" * 60)
     print(f"\n  Starting: {len(PAGE_SCRIPTS)} pages")
-    print(f"  Data: NMAT_Exodus_Lite.parquet")
+    print(f"  Data: NMAT_Exodus.parquet")
     print(f"  Engine: {VENV_PYTHON}")
     print(f"  Output: page_results/\n")
 

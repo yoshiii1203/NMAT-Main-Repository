@@ -39,7 +39,7 @@ def run() -> str:
     lines.append("")
     lines.append(f"**Generated:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
-    lines.append("**Data source:** NMAT_Exodus_Lite.parquet (Pipeline 4)")
+    lines.append("**Data source:** NMAT_Exodus.parquet (Pipeline 4)")
     lines.append("")
     lines.append("**Data subsets:** `bestobservable` (PLE-linked analyses, Year <= 2014) and `besttrend` (survival analysis, 2006-2018)")
     lines.append("")
