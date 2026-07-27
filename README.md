@@ -182,23 +182,15 @@ streamlit run dashboard.py
 ```
 This reads directly from `dataset/NMAT_Exodus.parquet`. No pipeline re-run needed.
 
-### Option B: Master Orchestrator Notebook
+### Option B: One-Click Dependency Install
 
-The `00_RUN_ME.ipynb` notebook runs all 4 pipelines in sequence with progress reporting:
+`00_RUN_ME.ipynb` is a convenience notebook that installs all required Python packages in one shot:
 
 ```bash
 jupyter notebook 00_RUN_ME.ipynb
 ```
 
-This master notebook:
-1. Installs/updates dependencies
-2. Runs Pipeline 1 (Data Cleaning)
-3. Runs Pipeline 2 (PLE Matching)
-4. Runs Pipeline 3 (Statistical Analysis)
-5. Runs Pipeline 4 (Citizenship Integration)
-6. Summarizes all outputs
-
-**Expected runtime:** Full pipeline: 30–60 minutes. Incremental runs (if data unchanged): faster.
+It runs `pip install` for all pipeline dependencies (pandas, numpy, pyarrow, scipy, plotly, streamlit, etc.). Run this first if setting up from scratch. If you already installed via `requirements.txt`, you can skip it.
 
 ### Option C: Re-run Individual Pipelines
 
