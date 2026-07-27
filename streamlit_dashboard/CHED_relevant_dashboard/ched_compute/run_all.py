@@ -42,6 +42,7 @@ def main():
         ("05 — Demographic Profiles", "05_demographic_profiles"),
         ("06 — PLE Alignment", "06_ple_alignment"),
         ("07 — Temporal Trends", "07_temporal_trends"),
+        ("08 — Executive Summary", "08_executive_summary"),
     ]
 
     results = []
@@ -83,6 +84,7 @@ def main():
         "05_demographic_profiles.md",
         "06_ple_alignment.md",
         "07_temporal_trends.md",
+        "08_executive_summary.md",
     ]
 
     print(f"\n  Output files in: {OUTPUT_DIR}")

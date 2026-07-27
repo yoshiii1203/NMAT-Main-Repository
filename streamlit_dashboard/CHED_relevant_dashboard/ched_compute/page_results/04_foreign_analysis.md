@@ -10,23 +10,32 @@
 
 This section analyzes foreign NMAT examinees using CITIZENSHIP_FINAL and FOREIGNER_STATUS columns. **Important:** All figures represent NMAT examinee counts, not enrolled students. The 10-slot SUC cap applies to enrollment, which we cannot verify from this data.
 
-### Key Metrics
+### Foreign Counts: Best-Record vs All-Records
+
+Two perspectives are provided: **best-record** (one record per examinee, primary) and **all-records** (includes repeat takers, for volume context). Always check which denominator is used.
+
+### Summary Metrics
 
 | Metric | Value |
 |--------|-------|
 | **Total Examinees (Best Record)** | 133,804 |
-| **Verified Foreigners** | 24,066 |
-| **Likely Foreigners** | 13 |
-| **Total Foreign Examinees** | 24,079 |
-| **Filipino Examinees** | 109,725 |
-| **Foreign as % of Total** | 18.00% |
+| **Total Records (All Attempts)** | 178,927 |
+| **** |  |
+| **Foreign Examinees (Best Record) — PRIMARY** | 24,079 |
+| **Foreign Records (All Attempts, includes repeat takers)** | 32,514 |
+| **** |  |
+| **Verified Foreigners (Best Record)** | 24,066 |
+| **Likely Foreigners (Best Record)** | 13 |
+| **Filipino Examinees (Best Record)** | 109,725 |
+| **Foreign as % of Total (Best Record)** | 18.00% |
+| **Foreign as % of Total (All Records)** | 18.17% |
 
 ### Foreign Examinees by University Type
 
-Distribution of foreign examinees across university types.
+Distribution of foreign examinees across university types (best-record basis).
 
-| UNI_TYPE | Foreign n | % of Foreign | % of UNI_TYPE Total |
-|:---------|:---------:|:------------:|:-------------------:|
+| UNI_TYPE | Foreign n (Best Record) | % of Foreign | % of UNI_TYPE Total |
+|:---------|:-----------------------:|:------------:|:-------------------:|
 | Public | 4,514 | 18.75% | 16.34% |
 | Private | 18,478 | 76.74% | 17.96% |
 | Foreign | 744 | 3.09% | 39.28% |
@@ -34,10 +43,10 @@ Distribution of foreign examinees across university types.
 
 ### Foreign Examinees by Year
 
-Yearly foreign examinee counts and trends.
+Yearly foreign examinee counts and trends (best-record basis).
 
-| Year | Foreign n | % of Year Total | Total Examinees |
-|:----:|:---------:|:---------------:|:---------------:|
+| Year | Foreign n (Best Record) | % of Year Total | Total Examinees |
+|:----:|:-----------------------:|:---------------:|:---------------:|
 | 2006 | 142 | 3.87% | 3,665 |
 | 2007 | 320 | 8.74% | 3,660 |
 | 2008 | 339 | 6.99% | 4,849 |
@@ -52,9 +61,9 @@ Yearly foreign examinee counts and trends.
 | 2017 | 7,018 | 29.30% | 23,955 |
 | 2018 | 5,209 | 23.32% | 22,337 |
 
-### Foreign Examinee Counts per SUC per Year
+### Foreign Examinees at SUCs (by Year)
 
-This table shows foreign examinee counts at Public (SUC) institutions by year. **Note:** These are examinee counts, not enrollment. Actual enrollment figures may differ.
+This table shows foreign examinee counts at Public (SUC) institutions by year. **Note:** These are examinee counts (best-record), not enrollment. Actual enrollment figures may differ.
 
 | SUC | 2006 | 2007 | 2008 | 2009 | 2010 | 2011 | 2012 | 2013 | 2014 | 2015 | 2016 | 2017 | 2018 | Total |
 |------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -91,12 +100,12 @@ This table shows foreign examinee counts at Public (SUC) institutions by year. *
 
 *Only top 30 SUCs by total foreign examinees shown.*
 
-### Top 20 Nationalities Among Foreign Examinees
+### Foreign Examinees by Nationality
 
-Distribution of foreign examinees by citizenship.
+Distribution of foreign examinees by citizenship (best-record basis).
 
-| Rank | Nationality | n | % of Foreign | Median Percentile |
-|:----:|:------------|:--:|:------------:|:-----------------:|
+| Rank | Nationality | n (Best Record) | % of Foreign | Median Percentile |
+|:----:|:------------|:---------------:|:------------:|:-----------------:|
 | 1 | India | 19,092 | 79.29% | 18.0 |
 | 2 | Thailand | 924 | 3.84% | 20.0 |
 | 3 | Nepal | 823 | 3.42% | 32.0 |
@@ -120,10 +129,10 @@ Distribution of foreign examinees by citizenship.
 
 ### NMAT Performance by Nationality
 
-Median NMAT percentile for top nationalities, showing score distribution.
+Median NMAT percentile for top nationalities, showing score distribution (best-record basis).
 
-| Nationality | n | Median Pctl | Q1 Pctl | Q3 Pctl | % Below B4 (30th) |
-|:------------|:--:|:----------:|:-------:|:-------:|:-----------------:|
+| Nationality | n (Best Record) | Median Pctl | Q1 Pctl | Q3 Pctl | % Below B4 (30th) |
+|:------------|:---------------:|:----------:|:-------:|:-------:|:-----------------:|
 | India | 19,092 | 18.0 | 4.0 | 43.0 | 62.69% |
 | Thailand | 924 | 20.0 | 6.0 | 41.0 | 63.10% |
 | Nepal | 823 | 32.0 | 12.0 | 54.5 | 45.69% |
@@ -145,18 +154,20 @@ Median NMAT percentile for top nationalities, showing score distribution.
 | Sudan | 45 | 3.0 | 1.0 | 9.0 | 91.11% |
 | Pakistan | 43 | 8.0 | 2.5 | 47.5 | 69.77% |
 
-### Foreign Examinee PLE Linkage
+### Foreign vs Filipino: NMAT-to-PLE Linkage
 
-NMAT-to-PLE linkage rates for foreign vs Filipino examinees (pre-2015 cohort).
+NMAT-to-PLE linkage rates for foreign vs Filipino examinees (pre-2015 cohort, best-record basis).
 
-| Group | n (Pre-2015) | PLE Matched | Linkage Rate |
-|:------|:------------:|:-----------:|:------------:|
+| Group | n (Pre-2015, Best Record) | PLE Matched | NMAT-to-PLE Linkage Rate |
+|:------|:------------------------:|:-----------:|:------------------------:|
 | Filipino | 59,447 | 29,147 | 49.03% |
 | Foreign | 5,054 | 126 | 2.49% |
 
-### Interpretation
+### Key Insight
 
-Of 133,804 NMAT examinees, 24,079 (18.0%) are foreign nationals based on CITIZENSHIP_FINAL. The largest group is from India (19,092, 79.3% of foreign examinees).
+Of 133,804 NMAT examinees (best-record), 24,079 (18.0%) are foreign nationals based on CITIZENSHIP_FINAL. Across all records (including repeat takers), there are 32,514 foreign test records.
+
+The largest nationality group is from India (19,092, 79.3% of foreign examinees, best-record basis).
 
 Indian-origin examinees have a median percentile of 18.0 (B2 range), and 62.7% fall below the 30th percentile threshold (B4). This has significant implications for the proposed 30th/40th cut-off policy.
 

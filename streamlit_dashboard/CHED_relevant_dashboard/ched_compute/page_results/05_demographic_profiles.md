@@ -8,9 +8,9 @@
 
 ## Results
 
-This section examines NMAT performance and PLE linkage across demographic dimensions: sex and course group.
+This section examines NMAT performance and PLE linkage across demographic dimensions: sex, course group, repeat taker status, and PLE year gap.
 
-### Performance by Sex
+### Sex-Based Analysis
 
 | Metric | Value |
 |--------|-------|
@@ -20,7 +20,7 @@ This section examines NMAT performance and PLE linkage across demographic dimens
 | **Female Median Percentile** | 50.0 (Q1: 23.0, Q3: 76.0) |
 | **Male Median Percentile** | 49.0 (Q1: 22.0, Q3: 76.0) |
 
-#### NMAT Performance by Sex
+#### Sex Comparison Table
 
 | Metric | Female | Male | Difference |
 |--------|:-----:|:----:|:----------:|
@@ -29,45 +29,46 @@ This section examines NMAT performance and PLE linkage across demographic dimens
 | Mean Percentile | 49.44 | 49.16 | +0.28 |
 | Median TotalRawScore | 122.00 | 121.00 | +1.00 |
 
-#### Percentile Bin Distribution by Sex
+#### PLE Linkage by Sex
 
-| PercentileBin | Female n | Female % | Male n | Male % |
-|:------------:|:--------:|:--------:|:------:|:------:|
-| B1 | 8,380 | 11.30% | 7,181 | 12.05% |
-| B2 | 6,959 | 9.38% | 5,413 | 9.08% |
-| B3 | 6,411 | 8.65% | 4,956 | 8.31% |
-| B4 | 6,957 | 9.38% | 5,507 | 9.24% |
-| B5 | 7,038 | 9.49% | 5,605 | 9.40% |
-| B6 | 7,096 | 9.57% | 5,520 | 9.26% |
-| B7 | 6,893 | 9.30% | 5,285 | 8.87% |
-| B8 | 7,183 | 9.69% | 5,414 | 9.08% |
-| B9 | 7,288 | 9.83% | 5,717 | 9.59% |
-| B10 | 8,523 | 11.49% | 7,374 | 12.37% |
+NMAT-to-PLE linkage rates by sex (pre-2015 cohort, best-record basis).
 
-#### PLE Linkage Rate by Sex
-
-NMAT-to-PLE linkage rates for the observable cohort by sex.
-
-| Sex | n (Observable) | PLE Matched | Linkage Rate |
-|:---:|:--------------:|:-----------:|:------------:|
+| Sex | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |
+|:----|:------------:|:-----------:|:------------------------:|
 | Female | 38,215 | 17,144 | 44.86% |
 | Male | 26,248 | 12,125 | 46.19% |
 
-### Performance by Course Group
+### Repeat Taker Analysis
+
+Repeat takers are persons with more than one NMAT attempt. The repeat taker rate quantifies how many unique examinees retake the exam.
 
 | Metric | Value |
 |--------|-------|
-| **Medical & Allied** | 63,900 (47.8%), Median Pctl: 49.0 |
-| **Natural Sciences** | 41,430 (31.0%), Median Pctl: 54.0 |
-| **Social & Behavioral Sciences** | 16,462 (12.3%), Median Pctl: 39.0 |
-| **Other** | 7,983 (6.0%), Median Pctl: 53.0 |
-| **Education** | 3,279 (2.5%), Median Pctl: 51.0 |
-| **Engineering & Technology** | 750 (0.6%), Median Pctl: 72.0 |
+| **Total Unique Persons (PERSON_KEY)** | 134,869 |
+| **Repeat Takers (>1 attempt)** | 33,714 |
+| **Repeat Taker Rate** | 25.00% |
+| **Single Attempt Only** | 101,155 |
 
-#### NMAT Performance by Course Group
+#### Attempt Count Distribution
 
-| Course Group | n | % of Total | Median Pctl | Q1 | Q3 | Median TotalRaw |
-|:-------------|:--:|:----------:|:----------:|:--:|:--:|:---------------:|
+| Attempts | Persons | % of Total |
+|:--------:|:-------:|:----------:|
+| 1 | 101,155 | 75.00% |
+| 2 | 25,813 | 19.14% |
+| 3 | 6,046 | 4.48% |
+| 4 | 1,411 | 1.05% |
+| 5 | 332 | 0.25% |
+| 6 | 88 | 0.07% |
+| 7 | 17 | 0.01% |
+| 8 | 6 | 0.00% |
+| 9 | 1 | 0.00% |
+
+### Course Group Performance
+
+NMAT performance and PLE linkage by course group (best-record basis).
+
+| Course Group | n | % of Total | Median Pctl | Q1 Pctl | Q3 Pctl | Median Raw |
+|:-------------|:--:|:----------:|:-----------:|:-------:|:-------:|:----------:|
 | Medical & Allied | 63,900 | 47.8% | 49.0 | 25.0 | 73.0 | 121 |
 | Natural Sciences | 41,430 | 31.0% | 54.0 | 23.0 | 81.0 | 124 |
 | Social & Behavioral Sciences | 16,462 | 12.3% | 39.0 | 11.0 | 73.0 | 112 |
@@ -75,7 +76,7 @@ NMAT-to-PLE linkage rates for the observable cohort by sex.
 | Education | 3,279 | 2.5% | 51.0 | 26.0 | 78.0 | 130 |
 | Engineering & Technology | 750 | 0.6% | 72.0 | 41.0 | 91.0 | 140 |
 
-#### Percentile Bin Distribution by Course Group
+#### Course Group x PercentileBin Distribution
 
 Percentage of each course group's examinees in each percentile bin.
 
@@ -92,12 +93,12 @@ Percentage of each course group's examinees in each percentile bin.
 | B9 | 9.18% | 10.63% | 8.47% | 11.36% | 10.03% | 14.27% |
 | B10 | 9.57% | 15.12% | 11.04% | 13.12% | 13.75% | 26.93% |
 
-#### PLE Linkage Rate by Course Group
+#### NMAT-to-PLE Linkage by Course Group
 
-NMAT-to-PLE linkage rates by course group (observable cohort, Year <= 2014).
+NMAT-to-PLE linkage rates by course group (observable cohort, Year <= 2014, best-record basis).
 
-| Course Group | n (Observable) | PLE Matched | Linkage Rate |
-|:-------------|:--------------:|:-----------:|:------------:|
+| Course Group | n (Observable) | PLE Matched | NMAT-to-PLE Linkage Rate |
+|:-------------|:--------------:|:-----------:|:------------------------:|
 | Medical & Allied | 35,433 | 16,061 | 45.33% |
 | Natural Sciences | 15,219 | 6,921 | 45.48% |
 | Other | 6,189 | 2,853 | 46.10% |
@@ -105,9 +106,61 @@ NMAT-to-PLE linkage rates by course group (observable cohort, Year <= 2014).
 | Education | 2,973 | 1,541 | 51.83% |
 | Engineering & Technology | 302 | 114 | 37.75% |
 
-### Interpretation
+### PLE Year Gap Distribution
+
+For examinees matched to PLE passer records, the gap (in years) between NMAT and PLE. This indicates how long after NMAT examinees typically pass PLE.
+
+| Metric | Value |
+|--------|-------|
+| **Matched Examinees with Gap Data** | 27,901 |
+| **Median NMAT-to-PLE Gap** | 6 years |
+| **Mean NMAT-to-PLE Gap** | 6.5 years |
+| **Minimum Gap** | 5 years |
+| **Maximum Gap** | 15 years |
+
+#### Gap Distribution
+
+| Gap (Years) | n | % of Matched |
+|:-----------:|:--:|:------------:|
+| 5 | 2,308 | 8.27% |
+| 6 | 14,759 | 52.90% |
+| 7 | 7,283 | 26.10% |
+| 8 | 2,260 | 8.10% |
+| 9 | 775 | 2.78% |
+| 10 | 294 | 1.05% |
+| 11 | 128 | 0.46% |
+| 12 | 62 | 0.22% |
+| 13 | 23 | 0.08% |
+| 14 | 5 | 0.02% |
+| 15 | 4 | 0.01% |
+
+The typical gap is 6 years (mean 6.5), consistent with a standard 4-year undergraduate degree followed by immediate PLE.
+
+### Yearly Trend Summary
+
+Per-year NMAT performance metrics (best-record basis). This shows how examinee volume and scores have evolved over time.
+
+| Year | n | Median Percentile | Median Raw Score | % Foreign | Female % |
+|:----:|:--:|:-----------------:|:----------------:|:---------:|:--------:|
+| 2006 | 3,665 | 53.0 | 131.0 | 3.87% | 66.44% |
+| 2007 | 3,660 | 52.0 | 130.0 | 8.74% | 63.11% |
+| 2008 | 4,849 | 54.0 | 129.0 | 6.99% | 61.08% |
+| 2009 | 6,881 | 52.0 | 129.0 | 6.57% | 61.34% |
+| 2010 | 8,008 | 57.0 | 135.0 | 5.14% | 47.15% |
+| 2011 | 8,731 | 52.0 | 129.0 | 5.36% | 55.07% |
+| 2012 | 9,145 | 53.0 | 121.0 | 6.16% | 61.33% |
+| 2013 | 9,121 | 59.0 | 128.0 | 7.65% | 62.33% |
+| 2014 | 10,441 | 57.0 | 120.0 | 15.90% | 61.38% |
+| 2015 | 10,402 | 52.0 | 118.0 | 29.23% | 57.91% |
+| 2016 | 12,609 | 48.0 | 123.0 | 29.80% | 58.17% |
+| 2017 | 23,955 | 44.0 | 118.0 | 29.30% | 59.98% |
+| 2018 | 22,337 | 43.0 | 111.0 | 23.32% | 36.76% |
+
+### Key Insights
 
 - **Sex:** Female examinees have a median NMAT percentile of 50.0 vs 49.0 for males (difference: +1.0 points). Females represent the majority of NMAT examinees.
+
+- **Repeat taking:** 33,714 (25.0%) of 134,869 unique examinees have taken the NMAT more than once.
 
 - **Course Group:** Medical & Allied is the largest course group (63,900 examinees, 47.8%). Medical & Allied courses dominate the NMAT-taking population.
 

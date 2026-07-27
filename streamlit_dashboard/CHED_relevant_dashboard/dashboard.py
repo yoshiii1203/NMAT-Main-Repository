@@ -67,6 +67,29 @@ PAL_SEX = {"Female": "#e377c2", "Male": "#1f77b4"}
 
 YEAR_RANGE = (2006, 2018)
 
+def render_caveat(caveat_type: str):
+    caveats = {
+        "general": "\U0001f4a1 **Data Limitations:** NMAT data covers 2006\u20132018. "
+                   "PLE data covers 2011\u20132022. Observable cohort (Year \u2264 2014) used "
+                   "for all PLE-linked summaries. See Data Appendix for full details.",
+        "linkage": "\u26a0\ufe0f **Not a PLE Pass Rate:** All PLE metrics on this page are "
+                   "NMAT-to-PLE linkage rates \u2014 the share of NMAT examinees later found in "
+                   "PLE passer records. We CANNOT compute actual PLE pass rates because our "
+                   "dataset contains only passers, not all PLE takers.",
+        "foreign": "\u26a0\ufe0f **Examinee Counts, Not Enrollment:** All foreign student figures "
+                   "reflect NMAT examinees. The CMO\u2019s 10-slot cap applies to enrolled students, "
+                   "which requires enrollment data from HEIs that we do not have.",
+        "cutoff": "\u26a0\ufe0f **Historical Data:** Cut-off scenarios use NMAT data from "
+                  "2006\u20132018. The CMO takes effect AY 2026\u20132027. There is an 8-year "
+                  "data gap. Trends may not reflect current conditions.",
+        "per_hei": "\u26a0\ufe0f **Not a Pass Rate:** Per-HEI PLE linkage rates are NOT PLE pass "
+                   "rates. They measure what share of an HEI\u2019s NMAT examinees were later "
+                   "found in PLE passer data. Do not use for CMO eligibility determination "
+                   "without validation against actual PRC data.",
+    }
+    c = caveats.get(caveat_type, caveats["general"])
+    st.warning(c)
+
 
 # ── Helper Functions ──
 
@@ -165,6 +188,10 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[0]:
         st.header("Overview")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** What is the overall policy context, "
+            "what are the key headline metrics, and how should this dashboard be used?"
+        )
         st.subheader("Policy Context")
         st.markdown(
             "CMO No. __, s. 2026 amends the NMAT cut-off policy to provide flexibility for "
@@ -174,6 +201,7 @@ def main():
             "**40th percentile**. Additionally, State Universities and Colleges (SUCs) are subject "
             "to a 10-slot cap on foreign student enrollment per incoming freshmen class."
         )
+        render_caveat("general")
 
         # Key metrics row
         n_total = len(best)
@@ -193,15 +221,19 @@ def main():
 
         # Data limitations
         st.info(
-            "\ud83d\udcdd **Critical Data Limitation:** We cannot compute PLE pass rates. "
+            "\U0001f4a1 **Dashboard Purpose:** This dashboard provides CHED policymakers, "
+            "HEI administrators, and education researchers with data-driven evidence on NMAT "
+            "score distributions, PLE linkage rates, and foreign student profiles to support "
+            "the implementation of CMO No. __, s. 2026.\n\n"
+            "\ud83d\udcdd **Critical Data Limitations:** (1) We cannot compute PLE pass rates. "
             "The PLE data contains passers only (43,630 rows, no fail records). "
             "What we report is the **NMAT-to-PLE linkage rate** \u2014 the share of NMAT examinees "
             "who are found in the PLE passer dataset. This is an evidence-based indicator of "
             "the relationship between NMAT scores and eventual PLE passage, but it is **not** "
             "the same as an official PLE pass rate.\n\n"
-            "**Foreign student data:** Counts reflect NMAT examinees, not enrolled students. "
+            "(2) **Foreign student data** counts NMAT examinees, not enrollees. "
             "The 10-slot cap applies to enrollment, which we cannot verify.\n\n"
-            "**Temporal limitation:** NMAT data covers 2006\u20132018 only. The CMO takes effect "
+            "(3) **Temporal gap:** NMAT data covers 2006\u20132018 only. The CMO takes effect "
             "AY 2026\u20132027. This is historical analysis, not current monitoring."
         )
 
@@ -223,11 +255,16 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[1]:
         st.header("National NMAT\u2013PLE Linkage Benchmark")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How does the national NMAT-to-PLE linkage rate "
+            "vary by year, and what is the 5-year rolling average used as the CHED benchmark?"
+        )
         st.markdown(
             "Annual linkage rates between NMAT examinees and PLE passers, with 5-year rolling average. "
             "The CHED amendment uses the 5-year rolling average as the national benchmark: PHEIs above "
             "this benchmark may set cut-off at the 30th percentile; those below must maintain 40th."
         )
+        render_caveat("linkage")
 
         # Compute annual linkage rates
         if bestobs.empty:
@@ -331,10 +368,15 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[2]:
         st.header("30th vs 40th Percentile Cut-Off Analysis")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How many examinees would be affected under a "
+            "30th vs 40th percentile cut-off, and how does impact vary by institution type?"
+        )
         st.markdown(
             "Comparison of examinee counts and PLE outcomes under the proposed 30th percentile (B4+) "
             "and 40th percentile (B5+) cut-off thresholds, broken down by university type."
         )
+        render_caveat("cutoff")
 
         if besttrend.empty:
             st.info("No data available for cut-off scenario analysis.")
@@ -449,10 +491,15 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[3]:
         st.header("Per-Institution NMAT Score Distribution")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** Which HEIs have the strongest and weakest "
+            "NMAT score distributions, and how do they compare on PLE linkage?"
+        )
         st.markdown(
             "Summary statistics and percentile bin distributions for each institution. "
             "Only institutions with at least 5 best-record examinees are included."
         )
+        render_caveat("per_hei")
 
         if besttrend.empty:
             st.info("No data available.")
@@ -546,11 +593,16 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[4]:
         st.header("Foreign Examinee Profile")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How many foreign NMAT examinees are there, "
+            "which nationalities dominate, and how does this relate to the 10-slot SUC cap?"
+        )
         st.markdown(
             "Profile of foreign NMAT examinees in the dataset. "
             "The CHED amendment caps foreign student enrollment at 10 per incoming freshmen class at SUCs. "
             "Note that we count NMAT examinees, not actual enrollees."
         )
+        render_caveat("foreign")
 
         foreign = besttrend[besttrend["FOREIGNER_STATUS"] != "Filipino"].copy()
 
@@ -645,6 +697,9 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[5]:
         st.header("Demographic Profiles")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How do NMAT scores vary by sex and course group?"
+        )
         st.markdown(
             "Distribution of NMAT examinees by sex and course group, "
             "with corresponding score percentiles."
@@ -766,11 +821,16 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[6]:
         st.header("NMAT\u2013PLE Alignment Analysis")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How strongly do NMAT percentile bins and "
+            "university types predict PLE linkage?"
+        )
         st.markdown(
             "How NMAT percentile bins and university types relate to PLE linkage. "
             "This analysis uses the observable cohort (Year <= 2014) to ensure a valid "
             "licensure observation window."
         )
+        render_caveat("linkage")
 
         if bestobs.empty:
             st.info("No observable cohort data available.")
@@ -896,6 +956,10 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[7]:
         st.header("Historical Trends (2006\u20132018)")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How have NMAT scores, examinee volumes, "
+            "and demographic composition changed over the 2006\u20132018 period?"
+        )
         st.markdown(
             "Year-over-year trends in NMAT scores, examinee volume, and percentile distribution."
         )
@@ -991,6 +1055,10 @@ def main():
     # ════════════════════════════════════════════════════════════════
     with tabs[8]:
         st.header("Methodology & Data Sources")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** What data sources, methodologies, and "
+            "limitations underpin all analyses in this dashboard?"
+        )
         st.markdown(
             "This appendix documents the data pipeline, key terms, and limitations "
             "for transparency and reproducibility."

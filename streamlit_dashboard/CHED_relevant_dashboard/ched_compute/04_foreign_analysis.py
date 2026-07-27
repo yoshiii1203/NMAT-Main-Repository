@@ -8,6 +8,7 @@ Computes:
   - NMAT performance by nationality (median percentile)
 
 CRITICAL: All counts are labeled as "examinee counts" NOT "enrollment".
+Every foreign count specifies best-record vs all-records denominator.
 """
 
 import sys
@@ -32,11 +33,11 @@ from helpers import (
 SCRIPT = "04_foreign_analysis"
 TITLE = "Foreign Examinee Analysis"
 
-
 def compute():
     df = load_data()
     subsets = create_subsets(df)
-    best = subsets["best"]
+    best = subsets["best"]       # person-level (one record per examinee)
+    full = subsets["full"]        # all records (includes repeat takers)
 
     lines = []
     lines.append("## Results\n")
@@ -48,38 +49,60 @@ def compute():
     )
     lines.append("")
 
-    # ── Identify foreign examinees ──────────────────────────────────────
+    # ── All-records context ──────────────────────────────────────────────
+    lines.append("### Foreign Counts: Best-Record vs All-Records\n")
+    lines.append(
+        "Two perspectives are provided: **best-record** (one record per examinee, primary) and "
+        "**all-records** (includes repeat takers, for volume context). "
+        "Always check which denominator is used.\n"
+    )
+
     foreign_statuses = ["Verified Foreigner", "Likely Foreigner"]
     best["IS_FOREIGN"] = best["FOREIGNER_STATUS"].isin(foreign_statuses)
+    full["IS_FOREIGN"] = full["FOREIGNER_STATUS"].isin(foreign_statuses)
 
     foreign = best[best["IS_FOREIGN"]].copy()
     local = best[~best["IS_FOREIGN"]].copy()
 
-    # ── Metric cards ────────────────────────────────────────────────────
+    # All-records foreign count
+    full_foreign = full[full["IS_FOREIGN"]].copy()
+    full_foreign_count = len(full_foreign)
+
+    # Best-record metrics
     total_foreign = len(foreign)
     total_local = len(local)
     verified_foreign = int((best["FOREIGNER_STATUS"] == "Verified Foreigner").sum())
     likely_foreign = int((best["FOREIGNER_STATUS"] == "Likely Foreigner").sum())
     pct_foreign = (total_foreign / len(best) * 100)
+    pct_foreign_full = (full_foreign_count / len(full) * 100)
 
+    # ── Metric cards ────────────────────────────────────────────────────
     metrics = [
         ("Total Examinees (Best Record)", fmt(len(best))),
-        ("Verified Foreigners", fmt(verified_foreign)),
-        ("Likely Foreigners", fmt(likely_foreign)),
-        ("Total Foreign Examinees", fmt(total_foreign)),
-        ("Filipino Examinees", fmt(total_local)),
-        ("Foreign as % of Total", f"{pct_foreign:.2f}%"),
+        ("Total Records (All Attempts)", fmt(len(full))),
+        ("", ""),
+        ("Foreign Examinees (Best Record) — PRIMARY", fmt(total_foreign)),
+        ("Foreign Records (All Attempts, includes repeat takers)", fmt(full_foreign_count)),
+        ("", ""),
+        ("Verified Foreigners (Best Record)", fmt(verified_foreign)),
+        ("Likely Foreigners (Best Record)", fmt(likely_foreign)),
+        ("Filipino Examinees (Best Record)", fmt(total_local)),
+        ("Foreign as % of Total (Best Record)", f"{pct_foreign:.2f}%"),
+        ("Foreign as % of Total (All Records)", f"{pct_foreign_full:.2f}%"),
     ]
-    lines.append("### Key Metrics\n")
+    lines.append("### Summary Metrics\n")
     lines.append(make_metric_table(metrics))
     lines.append("")
 
-    # ── Foreign examinees by UNI_TYPE ───────────────────────────────────
+    # ── By UNI_TYPE ─────────────────────────────────────────────────────
     lines.append("### Foreign Examinees by University Type\n")
-    lines.append("Distribution of foreign examinees across university types.\n")
+    lines.append(
+        "Distribution of foreign examinees across university types "
+        "(best-record basis).\n"
+    )
 
-    ut_header = "| UNI_TYPE | Foreign n | % of Foreign | % of UNI_TYPE Total |"
-    ut_sep = "|:---------|:---------:|:------------:|:-------------------:|"
+    ut_header = "| UNI_TYPE | Foreign n (Best Record) | % of Foreign | % of UNI_TYPE Total |"
+    ut_sep = "|:---------|:-----------------------:|:------------:|:-------------------:|"
     lines.append(ut_header)
     lines.append(ut_sep)
 
@@ -95,12 +118,12 @@ def compute():
 
     lines.append("")
 
-    # ── Foreign by Year ─────────────────────────────────────────────────
+    # ── By Year ─────────────────────────────────────────────────────────
     lines.append("### Foreign Examinees by Year\n")
-    lines.append("Yearly foreign examinee counts and trends.\n")
+    lines.append("Yearly foreign examinee counts and trends (best-record basis).\n")
 
-    yr_header = "| Year | Foreign n | % of Year Total | Total Examinees |"
-    yr_sep = "|:----:|:---------:|:---------------:|:---------------:|"
+    yr_header = "| Year | Foreign n (Best Record) | % of Year Total | Total Examinees |"
+    yr_sep = "|:----:|:-----------------------:|:---------------:|:---------------:|"
     lines.append(yr_header)
     lines.append(yr_sep)
 
@@ -113,11 +136,11 @@ def compute():
 
     lines.append("")
 
-    # ── Foreign per SUC per year (for 10-slot cap analysis) ─────────────
-    lines.append("### Foreign Examinee Counts per SUC per Year\n")
+    # ── Per SUC per year ────────────────────────────────────────────────
+    lines.append("### Foreign Examinees at SUCs (by Year)\n")
     lines.append(
         "This table shows foreign examinee counts at Public (SUC) institutions by year. "
-        "**Note:** These are examinee counts, not enrollment. Actual enrollment figures "
+        "**Note:** These are examinee counts (best-record), not enrollment. Actual enrollment figures "
         "may differ.\n"
     )
 
@@ -145,14 +168,14 @@ def compute():
     lines.append("*Only top 30 SUCs by total foreign examinees shown.*")
     lines.append("")
 
-    # ── Nationality distribution (top 20) ───────────────────────────────
-    lines.append("### Top 20 Nationalities Among Foreign Examinees\n")
-    lines.append("Distribution of foreign examinees by citizenship.\n")
+    # ── Nationality distribution ────────────────────────────────────────
+    lines.append("### Foreign Examinees by Nationality\n")
+    lines.append("Distribution of foreign examinees by citizenship (best-record basis).\n")
 
     nat_counts = foreign["CITIZENSHIP_FINAL"].value_counts().head(20)
 
-    nat_header = "| Rank | Nationality | n | % of Foreign | Median Percentile |"
-    nat_sep = "|:----:|:------------|:--:|:------------:|:-----------------:|"
+    nat_header = "| Rank | Nationality | n (Best Record) | % of Foreign | Median Percentile |"
+    nat_sep = "|:----:|:------------|:---------------:|:------------:|:-----------------:|"
     lines.append(nat_header)
     lines.append(nat_sep)
 
@@ -165,14 +188,15 @@ def compute():
 
     lines.append("")
 
-    # ── NMAT performance by nationality ─────────────────────────────────
+    # ── Performance by nationality ──────────────────────────────────────
     lines.append("### NMAT Performance by Nationality\n")
     lines.append(
-        "Median NMAT percentile for top nationalities, showing score distribution.\n"
+        "Median NMAT percentile for top nationalities, showing score distribution "
+        "(best-record basis).\n"
     )
 
-    perf_header = "| Nationality | n | Median Pctl | Q1 Pctl | Q3 Pctl | % Below B4 (30th) |"
-    perf_sep = "|:------------|:--:|:----------:|:-------:|:-------:|:-----------------:|"
+    perf_header = "| Nationality | n (Best Record) | Median Pctl | Q1 Pctl | Q3 Pctl | % Below B4 (30th) |"
+    perf_sep = "|:------------|:---------------:|:----------:|:-------:|:-------:|:-----------------:|"
     lines.append(perf_header)
     lines.append(perf_sep)
 
@@ -193,17 +217,18 @@ def compute():
 
     lines.append("")
 
-    # ── Foreign PLE linkage ─────────────────────────────────────────────
-    lines.append("### Foreign Examinee PLE Linkage\n")
+    # ── Foreign vs Filipino PLE linkage ─────────────────────────────────
+    lines.append("### Foreign vs Filipino: NMAT-to-PLE Linkage\n")
     lines.append(
-        "NMAT-to-PLE linkage rates for foreign vs Filipino examinees (pre-2015 cohort).\n"
+        "NMAT-to-PLE linkage rates for foreign vs Filipino examinees (pre-2015 cohort, "
+        "best-record basis).\n"
     )
 
     obs = subsets["best_pre2015"].copy()
     obs["IS_FOREIGN"] = obs["FOREIGNER_STATUS"].isin(foreign_statuses)
 
-    ple_header = "| Group | n (Pre-2015) | PLE Matched | Linkage Rate |"
-    ple_sep = "|:------|:------------:|:-----------:|:------------:|"
+    ple_header = "| Group | n (Pre-2015, Best Record) | PLE Matched | NMAT-to-PLE Linkage Rate |"
+    ple_sep = "|:------|:------------------------:|:-----------:|:------------------------:|"
     lines.append(ple_header)
     lines.append(ple_sep)
 
@@ -216,14 +241,19 @@ def compute():
 
     lines.append("")
 
-    # ── Interpretation ──────────────────────────────────────────────────
-    lines.append("### Interpretation\n")
+    # ── Key insight ─────────────────────────────────────────────────────
+    lines.append("### Key Insight\n")
     india_count = int(nat_counts.get("India", 0))
     lines.append(
-        f"Of {len(best):,} NMAT examinees, {total_foreign:,} ({pct_foreign:.1f}%) "
+        f"Of {len(best):,} NMAT examinees (best-record), {total_foreign:,} ({pct_foreign:.1f}%) "
         "are foreign nationals based on CITIZENSHIP_FINAL. "
-        f"The largest group is from India ({india_count:,}, "
-        f"{india_count/total_foreign*100:.1f}% of foreign examinees)."
+        f"Across all records (including repeat takers), there are {full_foreign_count:,} "
+        "foreign test records."
+    )
+    lines.append("")
+    lines.append(
+        f"The largest nationality group is from India ({india_count:,}, "
+        f"{india_count/total_foreign*100:.1f}% of foreign examinees, best-record basis)."
     )
     lines.append("")
 
@@ -246,25 +276,26 @@ def compute():
     body = "\n".join(lines)
     path = write_output(SCRIPT, TITLE, body)
 
-    # ── Print summary ───────────────────────────────────────────────────
+    # ── Console summary ─────────────────────────────────────────────────
     print(f"\n{'='*70}")
     print(f"  {TITLE}")
     print(f"{'='*70}")
-    print(f"  Total foreign examinees:         {total_foreign:>7,}")
-    print(f"  Verified Foreigners:             {verified_foreign:>7,}")
-    print(f"  Likely Foreigners:               {likely_foreign:>7,}")
-    print(f"  Filipino examinees:              {total_local:>7,}")
-    print(f"  Top nationality:                 India ({india_count:,})")
-    print(f"  Top nationality median pctl:     {india_median:.1f}")
+    print(f"  Total foreign examinees (best-record):  {total_foreign:>7,}")
+    print(f"  Total foreign records (all attempts):   {full_foreign_count:>7,}")
+    print(f"  Verified Foreigners (best-record):       {verified_foreign:>7,}")
+    print(f"  Likely Foreigners (best-record):         {likely_foreign:>7,}")
+    print(f"  Filipino examinees (best-record):        {total_local:>7,}")
+    print(f"  Top nationality:                         India ({india_count:,})")
+    print(f"  Top nationality median pctl:             {india_median:.1f}")
     print(f"  Output: {path}")
     print(f"{'='*70}\n")
 
     return {
         "total_foreign": total_foreign,
+        "full_foreign_count": full_foreign_count,
         "verified_foreign": verified_foreign,
         "likely_foreign": likely_foreign,
     }
-
 
 if __name__ == "__main__":
     compute()
