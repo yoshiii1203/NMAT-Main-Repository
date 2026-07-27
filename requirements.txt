@@ -1,3 +1,10 @@
-streamlit
-segno
-Pillow
+pandas>=1.5
+numpy>=1.24
+pyarrow>=10
+scipy>=1.10
+scikit-posthocs
+plotly>=5.15
+kaleido
+unidecode
+tqdm
+streamlit>=1.25
