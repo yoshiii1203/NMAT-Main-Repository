@@ -724,7 +724,7 @@ with st.expander("Read this first: how to interpret the dashboard", expanded=Fal
 
 (
     tab1, tab2, tab3, tab4, tab5, tab6,
-    tab7, tab8, tab9, tab10, tab11, tab12,
+    tab7, tab8, tab9, tab10, tab11, tab12, tab13,
 ) = st.tabs([
     "🏠 Executive Summary",
     "🧪 Data Integrity",
@@ -738,6 +738,7 @@ with st.expander("Read this first: how to interpret the dashboard", expanded=Fal
     "⏰ Year Gap & Gender",
     "📐 Statistical Tests",
     "📋 Policy Tables & Export",
+    "⚖️ CHED Compliance",
 ])
 
 # -----------------------------------------------------------------------------
@@ -2800,3 +2801,407 @@ with tab12:
                 file_name="policy_table_top_decile_survival.csv",
                 mime="text/csv",
             )
+
+# -----------------------------------------------------------------------------
+# TAB 13 — CHED Compliance
+# -----------------------------------------------------------------------------
+with tab13:
+    st.subheader("CHED Compliance — CMO No. __, s. 2026")
+    st.caption(
+        "Supporting evidence for the amended NMAT cut-off score policy. "
+        "These tables use the observable best-record cohort (Year <= 2014) for all PLE-linked summaries "
+        "to avoid misclassifying later cohorts as non-passers before their licensure window closes."
+    )
+
+    df_obs = F["bestobservable"]
+    df_trend = F["besttrend"]
+
+    if df_obs.empty:
+        st.info("No observable best-record rows are available under the current filters.")
+    else:
+        # -- Section A: National PLE Benchmark ---------------------------------
+        st.markdown("### Section A: National PLE Benchmark (5-Year Rolling Average)")
+        st.caption(
+            "The CHED amendment uses the average national PLE passing percentage for the last 5 years "
+            "as the benchmark. PHEIs with PLE performance above this benchmark may set NMAT cut-off at the "
+            "30th percentile; those below must maintain the 40th percentile."
+        )
+
+        _annual = (
+            df_obs.groupby("Year", observed=True)
+            .agg(
+                n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
+                n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
+            )
+            .reset_index()
+        )
+        _annual["ple_rate_pct"] = (_annual["n_confirmed_ple"] / _annual["n_examinees"] * 100).round(2)
+        _annual["5yr_rolling_avg_pct"] = _annual["ple_rate_pct"].rolling(window=5, min_periods=3).mean().round(2)
+
+        _c1, _c2 = st.columns([2, 1])
+        with _c1:
+            _fig_natl = go.Figure()
+            _fig_natl.add_trace(go.Scatter(
+                x=_annual["Year"].astype(str), y=_annual["ple_rate_pct"],
+                mode="lines+markers", name="Annual PLE rate",
+                line=dict(color="#1f77b4", width=2),
+                hovertemplate="Year: %{x}<br>PLE rate: %{y:.1f}%<extra></extra>",
+            ))
+            _fig_natl.add_trace(go.Scatter(
+                x=_annual["Year"].astype(str), y=_annual["5yr_rolling_avg_pct"],
+                mode="lines+markers", name="5-year rolling avg",
+                line=dict(color="#d62728", width=3, dash="dash"),
+                hovertemplate="Year: %{x}<br>5yr avg: %{y:.1f}%<extra></extra>",
+            ))
+            _fig_natl.update_layout(
+                title="National PLE Passing Rate with 5-Year Rolling Average",
+                xaxis_title="NMAT Year", yaxis_title="PLE Passing Rate (%)",
+                height=400, hovermode="x unified",
+            )
+            st.plotly_chart(_fig_natl, use_container_width=True, key="fig_t13_natl_benchmark")
+
+        with _c2:
+            _latest_5yr = _annual[_annual["5yr_rolling_avg_pct"].notna()].iloc[-1]
+            st.metric(
+                "Latest 5-year national avg",
+                f"{_latest_5yr['5yr_rolling_avg_pct']:.2f}%",
+                delta=None,
+                help="The benchmark PHEIs must beat to qualify for the 30th percentile cut-off.",
+            )
+            st.metric(
+                "Reference year",
+                f"{int(_latest_5yr['Year'])}",
+                help="The most recent NMAT cohort with a valid 5-year PLE observation window.",
+            )
+            _benchmark_val = _latest_5yr["5yr_rolling_avg_pct"]
+
+        st.dataframe(
+            _annual.rename(columns={
+                "Year": "NMAT Year",
+                "n_examinees": "Examinees (observable)",
+                "n_confirmed_ple": "Confirmed PLE passers",
+                "ple_rate_pct": "PLE passing rate (%)",
+                "5yr_rolling_avg_pct": "5-year rolling avg (%)",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.download_button(
+            "Download national benchmark table",
+            data=_annual.to_csv(index=False).encode("utf-8"),
+            file_name="ched_national_ple_benchmark.csv",
+            mime="text/csv",
+        )
+
+        st.divider()
+
+        # -- Section B: Per-HEI PLE Performance --------------------------------
+        st.markdown("### Section B: Per-HEI PLE Performance vs. National Benchmark")
+        st.caption(
+            "Each HEI's PLE passing rate compared to the national 5-year rolling average. "
+            "Green = above benchmark (eligible for 30th percentile cut-off). "
+            "Red = below benchmark (must maintain 40th percentile). "
+            "Only HEIs with at least 5 observable best-record examinees are shown for statistical reliability."
+        )
+
+        _hei_threshold = st.slider(
+            "Minimum examinee count per HEI", min_value=5, max_value=100, value=5, step=5,
+            key="t13_hei_min",
+        )
+
+        _hei_ple = (
+            df_obs.groupby(["UNIVERSITY", "UNI_TYPE"], observed=True)
+            .agg(
+                n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
+                n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
+                median_percentile=("NMS_PER_num", "median"),
+            )
+            .reset_index()
+        )
+        _hei_ple["ple_rate_pct"] = (_hei_ple["n_confirmed_ple"] / _hei_ple["n_examinees"] * 100).round(2)
+        _hei_ple = _hei_ple[_hei_ple["n_examinees"] >= _hei_threshold].copy()
+        _hei_ple["above_benchmark"] = _hei_ple["ple_rate_pct"] > _benchmark_val
+
+        _hei_display = _hei_ple.sort_values("ple_rate_pct", ascending=False).reset_index(drop=True)
+        _hei_display["status"] = np.where(
+            _hei_display["above_benchmark"],
+            "✅ Above benchmark (30th eligible)",
+            "🔴 Below benchmark (40th required)",
+        )
+
+        _c_pass = int(_hei_display["above_benchmark"].sum())
+        _c_fail = int((~_hei_display["above_benchmark"]).sum())
+        _c1, _c2, _c3 = st.columns(3)
+        _c1.metric("HEIs above benchmark", f"{_c_pass:,}", help="Eligible for 30th percentile cut-off")
+        _c2.metric("HEIs below benchmark", f"{_c_fail:,}", help="Must maintain 40th percentile cut-off")
+        _c3.metric("National benchmark", f"{_benchmark_val:.2f}%")
+
+        st.dataframe(
+            _hei_display[[
+                "UNIVERSITY", "UNI_TYPE", "n_examinees", "median_percentile",
+                "ple_rate_pct", "status",
+            ]].rename(columns={
+                "UNIVERSITY": "HEI Name",
+                "UNI_TYPE": "Type",
+                "n_examinees": "Examinees",
+                "median_percentile": "Median %ile",
+                "ple_rate_pct": "PLE rate (%)",
+                "status": "CHED Status",
+            }),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "PLE rate (%)": st.column_config.NumberColumn(format="%.2f"),
+                "Median %ile": st.column_config.NumberColumn(format="%.1f"),
+            },
+        )
+
+        st.download_button(
+            "Download per-HEI table",
+            data=_hei_display.to_csv(index=False).encode("utf-8"),
+            file_name="ched_per_hei_ple_performance.csv",
+            mime="text/csv",
+        )
+
+        st.divider()
+
+        # -- Section C: Cut-off Scenario Modeling ------------------------------
+        st.markdown("### Section C: 30th vs 40th Percentile Cut-off Scenarios")
+        st.caption(
+            "Comparison of examinee counts and PLE outcomes under the 30th percentile (B4+) "
+            "vs 40th percentile (B5+) cut-off thresholds, broken down by university type."
+        )
+
+        def _bin_at_or_above(b, threshold_b):
+            if pd.isna(b):
+                return False
+            try:
+                return BIN_ORDER.index(b) >= BIN_ORDER.index(threshold_b)
+            except (ValueError, IndexError):
+                return False
+
+        _scenario_rows = []
+        for _uni_type in ["All", "Public", "Private", "Foreign"]:
+            _sub = df_trend if _uni_type == "All" else df_trend[df_trend["UNI_TYPE"] == _uni_type]
+            _sub_obs = df_obs if _uni_type == "All" else df_obs[df_obs["UNI_TYPE"] == _uni_type]
+
+            for _label, _bin, _cohort in [
+                ("30th percentile (B4+)", "B4", _sub),
+                ("40th percentile (B5+)", "B5", _sub),
+            ]:
+                _admitted = _cohort[_cohort["PercentileBin"].apply(lambda x: _bin_at_or_above(x, _bin))]
+                _ple_cohort = _sub_obs[_sub_obs["PercentileBin"].apply(lambda x: _bin_at_or_above(x, _bin))]
+                _scenario_rows.append({
+                    "University Type": _uni_type,
+                    "Cut-off": _label,
+                    "Admitted (best records)": len(_admitted),
+                    "PLE passers (observable)": int(_ple_cohort["IS_PLE_ANALYSIS_SAFE"].sum()),
+                    "PLE pass rate (%)": round(_ple_cohort["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 2) if len(_ple_cohort) > 0 else 0,
+                    "Median percentile": round(_admitted["NMS_PER_num"].median(), 1) if len(_admitted) > 0 else 0,
+                })
+
+        _scenario_df = pd.DataFrame(_scenario_rows)
+
+        _c1, _c2 = st.columns([1, 1])
+        with _c1:
+            st.dataframe(_scenario_df, use_container_width=True, hide_index=True)
+        with _c2:
+            _fig_scenario = px.bar(
+                _scenario_df,
+                x="University Type", y="PLE pass rate (%)",
+                color="Cut-off", barmode="group",
+                title="PLE Pass Rate by Cut-off Scenario",
+                color_discrete_map={
+                    "30th percentile (B4+)": "#2e7d32",
+                    "40th percentile (B5+)": "#1565c0",
+                },
+            )
+            _fig_scenario.add_hline(
+                y=_benchmark_val, line_dash="dash", line_color="red",
+                annotation_text=f"National avg: {_benchmark_val:.1f}%",
+            )
+            _fig_scenario.update_layout(height=400)
+            st.plotly_chart(_fig_scenario, use_container_width=True, key="fig_t13_scenario")
+
+        st.download_button(
+            "Download cut-off scenarios",
+            data=_scenario_df.to_csv(index=False).encode("utf-8"),
+            file_name="ched_cutoff_scenarios.csv",
+            mime="text/csv",
+        )
+
+        st.divider()
+
+        # -- Section D: Foreign Student Slot Analysis --------------------------
+        st.markdown("### Section D: Foreign Student Enrollment (10-Slot Cap)")
+        st.caption(
+            "The CHED amendment caps foreign student enrollment at 10 per incoming freshmen class at SUCs. "
+            "This table shows foreign student counts per SUC per year based on CITIZENSHIP_FINAL "
+            "from NMAT_Exodus.parquet (Pipeline 4)."
+        )
+
+        if "CITIZENSHIP_FINAL" in df_trend.columns:
+            _suc_foreign = df_trend[
+                (df_trend["UNI_TYPE"] == "Public")
+                & (df_trend["FOREIGNER_STATUS"] != "Filipino")
+                & (df_trend["IS_BEST_NMAT_RECORD"] == True)
+            ]
+            if not _suc_foreign.empty:
+                _suc_yr = (
+                    _suc_foreign.groupby(["UNIVERSITY", "Year"], observed=True)
+                    .size()
+                    .reset_index(name="foreign_count")
+                )
+                _suc_yr["over_cap"] = _suc_yr["foreign_count"] > 10
+
+                _c1, _c2 = st.columns([1, 1])
+                with _c1:
+                    _over_cap = _suc_yr[_suc_yr["over_cap"]]
+                    st.metric(
+                        "SUC-Year combos exceeding 10-slot cap",
+                        f"{len(_over_cap)}",
+                        help="Number of SUC-year combinations where foreign enrollment exceeded the CHED 10-slot cap.",
+                    )
+                    st.metric(
+                        "Total foreign students at SUCs",
+                        f"{len(_suc_foreign):,}",
+                        help="Total foreign examinees at SUCs across all years.",
+                    )
+
+                with _c2:
+                    _suc_summary = (
+                        _suc_yr.groupby("UNIVERSITY")
+                        .agg(
+                            max_foreign=("foreign_count", "max"),
+                            total_foreign=("foreign_count", "sum"),
+                            years_over_cap=("over_cap", "sum"),
+                        )
+                        .reset_index()
+                        .sort_values("max_foreign", ascending=False)
+                        .head(20)
+                    )
+                    st.dataframe(
+                        _suc_summary.rename(columns={
+                            "UNIVERSITY": "SUC",
+                            "max_foreign": "Max foreign in 1 year",
+                            "total_foreign": "Total foreign",
+                            "years_over_cap": "Years over 10-cap",
+                        }),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                st.dataframe(
+                    _suc_yr.sort_values(["Year", "foreign_count"], ascending=[True, False]).rename(columns={
+                        "UNIVERSITY": "SUC",
+                        "foreign_count": "Foreign examinees",
+                        "over_cap": "Exceeds 10-cap?",
+                    }),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                st.download_button(
+                    "Download foreign enrollment table",
+                    data=_suc_yr.to_csv(index=False).encode("utf-8"),
+                    file_name="ched_foreign_enrollment_suc.csv",
+                    mime="text/csv",
+                )
+            else:
+                st.info("No foreign student records at SUCs under the current filters.")
+        else:
+            st.info("Citizenship columns not available. Run Pipeline 4 to generate NMAT_Exodus.parquet.")
+
+        st.divider()
+
+        # -- Section E: Per-HEI Score Distribution -----------------------------
+        st.markdown("### Section E: Per-HEI NMAT Score Distribution Viewer")
+        st.caption(
+            "Select an institution to view its NMAT score distribution, percentile bin composition, "
+            "and PLE alignment rate. Use this to assess what cut-off level would mean for a specific school's applicants."
+        )
+
+        _hei_list = sorted(df_trend["UNIVERSITY"].dropna().unique())
+        _selected_hei = st.selectbox(
+            "Select institution",
+            options=_hei_list,
+            index=_hei_list.index("University Of Santo Tomas") if "University Of Santo Tomas" in _hei_list else 0,
+            key="t13_hei_selector",
+        )
+
+        _hei_data = df_trend[df_trend["UNIVERSITY"] == _selected_hei].copy()
+        _hei_obs = df_obs[df_obs["UNIVERSITY"] == _selected_hei].copy()
+
+        if not _hei_data.empty:
+            _c1, _c2, _c3, _c4 = st.columns(4)
+            _c1.metric("Total examinees", f"{len(_hei_data):,}")
+            _c2.metric("Median percentile", f"{_hei_data['NMS_PER_num'].median():.1f}")
+            _c3.metric("Median TRUE raw score", f"{_hei_data['TotalRawScoreTRUE'].median():.1f}")
+            _c4.metric(
+                "PLE pass rate (observable)",
+                f"{_hei_obs['IS_PLE_ANALYSIS_SAFE'].mean() * 100:.1f}%" if not _hei_obs.empty else "N/A",
+            )
+
+            _bin_dist = _hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).fillna(0)
+            _bin_pct = (_bin_dist / _bin_dist.sum() * 100).round(1)
+
+            _fig_hei = go.Figure()
+            _fig_hei.add_trace(go.Bar(
+                x=_bin_dist.index, y=_bin_dist.values,
+                text=_bin_dist.values.astype(int),
+                textposition="outside",
+                marker_color=[BIN_COLORS.get(b, "#7f7f7f") for b in _bin_dist.index],
+                hovertemplate="Bin: %{x}<br>Count: %{y}<extra></extra>",
+            ))
+            _fig_hei.update_layout(
+                title=f"Bin Distribution — {_selected_hei}",
+                xaxis_title="Percentile Bin", yaxis_title="Examinees (best records)",
+                height=400,
+            )
+
+            _fig_hei_box = go.Figure()
+            _fig_hei_box.add_trace(go.Box(
+                y=_hei_data["NMS_PER_num"].dropna(),
+                name=_selected_hei,
+                boxmean=True,
+                marker_color="#1f77b4",
+                hovertemplate="Percentile: %{y:.1f}<extra></extra>",
+            ))
+            _fig_hei_box.update_layout(
+                title=f"Percentile Rank Distribution — {_selected_hei}",
+                yaxis_title="NMAT Percentile Rank",
+                height=400,
+            )
+
+            _col1, _col2 = st.columns(2)
+            with _col1:
+                st.plotly_chart(_fig_hei, use_container_width=True, key="fig_t13_hei_bins")
+            with _col2:
+                st.plotly_chart(_fig_hei_box, use_container_width=True, key="fig_t13_hei_box")
+
+            # Summary stats table for selected HEI
+            _hei_stats = _hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).reset_index()
+            _hei_stats.columns = ["PercentileBin", "Count"]
+            _hei_stats["Percent"] = (_hei_stats["Count"] / _hei_stats["Count"].sum() * 100).round(1)
+
+            _col1, _col2 = st.columns(2)
+            with _col1:
+                st.dataframe(_hei_stats, use_container_width=True, hide_index=True)
+            with _col2:
+                st.metric(
+                    "% at or above 30th percentile (B4+)",
+                    f"{_hei_stats[_hei_stats['PercentileBin'].isin(['B4','B5','B6','B7','B8','B9','B10'])]['Count'].sum() / _hei_stats['Count'].sum() * 100:.1f}%",
+                )
+                st.metric(
+                    "% at or above 40th percentile (B5+)",
+                    f"{_hei_stats[_hei_stats['PercentileBin'].isin(['B5','B6','B7','B8','B9','B10'])]['Count'].sum() / _hei_stats['Count'].sum() * 100:.1f}%",
+                )
+
+            st.download_button(
+                "Download HEI distribution",
+                data=_hei_stats.to_csv(index=False).encode("utf-8"),
+                file_name=f"ched_hei_{_selected_hei.replace(' ', '_')[:50]}_distribution.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("No data for the selected institution under the current filters.")
