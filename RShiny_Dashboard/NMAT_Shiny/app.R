@@ -1,7 +1,7 @@
 # =============================================================
 # NMAT Performance Dashboard — R Shiny
 # Covers all 12 pages from the original Streamlit dashboard.
-# Data source: NMAT_Ultima.parquet
+# Data source: NMAT_Exodus.parquet (enriched by Pipeline 4)
 # =============================================================
 
 # ── 1. PACKAGES ───────────────────────────────────────────────
@@ -85,13 +85,14 @@ SUBTEST_RAW <- c(
 # ── 3. DATA LOADING ───────────────────────────────────────────
 find_parquet <- function() {
   candidates <- c(
+    "../../dataset/NMAT_Exodus.parquet",
     "../../dataset/NMAT_Ultima.parquet",
     "../dataset/NMAT_Ultima.parquet",
     "dataset/NMAT_Ultima.parquet",
     "NMAT_Ultima.parquet"
   )
   for (p in candidates) if (file.exists(p)) return(p)
-  stop("Cannot find NMAT_Ultima.parquet — check working directory.")
+  stop("Cannot find NMAT_Ultima.parquet or NMAT_Exodus.parquet — check working directory.")
 }
 
 load_and_prep <- function() {
@@ -154,7 +155,7 @@ load_and_prep <- function() {
 }
 
 # Load once at startup (cached in global env)
-message("Loading NMAT_Ultima.parquet …")
+message("Loading NMAT_Exodus.parquet …")
 DF_RAW <- load_and_prep()
 message(sprintf("Loaded %s rows × %s cols", nrow(DF_RAW), ncol(DF_RAW)))
 

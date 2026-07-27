@@ -108,13 +108,14 @@ SUBTEST_RAW <- c(
 # ── DATA LOADING ───────────────────────────────────────────
 find_parquet <- function() {
   candidates <- c(
+    "../../dataset/NMAT_Exodus.parquet",
     "../../dataset/NMAT_Ultima.parquet",
     "../dataset/NMAT_Ultima.parquet",
     "dataset/NMAT_Ultima.parquet",
     "NMAT_Ultima.parquet"
   )
   for (p in candidates) if (file.exists(p)) return(p)
-  stop("Cannot find NMAT_Ultima.parquet — check working directory.")
+  stop("Cannot find NMAT_Ultima.parquet or NMAT_Exodus.parquet — check working directory.")
 }
 
 load_and_prep <- function() {
@@ -1153,7 +1154,7 @@ dt_export(nople_private, "Private - No PLE match (observable cohort)")
 ---
 
 <div style="background:#f0f4ff;border-left:3px solid #1a237e;padding:8px 14px;margin:18px 0 10px 0;border-radius:2px;font-size:14px;font-weight:600;color:#1a237e;">Citizenship profile - no-PLE-match examinees</div>
-<p style="color:#555;font-size:13px;margin-bottom:8px;">Links no-PLE-match records to a profiling file via APPNOCLEAN. Citizenship is an inferred nationality label derived from name patterns and registration data. The metrics below describe NMAT performance by inferred citizenship group.</p>
+<p style="color:#555;font-size:13px;margin-bottom:8px;">Citizenship labels (CITIZENSHIP_FINAL, FOREIGNER_STATUS) are baked into NMAT_Exodus.parquet by Pipeline 4 using a 3-tier hierarchy: REAL_FOREIGNERS.csv ground truth → pseudo-citizenship inference → Filipino default.</p>
 
 #### Citizenship Profile
 
@@ -2852,4 +2853,4 @@ write.csv(survival_tbl,          "ple_survival.csv",  row.names = FALSE)
 ```
 
 ---
-*Report generated: `r format(Sys.time(), "%Y-%m-%d %H:%M")`. Data source: NMAT_Ultima.parquet. Observable cohort: NMAT year <= 2014 (n = `r nrow(F_bestobs)`). All analyses use best NMAT record per person.*
+*Report generated: `r format(Sys.time(), "%Y-%m-%d %H:%M")`. Data source: NMAT_Exodus.parquet (enriched by Pipeline 4). Observable cohort: NMAT year <= 2014 (n = `r nrow(F_bestobs)`). All analyses use best NMAT record per person.*
