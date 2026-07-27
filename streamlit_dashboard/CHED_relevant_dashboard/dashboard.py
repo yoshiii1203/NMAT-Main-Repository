@@ -69,21 +69,21 @@ YEAR_RANGE = (2006, 2018)
 
 def render_caveat(caveat_type: str):
     caveats = {
-        "general": "\U0001f4a1 **Data Limitations:** NMAT data covers 2006\u20132018. "
-                   "PLE data covers 2011\u20132022. Observable cohort (Year \u2264 2014) used "
+        "general": " **Data Limitations:** NMAT data covers 2006-2018. "
+                   "PLE data covers 2011-2022. Observable cohort (Year \u2264 2014) used "
                    "for all PLE-linked summaries. See Data Appendix for full details.",
         "linkage": "\u26a0\ufe0f **Not a PLE Pass Rate:** All PLE metrics on this page are "
-                   "NMAT-to-PLE linkage rates \u2014 the share of NMAT examinees later found in "
+                   "NMAT-to-PLE linkage rates -- the share of NMAT examinees later found in "
                    "PLE passer records. We CANNOT compute actual PLE pass rates because our "
                    "dataset contains only passers, not all PLE takers.",
         "foreign": "\u26a0\ufe0f **Examinee Counts, Not Enrollment:** All foreign student figures "
-                   "reflect NMAT examinees. The CMO\u2019s 10-slot cap applies to enrolled students, "
+                   "reflect NMAT examinees. The CMO's 10-slot cap applies to enrolled students, "
                    "which requires enrollment data from HEIs that we do not have.",
         "cutoff": "\u26a0\ufe0f **Historical Data:** Cut-off scenarios use NMAT data from "
-                  "2006\u20132018. The CMO takes effect AY 2026\u20132027. There is an 8-year "
+                  "2006-2018. The CMO takes effect AY 2026-2027. There is an 8-year "
                   "data gap. Trends may not reflect current conditions.",
         "per_hei": "\u26a0\ufe0f **Not a Pass Rate:** Per-HEI PLE linkage rates are NOT PLE pass "
-                   "rates. They measure what share of an HEI\u2019s NMAT examinees were later "
+                   "rates. They measure what share of an HEI's NMAT examinees were later "
                    "found in PLE passer data. Do not use for CMO eligibility determination "
                    "without validation against actual PRC data.",
     }
@@ -156,35 +156,6 @@ def main():
         "All figures are computed from NMAT_Exodus.parquet (Pipeline 4, 178,927 best records, 2006-2018)."
     )
 
-    # Run Computation button
-    col_run, _ = st.columns([1, 5])
-    with col_run:
-        if st.button("\U0001f504 Run Computation Scripts"):
-            with st.spinner("Running computation scripts..."):
-                import subprocess, sys
-                script_dir = Path(__file__).parent.resolve()
-                scripts = [
-                    script_dir / "compute_pipeline4.py",
-                ]
-                for s in scripts:
-                    if s.exists():
-                        try:
-                            result = subprocess.run(
-                                [sys.executable, str(s)],
-                                capture_output=True, text=True, timeout=300
-                            )
-                            if result.returncode == 0:
-                                st.success(f"Script {s.name} completed successfully.")
-                            else:
-                                st.error(f"Script {s.name} failed:\\n{result.stderr[:500]}")
-                        except subprocess.TimeoutExpired:
-                            st.error(f"Script {s.name} timed out.")
-                        except Exception as e:
-                            st.error(f"Script {s.name} error:\\n{e}")
-                    else:
-                        st.info(f"Script {s.name} not found. Skipping.")
-            st.cache_data.clear()
-            st.rerun()
 
     # Load data
     with st.spinner("Loading NMAT data..."):
@@ -220,7 +191,7 @@ def main():
     with tabs[0]:
         st.header("Overview")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** What is the overall policy context, "
+            " **What This Tab Answers:** What is the overall policy context, "
             "what are the key headline metrics, and how should this dashboard be used?"
         )
         st.subheader("Policy Context")
@@ -242,8 +213,8 @@ def main():
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Total Examinees (best records)", f"{n_total:,}")
-        m2.metric("Years Covered", f"{n_years} ({YEAR_RANGE[0]}\u2013{YEAR_RANGE[1]})")
-        m3.metric("NMAT\u2013PLE Linkage Rate", f"{linkage_rate:.2f}%",
+        m2.metric("Years Covered", f"{n_years} ({YEAR_RANGE[0]}-{YEAR_RANGE[1]})")
+        m3.metric("NMAT-PLE Linkage Rate", f"{linkage_rate:.2f}%",
                   help="Share of NMAT examinees (observable cohort) found in PLE passer data. NOT a PLE pass rate.")
         m4.metric("Foreign Examinees", f"{n_foreign:,}",
                   help="Examinees classified as Verified Foreigner or Likely Foreigner on best record.")
@@ -252,42 +223,42 @@ def main():
 
         # Data limitations
         st.info(
-            "\U0001f4a1 **Dashboard Purpose:** This dashboard provides CHED policymakers, "
+            " **Dashboard Purpose:** This dashboard provides CHED policymakers, "
             "HEI administrators, and education researchers with data-driven evidence on NMAT "
             "score distributions, PLE linkage rates, and foreign student profiles to support "
             "the implementation of CMO No. __, s. 2026.\n\n"
-            "\ud83d\udcdd **Critical Data Limitations:** (1) We cannot compute PLE pass rates. "
+            " **Critical Data Limitations:** (1) We cannot compute PLE pass rates. "
             "The PLE data contains passers only (43,630 rows, no fail records). "
-            "What we report is the **NMAT-to-PLE linkage rate** \u2014 the share of NMAT examinees "
+            "What we report is the **NMAT-to-PLE linkage rate** -- the share of NMAT examinees "
             "who are found in the PLE passer dataset. This is an evidence-based indicator of "
             "the relationship between NMAT scores and eventual PLE passage, but it is **not** "
             "the same as an official PLE pass rate.\n\n"
             "(2) **Foreign student data** counts NMAT examinees, not enrollees. "
             "The 10-slot cap applies to enrollment, which we cannot verify.\n\n"
-            "(3) **Temporal gap:** NMAT data covers 2006\u20132018 only. The CMO takes effect "
-            "AY 2026\u20132027. This is historical analysis, not current monitoring."
+            "(3) **Temporal gap:** NMAT data covers 2006-2018 only. The CMO takes effect "
+            "AY 2026-2027. This is historical analysis, not current monitoring."
         )
 
         st.subheader("How to Use This Dashboard")
         st.markdown(
             "Navigate through the tabs above to explore different aspects of the data:\n\n"
-            "- **National Benchmark** \u2014 NMAT\u2013PLE linkage rates with 5-year rolling averages.\n"
-            "- **Cut-Off Scenarios** \u2014 Comparison of 30th vs 40th percentile thresholds.\n"
-            "- **Per-HEI Analysis** \u2014 Score distributions for individual institutions.\n"
-            "- **Foreign Students** \u2014 Profile of foreign examinees and SUC slot analysis.\n"
-            "- **Demographics** \u2014 Breakdowns by sex and course group.\n"
-            "- **PLE Alignment** \u2014 Linkage rates by percentile bin and institution type.\n"
-            "- **Trends** \u2014 Historical score and volume trends (2006\u20132018).\n"
-            "- **Data Appendix** \u2014 Methodology, data dictionary, and limitations."
+            "- **National Benchmark** -- NMAT-PLE linkage rates with 5-year rolling averages.\n"
+            "- **Cut-Off Scenarios** -- Comparison of 30th vs 40th percentile thresholds.\n"
+            "- **Per-HEI Analysis** -- Score distributions for individual institutions.\n"
+            "- **Foreign Students** -- Profile of foreign examinees and SUC slot analysis.\n"
+            "- **Demographics** -- Breakdowns by sex and course group.\n"
+            "- **PLE Alignment** -- Linkage rates by percentile bin and institution type.\n"
+            "- **Trends** -- Historical score and volume trends (2006-2018).\n"
+            "- **Data Appendix** -- Methodology, data dictionary, and limitations."
         )
 
     # ================================================================
     # TAB 2: NATIONAL BENCHMARK
     # ================================================================
     with tabs[1]:
-        st.header("National NMAT\u2013PLE Linkage Benchmark")
+        st.header("National NMAT-PLE Linkage Benchmark")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How does the national NMAT-to-PLE linkage rate "
+            " **What This Tab Answers:** How does the national NMAT-to-PLE linkage rate "
             "vary by year, and what is the 5-year rolling average used as the CHED benchmark?"
         )
         st.markdown(
@@ -358,7 +329,7 @@ def main():
                 hovertemplate="Year: %{x}<br>5yr avg: %{y:.1f}%<extra></extra>",
             ))
             fig_natl.update_layout(
-                title="Annual NMAT\u2013PLE Linkage Rate with 5-Year Rolling Average",
+                title="Annual NMAT-PLE Linkage Rate with 5-Year Rolling Average",
                 xaxis_title="NMAT Year",
                 yaxis_title="Linkage Rate (%)",
                 height=420,
@@ -400,7 +371,7 @@ def main():
     with tabs[2]:
         st.header("30th vs 40th Percentile Cut-Off Analysis")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How many examinees would be affected under a "
+            " **What This Tab Answers:** How many examinees would be affected under a "
             "30th vs 40th percentile cut-off, and how does impact vary by institution type?"
         )
         st.markdown(
@@ -523,7 +494,7 @@ def main():
     with tabs[3]:
         st.header("Per-Institution NMAT Score Distribution")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** Which HEIs have the strongest and weakest "
+            " **What This Tab Answers:** Which HEIs have the strongest and weakest "
             "NMAT score distributions, and how do they compare on PLE linkage?"
         )
         st.markdown(
@@ -615,7 +586,7 @@ def main():
                     )
 
                 st.caption(
-                    "Minimum 5 examinees required for reporting. Bin Distribution shows counts per bin (B1\u2013B10). "
+                    "Minimum 5 examinees required for reporting. Bin Distribution shows counts per bin (B1-B10). "
                     "PLE Linkage Rate requires >=5 observable examinees (Year <= 2014)."
                 )
 
@@ -625,7 +596,7 @@ def main():
     with tabs[4]:
         st.header("Foreign Examinee Profile")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How many foreign NMAT examinees are there, "
+            " **What This Tab Answers:** How many foreign NMAT examinees are there, "
             "which nationalities dominate, and how does this relate to the 10-slot SUC cap?"
         )
         st.markdown(
@@ -729,7 +700,7 @@ def main():
     with tabs[5]:
         st.header("Demographic Profiles")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How do NMAT scores vary by sex and course group?"
+            " **What This Tab Answers:** How do NMAT scores vary by sex and course group?"
         )
         st.markdown(
             "Distribution of NMAT examinees by sex and course group, "
@@ -862,9 +833,9 @@ def main():
     # TAB 7: PLE ALIGNMENT
     # ================================================================
     with tabs[6]:
-        st.header("NMAT\u2013PLE Alignment Analysis")
+        st.header("NMAT-PLE Alignment Analysis")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How strongly do NMAT percentile bins and "
+            " **What This Tab Answers:** How strongly do NMAT percentile bins and "
             "university types predict PLE linkage?"
         )
         st.markdown(
@@ -894,9 +865,9 @@ def main():
             # Metric cards for each bin tier
             st.subheader("Linkage Rate by Percentile Bin Tier")
             bin_tiers = {
-                "Bottom (B1\u2013B3)": ["B1", "B2", "B3"],
-                "Middle (B4\u2013B7)": ["B4", "B5", "B6", "B7"],
-                "Top (B8\u2013B10)": ["B8", "B9", "B10"],
+                "Bottom (B1-B3)": ["B1", "B2", "B3"],
+                "Middle (B4-B7)": ["B4", "B5", "B6", "B7"],
+                "Top (B8-B10)": ["B8", "B9", "B10"],
             }
             tier_cols = st.columns(3)
             for i, (tier_name, bins) in enumerate(bin_tiers.items()):
@@ -917,7 +888,7 @@ def main():
                 y="Linkage Rate (%)",
                 markers=True,
                 category_orders={"PercentileBin": BIN_ORDER},
-                title="NMAT\u2013PLE Linkage Rate by Percentile Bin",
+                title="NMAT-PLE Linkage Rate by Percentile Bin",
                 text="Linkage Rate (%)",
             )
             fig_bin_link.update_traces(
@@ -997,10 +968,10 @@ def main():
     # TAB 8: TRENDS
     # ================================================================
     with tabs[7]:
-        st.header("Historical Trends (2006\u20132018)")
+        st.header("Historical Trends (2006-2018)")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How have NMAT scores, examinee volumes, "
-            "and demographic composition changed over the 2006\u20132018 period?"
+            " **What This Tab Answers:** How have NMAT scores, examinee volumes, "
+            "and demographic composition changed over the 2006-2018 period?"
         )
         st.markdown(
             "Year-over-year trends in NMAT scores, examinee volume, and percentile distribution."
@@ -1045,7 +1016,7 @@ def main():
                 hovertemplate="Year: %{x}<br>Mean: %{y:.1f}<extra></extra>",
             ))
             fig_score.update_layout(
-                title="NMAT Percentile Score Trends (2006\u20132018)",
+                title="NMAT Percentile Score Trends (2006-2018)",
                 xaxis_title="NMAT Year",
                 yaxis_title="Percentile Score",
                 height=400,
@@ -1059,7 +1030,7 @@ def main():
                 yearly,
                 x="Year",
                 y="Total_Examinees",
-                title="Annual Examinee Volume (2006\u20132018)",
+                title="Annual Examinee Volume (2006-2018)",
                 color="Total_Examinees",
                 color_continuous_scale="Blues",
                 text_auto=",",
@@ -1098,7 +1069,7 @@ def main():
     with tabs[8]:
         st.header("Accountability Framework")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** How should HEIs be monitored and "
+            " **What This Tab Answers:** How should HEIs be monitored and "
             "held accountable under the new CMO NMAT cut-off policy?"
         )
         st.markdown(
@@ -1255,7 +1226,7 @@ def main():
     with tabs[9]:
         st.header("Methodology & Data Sources")
         st.info(
-            "\U0001f4a1 **What This Tab Answers:** What data sources, methodologies, and "
+            " **What This Tab Answers:** What data sources, methodologies, and "
             "limitations underpin all analyses in this dashboard?"
         )
         st.markdown(
@@ -1265,22 +1236,22 @@ def main():
 
         with st.expander("How the Data Was Produced - Pipeline Summary", expanded=True):
             st.markdown(
-                "**NMAT_Exodus.parquet** \u2014 the final enriched dataset from Pipeline 4, containing "
+                "**NMAT_Exodus.parquet** -- the final enriched dataset from Pipeline 4, containing "
                 "178,927 rows \u00d7 54 columns. This dataset integrates:\n\n"
-                "- Raw NMAT scores and percentile bins (B1\u2013B10) for each examinee\n"
+                "- Raw NMAT scores and percentile bins (B1-B10) for each examinee\n"
                 "- Demographic data (sex, course group, institution, university type)\n"
                 "- PLE match status (IS_PLE_ANALYSIS_SAFE, IS_PLE_PASSER)\n"
                 "- Citizenship classification (CITIZENSHIP_FINAL, FOREIGNER_STATUS)\n"
                 "- Best-record flag (IS_BEST_NMAT_RECORD) ensuring one record per examinee\n\n"
                 "The original data sources are:\n"
-                "- **NMAT historical database** (2006\u20132018) from CEM\n"
+                "- **NMAT historical database** (2006-2018) from CEM\n"
                 "- **PLE_DATA.csv** (43,630 rows, 1 column: PLE_YEAR_PASSED) from PRC\n"
                 "- **REAL_FOREIGNERS.csv** for citizenship verification"
             )
             st.markdown(
                 "**Data Pipeline Overview:**\n\n"
                 "1. **Pipeline 1:** Raw score extraction and standardization\n"
-                "2. **Pipeline 2:** NMAT\u2013PLE linkage via fuzzy matching on name and birth year\n"
+                "2. **Pipeline 2:** NMAT-PLE linkage via fuzzy matching on name and birth year\n"
                 "3. **Pipeline 3:** Score sanity checks, deduplication, best-record selection\n"
                 "4. **Pipeline 4:** Citizenship classification using name-based assessment and "
                 "REAL_FOREIGNERS.csv\n\n"
@@ -1295,7 +1266,7 @@ def main():
                     "Observable Cohort",
                     "Linkage Rate",
                     "PLE Pass Rate",
-                    "B1\u2013B10 Bins",
+                    "B1-B10 Bins",
                     "B4+ (30th Percentile)",
                     "B5+ (40th Percentile)",
                     "FOREIGNER_STATUS",
@@ -1309,9 +1280,9 @@ def main():
                     "Best records with Year <= 2014, allowing a 4-year window for PLE licensure.",
                     "Share of NMAT examinees found in PLE passer data. NOT a pass rate.",
                     "Cannot be computed. Requires PLE taker data with pass/fail outcomes.",
-                    "Percentile rank bins: B1 (0\u20139.9) through B10 (90\u201399.9).",
-                    "Examinees at or above the 30th percentile (bins B4\u2013B10).",
-                    "Examinees at or above the 40th percentile (bins B5\u2013B10).",
+                    "Percentile rank bins: B1 (0-9.9) through B10 (90-99.9).",
+                    "Examinees at or above the 30th percentile (bins B4-B10).",
+                    "Examinees at or above the 40th percentile (bins B5-B10).",
                     "Classification: Filipino, Verified Foreigner, or Likely Foreigner.",
                     "Nationality as determined by Pipeline 4 citizenship integration.",
                     "State University or College.",
@@ -1336,12 +1307,12 @@ def main():
                 "but different from the official PLE pass rate.\n\n"
                 "2. **Foreign student data counts examinees, not enrollees.** The 10-slot cap in the CMO "
                 "applies to enrolled foreign students. Our data shows who took the NMAT, not who enrolled.\n\n"
-                "3. **Temporal gap.** NMAT data covers 2006\u20132018. The CMO takes effect AY 2026\u20132027. "
+                "3. **Temporal gap.** NMAT data covers 2006-2018. The CMO takes effect AY 2026-2027. "
                 "This is historical analysis, not current monitoring.\n\n"
                 "4. **Per-HEI PLE performance cannot determine compliance with Section IV-B-1b/c.** "
                 "The CMO requires per-HEI 'PLE performance at a rate above the average national passing "
                 "percentage.' Without PLE pass rates, we cannot definitively determine compliance.\n\n"
-                "5. **Province-level geography was removed** during column slimming (118 \u2192 54 columns). "
+                "5. **Province-level geography was removed** during column slimming (118 -> 54 columns). "
                 "Province-level analysis is not currently possible."
             )
             st.markdown(
@@ -1366,7 +1337,7 @@ def main():
                 "All computations in this dashboard are performed directly from NMAT_Exodus.parquet "
                 "using the following approach:\n\n"
                 "- `best` subset = IS_BEST_NMAT_RECORD == True\n"
-                "- `besttrend` subset = best filtered to 2006\u20132018\n"
+                "- `besttrend` subset = best filtered to 2006-2018\n"
                 "- `bestobs` subset = besttrend filtered to Year <= 2014 (observable PLE cohort)\n\n"
                 "Aggregations use groupby operations on these subsets. All charts use Plotly Express "
                 "or Plotly Graph Objects. Tables are rendered via Streamlit's st.dataframe with "
@@ -1389,7 +1360,7 @@ def main():
                     "Deduplicated person identifier",
                     "NMAT examination year",
                     "NMAT percentile rank score",
-                    "Percentile bin classification (B1\u2013B10)",
+                    "Percentile bin classification (B1-B10)",
                     "University name (aggregated, deduplicated)",
                     "College/institution name within university",
                     "University type: Public, Private, Foreign, Not Specified",
@@ -1420,7 +1391,7 @@ def main():
         with st.expander("References"):
             st.markdown(
                 "- CMO No. __, s. 2026: Amendment to NMAT Cut-Off Scores\n"
-                "- NMAT_Exodus.parquet: Pipeline 4 output (Pipeline 1\u20134 documentation available in the "
+                "- NMAT_Exodus.parquet: Pipeline 4 output (Pipeline 1-4 documentation available in the "
                 "repository)\n"
                 "- Main NMAT Performance Dashboard: `streamlit_dashboard/main_dashboard/dashboard.py`\n"
                 "- CHED Implementation Plan: `streamlit_dashboard/CHED_relevant_dashboard/IMPLEMENTATION_PLAN.md`"
