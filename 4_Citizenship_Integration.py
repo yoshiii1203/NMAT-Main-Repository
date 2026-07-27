@@ -292,6 +292,30 @@ NATIONALITY_NORMALIZE = {
     "Panama": "Panama",
     "Philippines": "Philippines",  # Should not appear in RF but handle gracefully
     
+    # Missing nationalities (not previously mapped)
+    "Hong Kong": "Hong Kong",
+    "Macau": "Macau",
+    "Iraqi": "Iraq",
+    "Italian": "Italy",
+    "Austrian": "Austria",
+    "Portuguese": "Portugal",
+    "Guam": "Guam",
+    "Guamanian": "Guam",
+    "Bermuda": "Bermuda",
+    "Greenland": "Greenland",
+    "Isle Of Man": "Isle of Man",
+    "Reunion Island": "Reunion",
+    "West Indies": "West Indies",
+    "Wallis And Futuna Islands": "Wallis and Futuna",
+    "Bhutanese": "Bhutan",
+    "Syrian": "Syria",
+    "Kuwaiti": "Kuwait",
+    "Arab": None,  # ambiguous
+    "African": None,  # ambiguous (continent, not country)
+    "Palestinian Territories": "Palestine",
+    "Congo, Democratic Republic Of The": "Democratic Republic of the Congo",
+    "Trinidad And Tobago": "Trinidad and Tobago",
+    
     # Typos
     "Vietnemese": "Vietnam",
     "Camerdon": "Cameroon",
@@ -431,13 +455,10 @@ def main():
     # These ARE confirmed foreign examinees (they're in REAL_FOREIGNERS.csv),
     # their specific nationality just wasn't captured.
     tier1b_mask = (
-        df["IN_REAL_FOREIGNERS"] == True
+        (df["IN_REAL_FOREIGNERS"] == True)
         & ~tier1a_mask
     )
-    if "School Type_rec2_FINAL" in df.columns:
-        df.loc[tier1b_mask, "CITIZENSHIP_FINAL"] = df.loc[tier1b_mask, "School Type_rec2_FINAL"].fillna("Foreign")
-    else:
-        df.loc[tier1b_mask, "CITIZENSHIP_FINAL"] = "Foreign"
+    df.loc[tier1b_mask, "CITIZENSHIP_FINAL"] = "Foreign"
     df.loc[tier1b_mask, "FOREIGNER_STATUS"] = "Verified Foreigner"
     print(f"       Tier 1b (RF match, ambiguous nationality): {tier1b_mask.sum():,} records")
 
@@ -452,7 +473,7 @@ def main():
             & ~df["pseudo_citizenship"].apply(is_filipino_variant)
             & (df["override_applied"].str.upper().str.strip() == "FOREIGN")
         )
-        df.loc[tier2_mask, "CITIZENSHIP_FINAL"] = df.loc[tier2_mask, "pseudo_citizenship"]
+        df.loc[tier2_mask, "CITIZENSHIP_FINAL"] = df.loc[tier2_mask, "pseudo_citizenship"].apply(normalize_nationality)
         df.loc[tier2_mask, "FOREIGNER_STATUS"] = "Likely Foreigner"
         print(f"       Tier 2 (Likely Foreigner): {tier2_mask.sum():,} records")
     else:

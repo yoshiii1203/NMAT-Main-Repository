@@ -125,8 +125,8 @@ def to_bool_series(s: pd.Series) -> pd.Series:
         return s.astype("boolean")
 
     mapping = {
-        "TRUE": True, "1": True, "YES": True, "Y": True,
-        "FALSE": False, "0": False, "NO": False, "N": False,
+        "TRUE": True, "1": True, "1.0": True, "YES": True, "Y": True,
+        "FALSE": False, "0": False, "0.0": False, "NO": False, "N": False,
     }
     s_norm = s.astype(str).str.strip().str.upper()
 
