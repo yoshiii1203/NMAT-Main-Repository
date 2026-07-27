@@ -1,0 +1,60 @@
+# ── Virtual environment ──────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Dataset directory (raw + processed data) ─────────────────────
+dataset/
+
+# ── Python cache ─────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+
+# ── Jupyter notebook checkpoints ─────────────────────────────────
+.ipynb_checkpoints/
+
+# ── IDE / Editor ─────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs / Temp / Backups ───────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.backup
+
+# ── R environment ────────────────────────────────────────────────
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# ── Generated / compiled files ────────────────────────────────────
+*.html
+*.zip
+*.exe
+*.dll
+
+# ── Generated plot images ─────────────────────────────────────────
+images/
+
+# ── Generated binary reports ──────────────────────────────────────
+reports/*.pdf
+reports/*.docx
+
+# ── Generated directory listings ──────────────────────────────────
+tree_dir.txt
+
+# ── Environment files ────────────────────────────────────────────
+.env
+.env.local
