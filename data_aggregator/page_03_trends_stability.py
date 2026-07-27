@@ -64,7 +64,7 @@ def run():
     lines.append("")
     lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
-    lines.append("**Data source:** NMAT_Exodus.parquet (Pipeline 4)")
+    lines.append("**Data source:** NMAT_Exodus_Lite.parquet (Pipeline 4)")
     lines.append("")
     lines.append("**Data subset:** `besttrend` (IS_BEST_NMAT_RECORD & Year 2006-2018)")
     lines.append("")

@@ -59,7 +59,7 @@ def run() -> str:
     lines.append("")
     lines.append(f"**Generated:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
-    lines.append("**Data source:** NMAT_Exodus.parquet (Pipeline 4)")
+    lines.append("**Data source:** NMAT_Exodus_Lite.parquet (Pipeline 4)")
     lines.append("")
     lines.append("**Data subset:** `all` (full unfiltered dataset) and derived analytic subsets")
     lines.append("")

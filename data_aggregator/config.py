@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Paths
 ROOT = Path("dataset")
-EXODUS_PARQUET = ROOT / "NMAT_Exodus.parquet"
+EXODUS_PARQUET = ROOT / "NMAT_Exodus_Lite.parquet"
 EXODUS_CSV = ROOT / "NMAT_Exodus.csv"
 REAL_FOREIGNERS = ROOT / "REAL_FOREIGNERS.csv"
 RESULTS_DIR = Path("page_results")

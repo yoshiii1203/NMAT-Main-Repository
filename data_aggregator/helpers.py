@@ -9,8 +9,8 @@ from config import BIN_ORDER, PLE_ORDER
 
 
 def load_data():
-    """Load NMAT_Exodus.parquet and create all data subsets matching the dashboard."""
-    df = pd.read_parquet("dataset/NMAT_Exodus.parquet")
+    """Load NMAT_Exodus_Lite.parquet and create all data subsets matching the dashboard."""
+    df = pd.read_parquet("dataset/NMAT_Exodus_Lite.parquet")
     
     # Ensure required derived columns
     if "PLE_STATUS_LABEL" not in df.columns:
@@ -45,7 +45,7 @@ def write_header(f, title, subset_name, page_num):
     """Write markdown header for a page output file."""
     f.write(f"# Page {page_num}: {title}\n\n")
     f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
-    f.write(f"**Data source:** NMAT_Exodus.parquet (Pipeline 4)\n\n")
+    f.write(f"**Data source:** NMAT_Exodus_Lite.parquet (Pipeline 4)\n\n")
     f.write(f"**Data subset:** `{subset_name}`\n\n")
     f.write(f"**Filters:** None (full unfiltered dataset)\n\n")
     f.write("---\n\n")
