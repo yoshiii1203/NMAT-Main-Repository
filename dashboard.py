@@ -2614,20 +2614,20 @@ with tab11:
                 st.markdown("**Table 45. Observed counts by university type and percentile bin**")
                 st.caption("Cell counts of examinees by university type (rows) and percentile bin (columns).")
                 st.dataframe(observed_tbl.reset_index(), use_container_width=True)
-                st.markdown("**Table 46. Chi-square summary (university type × bin)**")
+                st.markdown("**Table 46. Chi-square summary (university type x bin)**")
                 st.caption("Chi-square statistic, degrees of freedom, and p-value testing independence between university type and bin.")
                 st.dataframe(chi_summary, use_container_width=True)
 
             with c2:
                 row_pct = observed_tbl.div(observed_tbl.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
-                st.markdown("**Figure 35. University type × bin row percentages**")
+                st.markdown("**Figure 35. University type x bin row percentages**")
                 st.caption("Heatmap shows row-wise percent distribution (percent of each university type located in each bin).")
                 fig = px.imshow(
                     row_pct,
                     text_auto=".1f",
                     aspect="auto",
                     color_continuous_scale="YlGnBu",
-                    title="University type × bin row percentages",
+                    title="University type x bin row percentages",
                     labels={"x": "Percentile bin", "y": "University type", "color": "Percent"},
                 )
                 fig.update_layout(height=450)
@@ -2803,10 +2803,10 @@ with tab12:
             )
 
 # -----------------------------------------------------------------------------
-# TAB 13 — CHED Compliance
+# TAB 13 - CHED Compliance
 # -----------------------------------------------------------------------------
 with tab13:
-    st.subheader("CHED Compliance — CMO No. __, s. 2026")
+    st.subheader("CHED Compliance - CMO No. __, s. 2026")
     st.caption(
         "Supporting evidence for the amended NMAT cut-off score policy. "
         "These tables use the observable best-record cohort (Year <= 2014) for all PLE-linked summaries "
@@ -3154,7 +3154,7 @@ with tab13:
                 hovertemplate="Bin: %{x}<br>Count: %{y}<extra></extra>",
             ))
             _fig_hei.update_layout(
-                title=f"Bin Distribution — {_selected_hei}",
+                title=f"Bin Distribution - {_selected_hei}",
                 xaxis_title="Percentile Bin", yaxis_title="Examinees (best records)",
                 height=400,
             )
@@ -3168,7 +3168,7 @@ with tab13:
                 hovertemplate="Percentile: %{y:.1f}<extra></extra>",
             ))
             _fig_hei_box.update_layout(
-                title=f"Percentile Rank Distribution — {_selected_hei}",
+                title=f"Percentile Rank Distribution - {_selected_hei}",
                 yaxis_title="NMAT Percentile Rank",
                 height=400,
             )

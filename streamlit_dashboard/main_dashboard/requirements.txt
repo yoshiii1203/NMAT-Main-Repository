@@ -1,0 +1,11 @@
+streamlit>=1.25
+pandas>=1.5
+numpy>=1.24
+pyarrow>=10
+plotly>=5.15
+scipy>=1.10
+scikit-posthocs
+duckdb
+
+# Optional for GPU acceleration:
+# cudf-pandas
