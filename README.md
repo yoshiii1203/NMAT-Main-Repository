@@ -182,7 +182,25 @@ streamlit run dashboard.py
 ```
 This reads directly from `dataset/NMAT_Exodus.parquet`. No pipeline re-run needed.
 
-### Option B: Re-run Individual Pipelines
+### Option B: Master Orchestrator Notebook
+
+The `00_RUN_ME.ipynb` notebook runs all 4 pipelines in sequence with progress reporting:
+
+```bash
+jupyter notebook 00_RUN_ME.ipynb
+```
+
+This master notebook:
+1. Installs/updates dependencies
+2. Runs Pipeline 1 (Data Cleaning)
+3. Runs Pipeline 2 (PLE Matching)
+4. Runs Pipeline 3 (Statistical Analysis)
+5. Runs Pipeline 4 (Citizenship Integration)
+6. Summarizes all outputs
+
+**Expected runtime:** Full pipeline: 30–60 minutes. Incremental runs (if data unchanged): faster.
+
+### Option C: Re-run Individual Pipelines
 
 ```bash
 # Pipeline 4 (fastest — citizenship enrichment only)
@@ -194,7 +212,7 @@ jupyter notebook 2_PLE_Matching_Pipeline.ipynb
 jupyter notebook 3_NMAT_PLE_Analysis.ipynb
 ```
 
-### Option C: Run Data Aggregator (Generate Static Reports)
+### Option D: Run Data Aggregator (Generate Static Reports)
 
 ```bash
 cd data_aggregator
