@@ -55,6 +55,9 @@ reports/*.docx
 # ── Generated directory listings ──────────────────────────────────
 tree_dir.txt
 
+# ── Vault (internal documentation) ────────────────────────────────
+vault/
+
 # ── Environment files ────────────────────────────────────────────
 .env
 .env.local
