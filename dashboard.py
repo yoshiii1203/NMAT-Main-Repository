@@ -32,7 +32,7 @@ except Exception:
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="NMAT Performance Dashboard",
-    page_icon="📊",
+    page_icon="?",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -266,7 +266,7 @@ def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_data_and_subsets():
-    _v = "bin_v1"  # cache bust: parquet regenerated with PercentileBin
+    _v = "exodus_v1"  # cache bust: parquet regenerated with NMAT_Exodus + CITIZENSHIP_FINAL
     path = find_data_path()
     df = pd.read_parquet(path, engine="pyarrow", use_threads=True)
     df = ensure_required_columns(df)
@@ -661,7 +661,7 @@ dfbestobservable = subsets["bestobservable"]
 _PC_LOOKUP_AVAILABLE = True
 
 # -----------------------------------------------------------------------------
-# SIDEBAR  (filters only — navigation is now handled by st.tabs)
+# SIDEBAR  (filters only -- navigation is now handled by st.tabs)
 # -----------------------------------------------------------------------------
 st.sidebar.subheader("Global filters")
 
@@ -709,14 +709,14 @@ _uniobs_pc = F["uniobservable"].copy()
 # -----------------------------------------------------------------------------
 # HEADER
 # -----------------------------------------------------------------------------
-st.title("NMAT Performance Dashboard, 2006–2018")
+st.title("NMAT Performance Dashboard, 2006-2018")
 st.caption("Descriptive, trend-based, and policy-oriented summaries based on the cleaned NMAT_Ultima pipeline. Person-level views use the best NMAT record per examinee where appropriate, while PLE-linked pages use the observable cohort only.")
 
 with st.expander("Read this first: how to interpret the dashboard", expanded=False):
     st.markdown(
         """
 - Best-record pages show one NMAT record per examinee.
-- Trend pages cover NMAT years 2006–2018.
+- Trend pages cover NMAT years 2006-2018.
 - PLE-linked pages use the observable cohort only.
 - Confirmed PLE outcomes refer to IS_PLE_ANALYSIS_SAFE == True.
         """
@@ -726,18 +726,18 @@ with st.expander("Read this first: how to interpret the dashboard", expanded=Fal
     tab1, tab2, tab3, tab4, tab5, tab6,
     tab7, tab8, tab9, tab10, tab11, tab12,
 ) = st.tabs([
-    "🏠 Executive Summary",
-    "🧪 Data Integrity",
-    "📈 Trends & Stability",
-    "📊 Score Bins & Background",
-    "🏫 University Type Analysis",
-    "🔄 Flow & Pathways",
-    "🎯 PLE Alignment",
-    "🔁 Repeat Takers",
-    "🧠 Subtests & Profiles",
-    "⏰ Year Gap & Gender",
-    "📐 Statistical Tests",
-    "📋 Policy Tables & Export",
+    "? Executive Summary",
+    "? Data Integrity",
+    "? Trends & Stability",
+    "? Score Bins & Background",
+    "? University Type Analysis",
+    "? Flow & Pathways",
+    "? PLE Alignment",
+    "? Repeat Takers",
+    "? Subtests & Profiles",
+    "? Year Gap & Gender",
+    "? Statistical Tests",
+    "? Policy Tables & Export",
 ])
 
 # -----------------------------------------------------------------------------
@@ -763,7 +763,7 @@ with tab1:
     col4.metric("Confirmed PLE share in observable cohort", f"{observable['HAS_CONFIRMED_PLE'].mean() * 100:.2f}%", help="Confirmed PLE outcomes are based on the pipeline field IS_PLE_ANALYSIS_SAFE == True.")
 
     st.markdown("""
-    📚 **Course Group Distribution**
+    ? **Course Group Distribution**
 
     Course groups are sourced directly from the cleaned pipeline output (`CourseGroup`):
 
@@ -775,7 +775,7 @@ with tab1:
     - **Other**: All remaining courses
     """)
 
-    exec_tab1, exec_tab2, exec_tab3 = st.tabs(["📊 Overview", "📈 Composition", "📋 Quick Tables"])
+    exec_tab1, exec_tab2, exec_tab3 = st.tabs(["? Overview", "? Composition", "? Quick Tables"])
 
     with exec_tab1:
         st.markdown("**Figure 1. Annual NMAT score and volume profile**")
@@ -802,7 +802,7 @@ with tab1:
         top_bin = base["PercentileBin"].isin(["B8", "B9", "B10"]).mean() * 100
         bottom_bin = base["PercentileBin"].isin(["B1", "B2", "B3"]).mean() * 100
         st.markdown("**Table 1. Executive summary indicators**")
-        st.caption("This table reports central score levels and the shares of examinees in the upper and lower bins. Top-bin share refers to B8–B10, while bottom-bin share refers to B1–B3.")
+        st.caption("This table reports central score levels and the shares of examinees in the upper and lower bins. Top-bin share refers to B8-B10, while bottom-bin share refers to B1-B3.")
         summary_tbl = pd.DataFrame({
             "Indicator": [
                 "Median Total Raw Score",
@@ -847,7 +847,7 @@ with tab2:
         "Analytic subset": [
             "All cleaned NMAT rows",
             "One best NMAT record per person",
-            "Best-record rows within 2006–2018",
+            "Best-record rows within 2006-2018",
             "Best-record rows in the observable PLE window",
             "Confirmed PLE-matched NMAT rows",
             "Confirmed PLE-matched best-record persons",
@@ -863,7 +863,7 @@ with tab2:
         "Interpretation": [
             "All cleaned NMAT rows",
             "One best NMAT record per person",
-            "Best-record rows within 2006–2018",
+            "Best-record rows within 2006-2018",
             "Best-record rows in the observable PLE window",
             "Confirmed PLE-matched NMAT rows",
             "Confirmed PLE-matched best-record persons",
@@ -1031,18 +1031,18 @@ with tab4:
         decile_order_desc = BIN_ORDER[::-1]
         pct_transposed = pct_transposed.reindex(decile_order_desc)
         st.markdown("**Figure 5. Percentile-bin heatmap by NMAT year**")
-        st.caption("Heatmap values are within-year percentages; B8–B10 represents the upper segment and B1–B3 represents the lower segment.")
+        st.caption("Heatmap values are within-year percentages; B8-B10 represents the upper segment and B1-B3 represents the lower segment.")
         st.plotly_chart(make_heatmap(pct_transposed, "Bin Distribution by Year", "Bin", "Year", "YlOrRd"), use_container_width=True, key="fig_t4_heatmap_year")
 
         # Add deciles distribution table by counts with D10 to D1 rows and Year columns
         st.markdown("**Table 10. Count of examinees in each bin by NMAT year**")
-        st.caption("Counts are rows in the filtered best-record trend cohort. Rows show bins (B10→B1) and columns show years.")
+        st.caption("Counts are rows in the filtered best-record trend cohort. Rows show bins (B10->B1) and columns show years.")
         count_transposed = count.T.reindex(BIN_ORDER[::-1])
         count_transposed.index.name = "PercentileBin"
         st.dataframe(count_transposed.reset_index(), use_container_width=True)
 
         st.markdown("**Figure 6. Bin composition within each NMAT year**")
-        st.caption("This figure shows within-year percentile-bin composition (percent). B8–B10 is the upper segment and B1–B3 the lower segment.")
+        st.caption("This figure shows within-year percentile-bin composition (percent). B8-B10 is the upper segment and B1-B3 the lower segment.")
         st.plotly_chart(make_stacked_pct_bar(pct, "Bin Composition by Year", "Year", "Percent", BIN_COLORS), use_container_width=True, key="fig_t4_stacked_year")
 
         top = pct[["B8", "B9", "B10"]].sum(axis=1)
@@ -1052,7 +1052,7 @@ with tab4:
         fig.add_trace(go.Scatter(x=bottom.index.astype(str), y=bottom.values, mode="lines+markers", name="Bottom B1-B3", line=dict(color="#c62828", width=3)))
         fig.update_layout(title="Top vs Bottom Bin Share by Year", xaxis_title="Year", yaxis_title="Percent", height=420)
         st.markdown("**Figure 7. Top-bin versus bottom-bin share by NMAT year**")
-        st.caption("This chart compares combined B8–B10 (top) versus B1–B3 (bottom) shares by year.")
+        st.caption("This chart compares combined B8-B10 (top) versus B1-B3 (bottom) shares by year.")
         st.plotly_chart(fig, use_container_width=True, key="fig_t4_topbot")
 
     with dec_tab2:
@@ -1064,8 +1064,8 @@ with tab4:
         st.plotly_chart(make_heatmap(uni_pct, "Bin Distribution by University Type", "Bin", "University type"), use_container_width=True, key="fig_t4_heatmap_uni")
 
         top_uni = uni_pct[["B8", "B9", "B10"]].sum(axis=1)
-        st.markdown("**Figure 9. Share of examinees in B8–B10 by university type**")
-        st.caption("The bar chart highlights representation in the top three bins (B8–B10) by university type.")
+        st.markdown("**Figure 9. Share of examinees in B8-B10 by university type**")
+        st.caption("The bar chart highlights representation in the top three bins (B8-B10) by university type.")
         st.plotly_chart(make_top_share_bar(top_uni, "Top Bin Share by University Type", "Percent in B8-B10", "University type", PALETTE_UNI), use_container_width=True, key="fig_t4_top_uni")
 
         contingency, expected, chi_summary = chi_square_unitype_bin(dfuni.dropna(subset=["UNI_TYPE", "PercentileBin"]))
@@ -1117,7 +1117,7 @@ with tab4:
             )
             _fig_yr_uni.update_layout(height=520)
             _fig_yr_uni.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-            st.markdown("**Figure: Bin composition per year — Foreign vs Public vs Private**")
+            st.markdown("**Figure: Bin composition per year -- Foreign vs Public vs Private**")
             st.caption("Counts are filtered best-record trend examinees. Use this chart to compare year-to-year shifts within each university type.")
             st.plotly_chart(_fig_yr_uni, use_container_width=True, key="fig_t4_yr_uni_bin_facet")
 
@@ -1126,7 +1126,7 @@ with tab4:
         st.caption("Browse all examinees under each university type. Sorted by year (newest first) then percentile rank (highest first).")
 
         _rec_tab_foreign, _rec_tab_public, _rec_tab_private = st.tabs(
-            ["🌐 Foreign", "🏛️ Public", "🏫 Private"]
+            ["? Foreign", "?? Public", "? Private"]
         )
         _rec_display_cols = [
             c for c in [
@@ -1164,10 +1164,10 @@ with tab4:
         _rec_con.close()
 
         st.divider()
-        st.subheader("No PLE match — record listings by university type")
+        st.subheader("No PLE match -- record listings by university type")
         st.caption(
-            "Records shown here belong to the observable best-record cohort (Year ≤ 2014) "
-            "and have **no confirmed PLE match** (IS_PLE_ANALYSIS_SAFE ≠ True). "
+            "Records shown here belong to the observable best-record cohort (Year <= 2014) "
+            "and have **no confirmed PLE match** (IS_PLE_ANALYSIS_SAFE != True). "
             "The observable cohort is used because examinees from later years cannot yet be "
             "classified as non-passers."
         )
@@ -1175,7 +1175,7 @@ with tab4:
         _nople_df = F["uniobservable"]
 
         _nople_tab_foreign, _nople_tab_public, _nople_tab_private = st.tabs(
-            ["🌐 Foreign", "🏛️ Public", "🏫 Private"]
+            ["? Foreign", "?? Public", "? Private"]
         )
         _nople_display_cols = [
             c for c in [
@@ -1217,20 +1217,21 @@ with tab4:
 
         _nople_con.close()
 
-        # ── Citizenship profile ─────────────────────────────────────
+        # -- Citizenship profile -------------------------------------
         st.divider()
         st.subheader("Citizenship profile for no-PLE-match examinees")
         st.caption(
-            "This subsection uses APPNOCLEAN to link the no-PLE-match profiling file to the "
-            "NMAT_Ultima analytic records. Citizenship comes only from the profiling CSV, "
-            "while all scores, bins, year, university type, and background fields come from "
-            "the parquet-based dashboard dataset."
+            "Citizenship labels (CITIZENSHIP_FINAL, FOREIGNER_STATUS) are baked into "
+            "NMAT_Exodus.parquet by Pipeline 4 using a 3-tier hierarchy: "
+            "REAL_FOREIGNERS.csv ground truth -> pseudo-citizenship inference -> Filipino default."
         )
 
-        if not _PC_LOOKUP_AVAILABLE:
-            st.info(
-                "Citizenship data is baked into NMAT_Exodus.parquet by Pipeline 4. "
-                "Run 4_Citizenship_Integration.py if NMAT_Exodus.parquet is missing."
+        if "CITIZENSHIP_FINAL" not in _uniobs_pc.columns:
+            st.error(
+                "CITIZENSHIP_FINAL column not found. "
+                "The dashboard may be loading from NMAT_Ultima.parquet instead of NMAT_Exodus.parquet. "
+                "Run Pipeline 4 (4_Citizenship_Integration.py) or clear the Streamlit cache "
+                "(Settings > Clear Cache) and reload."
             )
         else:
             _pc_base = _uniobs_pc[
@@ -1251,7 +1252,7 @@ with tab4:
                 _pm3.metric("Filipinos", f"{_pc_filipinos:,}")
                 _pm4.metric("Distinct citizenship labels", f"{_pc_distinct:,}")
 
-                # ── citizenship counts (reused in multiple charts) ──────────
+                # -- citizenship counts (reused in multiple charts) ----------
                 _pc_counts = (
                     _pc_base["CITIZENSHIP_FINAL"]
                     .value_counts()
@@ -1259,7 +1260,7 @@ with tab4:
                 )
                 _pc_counts.columns = ["CITIZENSHIP_FINAL", "n"]
 
-                # Pie charts side-by-side ─────────────────────────────────────
+                # Pie charts side-by-side -------------------------------------
                 _pp1, _pp2 = st.columns(2)
 
                 with _pp1:
@@ -1290,7 +1291,7 @@ with tab4:
                     )
                     st.plotly_chart(_fig_pc_fvf, use_container_width=True, key="fig_pc_pie_fvf")
 
-                # Top-15 horizontal bar ───────────────────────────────────────
+                # Top-15 horizontal bar ---------------------------------------
                 st.markdown("**Top citizenship groups by count**")
                 _top15 = _pc_counts.head(15).sort_values("n")
                 _fig_pc_top15 = go.Figure(go.Bar(
@@ -1310,7 +1311,7 @@ with tab4:
                 )
                 st.plotly_chart(_fig_pc_top15, use_container_width=True, key="fig_pc_top15_bar")
 
-                # Stacked % bar: decile composition by citizenship ────────────
+                # Stacked % bar: decile composition by citizenship ------------
                 st.markdown("**Bin composition by citizenship (top 15 groups)**")
                 _pc_top_grps = _pc_counts.head(15)["CITIZENSHIP_FINAL"].tolist()
                 _pc_dec_base = _pc_base[_pc_base["CITIZENSHIP_FINAL"].isin(_pc_top_grps)].copy()
@@ -1327,10 +1328,10 @@ with tab4:
                     _fig_pc_dec.update_layout(height=520)
                     st.plotly_chart(_fig_pc_dec, use_container_width=True, key="fig_pc_bin_stacked")
 
-                    st.markdown("**Full percentile-bin heatmap by citizenship (all bins B1–B10)**")
+                    st.markdown("**Full percentile-bin heatmap by citizenship (all bins B1-B10)**")
                     st.caption(
                         "Each row is one citizenship group; each column is one percentile bin. "
-                        "Values are row percentages — read across a row to see where that group clusters "
+                        "Values are row percentages -- read across a row to see where that group clusters "
                         "across the full score distribution, from the bottom (B1) to the top (B10). "
                         "Red tones flag higher concentration in that bin."
                     )
@@ -1344,11 +1345,11 @@ with tab4:
                     _fig_pc_hm_all.update_layout(height=max(450, len(_pc_top_grps) * 32 + 120))
                     st.plotly_chart(_fig_pc_hm_all, use_container_width=True, key="fig_pc_bin_heatmap_all")
 
-                # Top-decile share bar  +  percentile box plot ────────────────
+                # Top-decile share bar  +  percentile box plot ----------------
                 _pb1, _pb2 = st.columns(2)
 
                 with _pb1:
-                    st.markdown("**Top-bin share (B8–B10) by citizenship**")
+                    st.markdown("**Top-bin share (B8-B10) by citizenship**")
                     if "PercentileBin" in _pc_base.columns:
                         _pc_top_dec = (
                             _pc_base
@@ -1372,15 +1373,15 @@ with tab4:
                                 hovertemplate="Citizenship: %{y}<br>B8-B10 share: %{x:.1f}%<extra></extra>",
                             ))
                             _fig_pc_topdec.update_layout(
-                                title="Top-bin share (B8–B10)",
-                                xaxis_title="% in B8–B10",
+                                title="Top-bin share (B8-B10)",
+                                xaxis_title="% in B8-B10",
                                 yaxis_title="",
                                 height=max(360, len(_pc_top_dec) * 30),
                             )
                             st.plotly_chart(_fig_pc_topdec, use_container_width=True, key="fig_pc_topbin_bar")
 
                 with _pb2:
-                    st.markdown("**Percentile rank by citizenship (n ≥ 5)**")
+                    st.markdown("**Percentile rank by citizenship (n >= 5)**")
                     if "NMS_PER_num" in _pc_base.columns:
                         _pc_big = _pc_base.groupby("CITIZENSHIP_FINAL", observed=True).filter(
                             lambda x: len(x) >= 5
@@ -1391,14 +1392,14 @@ with tab4:
                                 x="CITIZENSHIP_FINAL",
                                 y="NMS_PER_num",
                                 points=False,
-                                title="Percentile rank by citizenship (n ≥ 5)",
+                                title="Percentile rank by citizenship (n >= 5)",
                                 labels={"NMS_PER_num": "Percentile rank", "CITIZENSHIP_FINAL": ""},
                             )
                             _fig_pc_box_pct.update_layout(height=430)
                             st.plotly_chart(_fig_pc_box_pct, use_container_width=True, key="fig_pc_box_pct")
 
-                # TRUE raw score box plot ──────────────────────────────────────
-                st.markdown("**TRUE raw score by citizenship (n ≥ 5)**")
+                # TRUE raw score box plot --------------------------------------
+                st.markdown("**TRUE raw score by citizenship (n >= 5)**")
                 if "TotalRawScoreTRUE" in _pc_base.columns:
                     _pc_big_raw = _pc_base.groupby("CITIZENSHIP_FINAL", observed=True).filter(
                         lambda x: len(x) >= 5
@@ -1409,13 +1410,13 @@ with tab4:
                             x="CITIZENSHIP_FINAL",
                             y="TotalRawScoreTRUE",
                             points=False,
-                            title="TRUE raw score by citizenship (n ≥ 5)",
+                            title="TRUE raw score by citizenship (n >= 5)",
                             labels={"TotalRawScoreTRUE": "Total raw score", "CITIZENSHIP_FINAL": ""},
                         )
                         _fig_pc_box_raw.update_layout(height=430)
                         st.plotly_chart(_fig_pc_box_raw, use_container_width=True, key="fig_pc_box_raw")
 
-                # ── Summary tables ────────────────────────────────────────────
+                # -- Summary tables --------------------------------------------
                 st.markdown("**Summary by citizenship**")
                 _pc_base["_is_top_d"] = _pc_base["PercentileBin"].isin(["B8", "B9", "B10"]) if "PercentileBin" in _pc_base.columns else False
                 _pc_base["_is_bot_d"] = _pc_base["PercentileBin"].isin(["B1", "B2", "B3"]) if "PercentileBin" in _pc_base.columns else False
@@ -1507,12 +1508,12 @@ with tab4:
                 )
                 st.caption(
                     f"{len(_pc_rec_df):,} matched records. "
-                    "Sorted by citizenship (A→Z), year (newest first), "
+                    "Sorted by citizenship (A->Z), year (newest first), "
                     "percentile rank (highest first)."
                 )
                 st.dataframe(_pc_rec_df, use_container_width=True, hide_index=True)
 
-                # ── Comparative analysis: foreigners vs Filipino students ──────
+                # -- Comparative analysis: foreigners vs Filipino students ------
                 st.divider()
                 st.subheader("Comparative analysis: foreigners vs Filipino students")
                 st.caption(
@@ -1563,7 +1564,7 @@ with tab4:
                         ignore_index=True,
                     )
 
-                    # Summary table ───────────────────────────────────────────
+                    # Summary table -------------------------------------------
                     st.markdown("**Summary: key score indicators by comparison group**")
                     st.caption(
                         "PLE pass rate uses IS_PLE_ANALYSIS_SAFE. "
@@ -1596,7 +1597,7 @@ with tab4:
                         _cmp_agg = _cmp_agg.merge(_ple_rates, on="Group", how="left")
                     st.dataframe(_cmp_agg, use_container_width=True, hide_index=True)
 
-                    # Boxplots ─────────────────────────────────────────────────
+                    # Boxplots -------------------------------------------------
                     _bcol1, _bcol2 = st.columns(2)
                     with _bcol1:
                         st.markdown("**Percentile rank distribution by group**")
@@ -1630,7 +1631,7 @@ with tab4:
                             _fig_cmp_raw.update_layout(height=460, showlegend=False, xaxis_tickangle=-20)
                             st.plotly_chart(_fig_cmp_raw, use_container_width=True, key="fig_cmp_raw_box")
 
-                    # Full bin heatmap ─────────────────────────────────────────
+                    # Full bin heatmap -----------------------------------------
                     if "PercentileBin" in _cmp_df.columns:
                         _cmp_bin_cnt, _cmp_bin_pct = pct_table(
                             _cmp_df.dropna(subset=["_cmp_group", "PercentileBin"]),
@@ -1640,11 +1641,11 @@ with tab4:
                         )
                         _cmp_bin_pct.index.name = "_cmp_group"
 
-                        st.markdown("**Full bin heatmap: foreigners vs Filipino groups (all bins B1–B10)**")
+                        st.markdown("**Full bin heatmap: foreigners vs Filipino groups (all bins B1-B10)**")
                         st.caption(
                             "Row percentages show the full distribution of each group across all ten "
-                            "percentile bins. Compare rows to see which groups skew high (B8–B10) "
-                            "or low (B1–B3). Green tones indicate higher percentage in that bin."
+                            "percentile bins. Compare rows to see which groups skew high (B8-B10) "
+                            "or low (B1-B3). Green tones indicate higher percentage in that bin."
                         )
                         _fig_cmp_hm = make_heatmap(
                             _cmp_bin_pct,
@@ -1671,11 +1672,11 @@ with tab4:
                         st.plotly_chart(_fig_cmp_stk, use_container_width=True, key="fig_cmp_stk_bar")
 
                         # Top vs bottom grouped bar
-                        st.markdown("**Top-bin (B8–B10) vs bottom-bin (B1–B3) share by group**")
+                        st.markdown("**Top-bin (B8-B10) vs bottom-bin (B1-B3) share by group**")
                         _cmp_topbot = pd.DataFrame({
                             "Group": _cmp_bin_pct.index.tolist(),
-                            "Top B8–B10 (%)": _cmp_bin_pct[["B8", "B9", "B10"]].sum(axis=1).values,
-                            "Bottom B1–B3 (%)": _cmp_bin_pct[["B1", "B2", "B3"]].sum(axis=1).values,
+                            "Top B8-B10 (%)": _cmp_bin_pct[["B8", "B9", "B10"]].sum(axis=1).values,
+                            "Bottom B1-B3 (%)": _cmp_bin_pct[["B1", "B2", "B3"]].sum(axis=1).values,
                         })
                         _cmp_topbot_long = _cmp_topbot.melt(
                             id_vars="Group", var_name="Segment", value_name="Percent"
@@ -1688,8 +1689,8 @@ with tab4:
                             barmode="group",
                             title="Top vs bottom bin share by group",
                             color_discrete_map={
-                                "Top B8–B10 (%)": "#2e7d32",
-                                "Bottom B1–B3 (%)": "#c62828",
+                                "Top B8-B10 (%)": "#2e7d32",
+                                "Bottom B1-B3 (%)": "#c62828",
                             },
                             labels={"Group": "", "Percent": "Percent", "Segment": ""},
                         )
@@ -1712,7 +1713,7 @@ with tab4:
         st.plotly_chart(make_heatmap(course_pct, "Bin Distribution by Course Group", "Bin", "Course group", "OrRd"), use_container_width=True, key="fig_t4_heatmap_course")
 
         top_course = course_pct[["B8", "B9", "B10"]].sum(axis=1)
-        st.markdown("**Figure 11. Share of examinees in B8–B10 by course group**")
+        st.markdown("**Figure 11. Share of examinees in B8-B10 by course group**")
         st.caption("The bar chart highlights representation in the top three bins by course group.")
         st.plotly_chart(make_top_share_bar(top_course, "Top Bin Share by Course Group", "Percent in B8-B10", "Course group", PALETTE_COURSE), use_container_width=True, key="fig_t4_top_course")
 
@@ -1787,7 +1788,7 @@ with tab5:
 
             top_by_inst = inst_decile_pct[["B8", "B9", "B10"]].sum(axis=1).sort_values()
             st.markdown("**Figure 13. Top-bin representation by institution type and location**")
-            st.caption("Top-bin representation refers to the combined share in B8–B10.")
+            st.caption("Top-bin representation refers to the combined share in B8-B10.")
             st.plotly_chart(
                 make_top_share_bar(
                     top_by_inst,
@@ -1901,7 +1902,7 @@ with tab6:
     uni = F["uni"]
     observable = F["bestobservable"]
 
-    flow_tab1, flow_tab2, flow_tab3, flow_tab4 = st.tabs(["University → Bin", "Course → Bin", "Bin → PLE", "Top pathways"])
+    flow_tab1, flow_tab2, flow_tab3, flow_tab4 = st.tabs(["University -> Bin", "Course -> Bin", "Bin -> PLE", "Top pathways"])
 
     with flow_tab1:
         st.caption("Insight: Compare how Public, Private, and Foreign flows distribute across bins.")
@@ -1958,7 +1959,7 @@ with tab6:
 
     with flow_tab4:
         st.caption("Insight: These are the largest pathways into top bins (B8-B10).")
-        st.markdown("**Table 21. Largest university-type pathways into B8–B10**")
+        st.markdown("**Table 21. Largest university-type pathways into B8-B10**")
         top_deciles = ["B8", "B9", "B10"]
         top_uni = (
             uni[uni["PercentileBin"].isin(top_deciles)]
@@ -1980,7 +1981,7 @@ with tab6:
         with c1:
             st.dataframe(top_uni, use_container_width=True)
         with c2:
-            st.markdown("**Table 22. Largest course-group pathways into B8–B10**")
+            st.markdown("**Table 22. Largest course-group pathways into B8-B10**")
             st.caption("Top pathways highlight where high-bin representation is most concentrated by count, not by rate.")
             st.dataframe(top_course, use_container_width=True)
 
@@ -2053,7 +2054,7 @@ with tab7:
 
     with ple_tab3:
         st.markdown("**Table 26. Course-group representation in the top bins**")
-        st.caption("Top-bin survival here means the share of examinees in B8–B10, not a time-to-event survival model.")
+        st.caption("Top-bin survival here means the share of examinees in B8-B10, not a time-to-event survival model.")
         survival_base = F["besttrend"].dropna(subset=["CourseGroup", "PercentileBin"]).copy()
         survival_base["IS_TOP_BIN"] = survival_base["PercentileBin"].isin(["B8", "B9", "B10"])
         survival = (
@@ -2067,8 +2068,8 @@ with tab7:
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("**Figure 23. Share of examinees in B8–B10 by course group**")
-            st.caption("Top-bin survival here means the share of examinees in B8–B10, not a time-to-event survival model.")
+            st.markdown("**Figure 23. Share of examinees in B8-B10 by course group**")
+            st.caption("Top-bin survival here means the share of examinees in B8-B10, not a time-to-event survival model.")
             st.dataframe(survival, use_container_width=True)
         with c2:
             st.plotly_chart(
@@ -2612,20 +2613,20 @@ with tab11:
                 st.markdown("**Table 45. Observed counts by university type and percentile bin**")
                 st.caption("Cell counts of examinees by university type (rows) and percentile bin (columns).")
                 st.dataframe(observed_tbl.reset_index(), use_container_width=True)
-                st.markdown("**Table 46. Chi-square summary (university type × bin)**")
+                st.markdown("**Table 46. Chi-square summary (university type ? bin)**")
                 st.caption("Chi-square statistic, degrees of freedom, and p-value testing independence between university type and bin.")
                 st.dataframe(chi_summary, use_container_width=True)
 
             with c2:
                 row_pct = observed_tbl.div(observed_tbl.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
-                st.markdown("**Figure 35. University type × bin row percentages**")
+                st.markdown("**Figure 35. University type ? bin row percentages**")
                 st.caption("Heatmap shows row-wise percent distribution (percent of each university type located in each bin).")
                 fig = px.imshow(
                     row_pct,
                     text_auto=".1f",
                     aspect="auto",
                     color_continuous_scale="YlGnBu",
-                    title="University type × bin row percentages",
+                    title="University type ? bin row percentages",
                     labels={"x": "Percentile bin", "y": "University type", "color": "Percent"},
                 )
                 fig.update_layout(height=450)
