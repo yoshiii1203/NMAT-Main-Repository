@@ -500,7 +500,7 @@ def main():
     print(f"\n[10/10] Saving output...")
 
     # Drop intermediate merge columns before saving
-    cols_to_drop = [c for c in ["RF_NATIONALITY", "IN_REAL_FOREIGNERS"] if c in df.columns]
+    cols_to_drop = [c for c in ["RF_NATIONALITY", "IN_REAL_FOREIGNERS", "override_applied", "pseudo_citizenship"] if c in df.columns]
     if cols_to_drop:
         df = df.drop(columns=cols_to_drop)
 

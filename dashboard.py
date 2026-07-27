@@ -105,6 +105,7 @@ REQUIRED_PIPELINE_COLS = [
 # -----------------------------------------------------------------------------
 def find_data_path() -> Path:
     candidates = [
+        Path("dataset/NMAT_Exodus.parquet"),
         Path("dataset/NMAT_Ultima.parquet"),
         Path("NMAT_Ultima.parquet"),
     ]
@@ -655,27 +656,9 @@ df_raw, subsets, data_path = load_data_and_subsets()
 dfbesttrend = subsets["besttrend"]
 dfbestobservable = subsets["bestobservable"]
 
-# --- Pseudo-citizenship profile lookup ---
-_PC_PROFILE_PATH = Path("dataset/pseudo_citizenship_profiling_FINAL.csv")
-try:
-    _pc_lookup = pd.read_csv(
-        _PC_PROFILE_PATH,
-        usecols=["APPNO_CLEAN", "override_applied", "name_based_assessment", "pseudo_citizenship"],
-        dtype=str,
-    )
-    _pc_lookup["APPNOCLEAN"] = _pc_lookup["APPNO_CLEAN"].str.strip()
-    _pc_lookup = (
-        _pc_lookup
-        .drop(columns=["APPNO_CLEAN"])
-        .drop_duplicates(subset=["APPNOCLEAN"])
-        .reset_index(drop=True)
-    )
-    _PC_LOOKUP_AVAILABLE = True
-except Exception:
-    _pc_lookup = pd.DataFrame(
-        columns=["APPNOCLEAN", "override_applied", "name_based_assessment", "pseudo_citizenship"]
-    )
-    _PC_LOOKUP_AVAILABLE = False
+# --- Citizenship profile lookup ---
+# Citizenship columns (CITIZENSHIP_FINAL, FOREIGNER_STATUS) are now baked into NMAT_Exodus.parquet by Pipeline 4
+_PC_LOOKUP_AVAILABLE = True
 
 # -----------------------------------------------------------------------------
 # SIDEBAR  (filters only — navigation is now handled by st.tabs)
@@ -719,10 +702,9 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         name = future_to_name[future]
         F[name] = future.result()
 
-# Merge pseudo-citizenship lookup into the observable university subset
+# Merge citizenship lookup into the observable university subset
 _uniobs_pc = F["uniobservable"].copy()
-_uniobs_pc["APPNOCLEAN"] = _uniobs_pc["APPNO_CLEAN"].astype(str).str.strip()
-_uniobs_pc = _uniobs_pc.merge(_pc_lookup, on="APPNOCLEAN", how="left").drop(columns=["APPNOCLEAN"])
+# CITIZENSHIP_FINAL and FOREIGNER_STATUS are already available in the parquet from Pipeline 4
 
 # -----------------------------------------------------------------------------
 # HEADER
@@ -1235,58 +1217,58 @@ with tab4:
 
         _nople_con.close()
 
-        # ── Pseudo-citizenship profile ─────────────────────────────────────
+        # ── Citizenship profile ─────────────────────────────────────
         st.divider()
-        st.subheader("Pseudo-citizenship profile for no-PLE-match examinees")
+        st.subheader("Citizenship profile for no-PLE-match examinees")
         st.caption(
             "This subsection uses APPNOCLEAN to link the no-PLE-match profiling file to the "
-            "NMAT_Ultima analytic records. Pseudo-citizenship comes only from the profiling CSV, "
+            "NMAT_Ultima analytic records. Citizenship comes only from the profiling CSV, "
             "while all scores, bins, year, university type, and background fields come from "
             "the parquet-based dashboard dataset."
         )
 
         if not _PC_LOOKUP_AVAILABLE:
             st.info(
-                "Pseudo-citizenship profiling file not found. "
-                "Place pseudo_citizenship_profiling_FINAL.csv in the dataset/ folder."
+                "Citizenship data is baked into NMAT_Exodus.parquet by Pipeline 4. "
+                "Run 4_Citizenship_Integration.py if NMAT_Exodus.parquet is missing."
             )
         else:
             _pc_base = _uniobs_pc[
                 (_uniobs_pc["PLE_STATUS_LABEL"] == "No confirmed PLE match")
-                & (_uniobs_pc["pseudo_citizenship"].notna())
+                & (_uniobs_pc["CITIZENSHIP_FINAL"].notna())
             ].copy()
 
             if _pc_base.empty:
                 st.info("No profiled no-PLE-match records match the current filters.")
             else:
-                _pc_foreigners = int((_pc_base["override_applied"] == "FOREIGN").sum())
-                _pc_filipinos = int((_pc_base["pseudo_citizenship"] == "Filipino").sum())
-                _pc_distinct = int(_pc_base["pseudo_citizenship"].nunique())
+                _pc_foreigners = int((_pc_base["FOREIGNER_STATUS"] == "Verified Foreigner").sum())
+                _pc_filipinos = int((_pc_base["CITIZENSHIP_FINAL"] == "Filipino").sum())
+                _pc_distinct = int(_pc_base["CITIZENSHIP_FINAL"].nunique())
 
                 _pm1, _pm2, _pm3, _pm4 = st.columns(4)
                 _pm1.metric("Profiled no-PLE-match records", f"{len(_pc_base):,}")
                 _pm2.metric("Foreigners", f"{_pc_foreigners:,}")
                 _pm3.metric("Filipinos", f"{_pc_filipinos:,}")
-                _pm4.metric("Distinct pseudo-citizenship labels", f"{_pc_distinct:,}")
+                _pm4.metric("Distinct citizenship labels", f"{_pc_distinct:,}")
 
                 # ── citizenship counts (reused in multiple charts) ──────────
                 _pc_counts = (
-                    _pc_base["pseudo_citizenship"]
+                    _pc_base["CITIZENSHIP_FINAL"]
                     .value_counts()
                     .reset_index()
                 )
-                _pc_counts.columns = ["pseudo_citizenship", "n"]
+                _pc_counts.columns = ["CITIZENSHIP_FINAL", "n"]
 
                 # Pie charts side-by-side ─────────────────────────────────────
                 _pp1, _pp2 = st.columns(2)
 
                 with _pp1:
-                    st.markdown("**Pseudo-citizenship composition**")
+                    st.markdown("**Citizenship composition**")
                     _fig_pc_pie = px.pie(
                         _pc_counts,
-                        names="pseudo_citizenship",
+                        names="CITIZENSHIP_FINAL",
                         values="n",
-                        title="Pseudo-citizenship composition",
+                        title="Citizenship composition",
                     )
                     st.plotly_chart(_fig_pc_pie, use_container_width=True, key="fig_pc_pie_comp")
 
@@ -1309,11 +1291,11 @@ with tab4:
                     st.plotly_chart(_fig_pc_fvf, use_container_width=True, key="fig_pc_pie_fvf")
 
                 # Top-15 horizontal bar ───────────────────────────────────────
-                st.markdown("**Top pseudo-citizenship groups by count**")
+                st.markdown("**Top citizenship groups by count**")
                 _top15 = _pc_counts.head(15).sort_values("n")
                 _fig_pc_top15 = go.Figure(go.Bar(
                     x=_top15["n"],
-                    y=_top15["pseudo_citizenship"],
+                    y=_top15["CITIZENSHIP_FINAL"],
                     orientation="h",
                     text=_top15["n"].astype(str),
                     textposition="outside",
@@ -1321,7 +1303,7 @@ with tab4:
                     hovertemplate="Citizenship: %{y}<br>Count: %{x}<extra></extra>",
                 ))
                 _fig_pc_top15.update_layout(
-                    title="Top 15 pseudo-citizenship groups",
+                    title="Top 15 citizenship groups",
                     xaxis_title="Examinees",
                     yaxis_title="",
                     height=max(380, len(_top15) * 30),
@@ -1329,34 +1311,34 @@ with tab4:
                 st.plotly_chart(_fig_pc_top15, use_container_width=True, key="fig_pc_top15_bar")
 
                 # Stacked % bar: decile composition by citizenship ────────────
-                st.markdown("**Bin composition by pseudo-citizenship (top 15 groups)**")
-                _pc_top_grps = _pc_counts.head(15)["pseudo_citizenship"].tolist()
-                _pc_dec_base = _pc_base[_pc_base["pseudo_citizenship"].isin(_pc_top_grps)].copy()
+                st.markdown("**Bin composition by citizenship (top 15 groups)**")
+                _pc_top_grps = _pc_counts.head(15)["CITIZENSHIP_FINAL"].tolist()
+                _pc_dec_base = _pc_base[_pc_base["CITIZENSHIP_FINAL"].isin(_pc_top_grps)].copy()
                 if not _pc_dec_base.empty and "PercentileBin" in _pc_dec_base.columns:
-                    _, _pc_dec_pct = pct_table(_pc_dec_base, "pseudo_citizenship", "PercentileBin", BIN_ORDER)
-                    _pc_dec_pct.index.name = "pseudo_citizenship"
+                    _, _pc_dec_pct = pct_table(_pc_dec_base, "CITIZENSHIP_FINAL", "PercentileBin", BIN_ORDER)
+                    _pc_dec_pct.index.name = "CITIZENSHIP_FINAL"
                     _fig_pc_dec = make_stacked_pct_bar(
                         _pc_dec_pct,
-                        "Bin composition by pseudo-citizenship",
-                        "Pseudo-citizenship",
+                        "Bin composition by citizenship",
+                        "Citizenship",
                         "Percent",
                         BIN_COLORS,
                     )
                     _fig_pc_dec.update_layout(height=520)
                     st.plotly_chart(_fig_pc_dec, use_container_width=True, key="fig_pc_bin_stacked")
 
-                    st.markdown("**Full percentile-bin heatmap by pseudo-citizenship (all bins B1–B10)**")
+                    st.markdown("**Full percentile-bin heatmap by citizenship (all bins B1–B10)**")
                     st.caption(
-                        "Each row is one pseudo-citizenship group; each column is one percentile bin. "
+                        "Each row is one citizenship group; each column is one percentile bin. "
                         "Values are row percentages — read across a row to see where that group clusters "
                         "across the full score distribution, from the bottom (B1) to the top (B10). "
                         "Red tones flag higher concentration in that bin."
                     )
                     _fig_pc_hm_all = make_heatmap(
                         _pc_dec_pct,
-                        "Full bin profile by pseudo-citizenship (row %)",
+                        "Full bin profile by citizenship (row %)",
                         "Percentile bin",
-                        "Pseudo-citizenship",
+                        "Citizenship",
                         "YlOrRd",
                     )
                     _fig_pc_hm_all.update_layout(height=max(450, len(_pc_top_grps) * 32 + 120))
@@ -1366,12 +1348,12 @@ with tab4:
                 _pb1, _pb2 = st.columns(2)
 
                 with _pb1:
-                    st.markdown("**Top-bin share (B8–B10) by pseudo-citizenship**")
+                    st.markdown("**Top-bin share (B8–B10) by citizenship**")
                     if "PercentileBin" in _pc_base.columns:
                         _pc_top_dec = (
                             _pc_base
                             .assign(_is_top=_pc_base["PercentileBin"].isin(["B8", "B9", "B10"]))
-                            .groupby("pseudo_citizenship", observed=True)
+                            .groupby("CITIZENSHIP_FINAL", observed=True)
                             .agg(n=("_is_top", "size"), top_n=("_is_top", "sum"))
                             .reset_index()
                         )
@@ -1382,7 +1364,7 @@ with tab4:
                         if not _pc_top_dec.empty:
                             _fig_pc_topdec = go.Figure(go.Bar(
                                 x=_pc_top_dec["top_dec_pct"],
-                                y=_pc_top_dec["pseudo_citizenship"],
+                                y=_pc_top_dec["CITIZENSHIP_FINAL"],
                                 orientation="h",
                                 text=[f"{v:.1f}%" for v in _pc_top_dec["top_dec_pct"]],
                                 textposition="outside",
@@ -1398,48 +1380,48 @@ with tab4:
                             st.plotly_chart(_fig_pc_topdec, use_container_width=True, key="fig_pc_topbin_bar")
 
                 with _pb2:
-                    st.markdown("**Percentile rank by pseudo-citizenship (n ≥ 5)**")
+                    st.markdown("**Percentile rank by citizenship (n ≥ 5)**")
                     if "NMS_PER_num" in _pc_base.columns:
-                        _pc_big = _pc_base.groupby("pseudo_citizenship", observed=True).filter(
+                        _pc_big = _pc_base.groupby("CITIZENSHIP_FINAL", observed=True).filter(
                             lambda x: len(x) >= 5
                         )
                         if not _pc_big.empty:
                             _fig_pc_box_pct = px.box(
                                 _pc_big,
-                                x="pseudo_citizenship",
+                                x="CITIZENSHIP_FINAL",
                                 y="NMS_PER_num",
                                 points=False,
-                                title="Percentile rank by pseudo-citizenship (n ≥ 5)",
-                                labels={"NMS_PER_num": "Percentile rank", "pseudo_citizenship": ""},
+                                title="Percentile rank by citizenship (n ≥ 5)",
+                                labels={"NMS_PER_num": "Percentile rank", "CITIZENSHIP_FINAL": ""},
                             )
                             _fig_pc_box_pct.update_layout(height=430)
                             st.plotly_chart(_fig_pc_box_pct, use_container_width=True, key="fig_pc_box_pct")
 
                 # TRUE raw score box plot ──────────────────────────────────────
-                st.markdown("**TRUE raw score by pseudo-citizenship (n ≥ 5)**")
+                st.markdown("**TRUE raw score by citizenship (n ≥ 5)**")
                 if "TotalRawScoreTRUE" in _pc_base.columns:
-                    _pc_big_raw = _pc_base.groupby("pseudo_citizenship", observed=True).filter(
+                    _pc_big_raw = _pc_base.groupby("CITIZENSHIP_FINAL", observed=True).filter(
                         lambda x: len(x) >= 5
                     )
                     if not _pc_big_raw.empty:
                         _fig_pc_box_raw = px.box(
                             _pc_big_raw,
-                            x="pseudo_citizenship",
+                            x="CITIZENSHIP_FINAL",
                             y="TotalRawScoreTRUE",
                             points=False,
-                            title="TRUE raw score by pseudo-citizenship (n ≥ 5)",
-                            labels={"TotalRawScoreTRUE": "Total raw score", "pseudo_citizenship": ""},
+                            title="TRUE raw score by citizenship (n ≥ 5)",
+                            labels={"TotalRawScoreTRUE": "Total raw score", "CITIZENSHIP_FINAL": ""},
                         )
                         _fig_pc_box_raw.update_layout(height=430)
                         st.plotly_chart(_fig_pc_box_raw, use_container_width=True, key="fig_pc_box_raw")
 
                 # ── Summary tables ────────────────────────────────────────────
-                st.markdown("**Summary by pseudo-citizenship**")
+                st.markdown("**Summary by citizenship**")
                 _pc_base["_is_top_d"] = _pc_base["PercentileBin"].isin(["B8", "B9", "B10"]) if "PercentileBin" in _pc_base.columns else False
                 _pc_base["_is_bot_d"] = _pc_base["PercentileBin"].isin(["B1", "B2", "B3"]) if "PercentileBin" in _pc_base.columns else False
                 _pc_summary = (
                     _pc_base
-                    .groupby("pseudo_citizenship", observed=True)
+                    .groupby("CITIZENSHIP_FINAL", observed=True)
                     .agg(
                         n_examinees=("APPNO_CLEAN", "count"),
                         median_percentile_rank=("NMS_PER_num", "median"),
@@ -1459,7 +1441,7 @@ with tab4:
                 _pc_summary["top_decile_n"] = _pc_summary["top_decile_n"].astype(int)
                 _pc_summary["bottom_decile_n"] = _pc_summary["bottom_decile_n"].astype(int)
                 _pc_summary = _pc_summary[
-                    ["pseudo_citizenship", "n_examinees", "median_percentile_rank",
+                    ["CITIZENSHIP_FINAL", "n_examinees", "median_percentile_rank",
                      "median_true_raw_score", "top_decile_n", "top_decile_pct",
                      "bottom_decile_n", "bottom_decile_pct"]
                 ].sort_values(["n_examinees", "median_percentile_rank"], ascending=[False, False])
@@ -1467,11 +1449,11 @@ with tab4:
 
                 _pt1, _pt2 = st.columns(2)
                 with _pt1:
-                    st.markdown("**Summary by pseudo-citizenship and university type**")
+                    st.markdown("**Summary by citizenship and university type**")
                     if "UNI_TYPE" in _pc_base.columns:
                         _pc_uni_sum = (
                             _pc_base
-                            .groupby(["pseudo_citizenship", "UNI_TYPE"], observed=True)
+                            .groupby(["CITIZENSHIP_FINAL", "UNI_TYPE"], observed=True)
                             .agg(
                                 n=("APPNO_CLEAN", "count"),
                                 median_percentile_rank=("NMS_PER_num", "median"),
@@ -1483,11 +1465,11 @@ with tab4:
                         st.dataframe(_pc_uni_sum, use_container_width=True, hide_index=True)
 
                 with _pt2:
-                    st.markdown("**Summary by pseudo-citizenship and course group**")
+                    st.markdown("**Summary by citizenship and course group**")
                     if "CourseGroup" in _pc_base.columns:
                         _pc_course_sum = (
                             _pc_base
-                            .groupby(["pseudo_citizenship", "CourseGroup"], observed=True)
+                            .groupby(["CITIZENSHIP_FINAL", "CourseGroup"], observed=True)
                             .agg(
                                 n=("APPNO_CLEAN", "count"),
                                 median_percentile_rank=("NMS_PER_num", "median"),
@@ -1498,20 +1480,20 @@ with tab4:
                         )
                         st.dataframe(_pc_course_sum, use_container_width=True, hide_index=True)
 
-                st.markdown("**Year distribution by pseudo-citizenship**")
+                st.markdown("**Year distribution by citizenship**")
                 if "Year" in _pc_base.columns:
                     _pc_year_tbl = (
                         _pc_base
-                        .groupby(["pseudo_citizenship", "Year"], observed=True)
+                        .groupby(["CITIZENSHIP_FINAL", "Year"], observed=True)
                         .size()
                         .unstack(fill_value=0)
                     )
-                    _pc_year_tbl.index.name = "pseudo_citizenship"
+                    _pc_year_tbl.index.name = "CITIZENSHIP_FINAL"
                     st.dataframe(_pc_year_tbl.reset_index(), use_container_width=True, hide_index=True)
 
-                st.markdown("**Matched no-PLE-match records with pseudo-citizenship**")
+                st.markdown("**Matched no-PLE-match records with citizenship**")
                 _pc_rec_cols = [c for c in [
-                    "pseudo_citizenship", "override_applied", "name_based_assessment",
+                    "CITIZENSHIP_FINAL", "FOREIGNER_STATUS", "name_based_assessment",
                     "PERSON_KEY", "APPNO_CLEAN", "UNIVERSITY", "UNI_LOCATION", "UNI_TYPE",
                     "Year", "CourseGroup", "PercentileBin", "NMS_PER_num",
                     "TotalRawScoreTRUE", "PLE_STATUS_LABEL",
@@ -1519,13 +1501,13 @@ with tab4:
                 _pc_rec_df = (
                     _pc_base[_pc_rec_cols]
                     .sort_values(
-                        ["pseudo_citizenship", "Year", "NMS_PER_num"],
+                        ["CITIZENSHIP_FINAL", "Year", "NMS_PER_num"],
                         ascending=[True, False, False],
                     )
                 )
                 st.caption(
                     f"{len(_pc_rec_df):,} matched records. "
-                    "Sorted by pseudo-citizenship (A→Z), year (newest first), "
+                    "Sorted by citizenship (A→Z), year (newest first), "
                     "percentile rank (highest first)."
                 )
                 st.dataframe(_pc_rec_df, use_container_width=True, hide_index=True)
@@ -1545,13 +1527,13 @@ with tab4:
 
                 _cmp_parts = []
 
-                _g_for = _uniobs_pc[_uniobs_pc["override_applied"] == "FOREIGN"].copy()
+                _g_for = _uniobs_pc[_uniobs_pc["FOREIGNER_STATUS"] == "Verified Foreigner"].copy()
                 if not _g_for.empty:
                     _g_for["_cmp_group"] = "Foreigners (non-Filipino)"
                     _cmp_parts.append(_g_for)
 
                 _g_fil_for = _uniobs_pc[
-                    (_uniobs_pc["pseudo_citizenship"] == "Filipino") &
+                    (_uniobs_pc["CITIZENSHIP_FINAL"] == "Filipino") &
                     (_uniobs_pc["UNI_TYPE"] == "Foreign")
                 ].copy()
                 if not _g_fil_for.empty:
