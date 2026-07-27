@@ -113,7 +113,7 @@ def find_data_path() -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(
-        "Could not find NMAT_Ultima.parquet. "
+        "Could not find NMAT_Exodus.parquet. "
         "Place it in ./dataset/ or in the app root."
     )
 
@@ -223,7 +223,7 @@ def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
     missing_required = [c for c in REQUIRED_PIPELINE_COLS if c not in df.columns]
     if missing_required:
         raise ValueError(
-            "NMAT_Ultima.parquet is missing required pipeline columns: "
+            "NMAT_Exodus.parquet is missing required pipeline columns: "
             + ", ".join(missing_required)
         )
 
@@ -710,7 +710,7 @@ _uniobs_pc = F["uniobservable"].copy()
 # HEADER
 # -----------------------------------------------------------------------------
 st.title("NMAT Performance Dashboard, 2006-2018")
-st.caption("Descriptive, trend-based, and policy-oriented summaries based on the cleaned NMAT_Ultima pipeline. Person-level views use the best NMAT record per examinee where appropriate, while PLE-linked pages use the observable cohort only.")
+st.caption("Descriptive, trend-based, and policy-oriented summaries based on the cleaned NMAT_Exodus pipeline (enriched by Pipeline 4). Person-level views use the best NMAT record per examinee where appropriate, while PLE-linked pages use the observable cohort only.")
 
 with st.expander("Read this first: how to interpret the dashboard", expanded=False):
     st.markdown(
@@ -829,7 +829,7 @@ with tab1:
 # -----------------------------------------------------------------------------
 with tab2:
     st.subheader("Data Integrity and Cohort Definition Checks")
-    st.caption("This page verifies whether the dashboard inputs remain aligned with the cleaned NMAT_Ultima pipeline, including cohort construction, raw-score consistency, and institutional classification fields.")
+    st.caption("This page verifies whether the dashboard inputs remain aligned with the cleaned NMAT_Exodus pipeline (enriched by Pipeline 4), including cohort construction, raw-score consistency, and institutional classification fields.")
     df = F["all"]
     best_filtered = F["best"]
     best_observable_filtered = F["bestobservable"]
@@ -837,7 +837,7 @@ with tab2:
     plebest_filtered = F["plebest"]
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("All NMAT rows", f"{len(df):,}", help="All cleaned NMAT_Ultima rows that are loaded into the app.")
+    col1.metric("All NMAT rows", f"{len(df):,}", help="All cleaned NMAT_Exodus rows that are loaded into the app.")
     col2.metric("Best-record rows", f"{len(best_filtered):,}", help="Number of best-record rows in the pipeline (one per examinee after best-record flag applied).")
     col3.metric("Rows with TRUE raw scores", f"{int((df['HasTRUErawScores'] == True).sum()):,}", help="Rows where HasTRUErawScores == True.")
     col4.metric("Observable best-record rows", f"{len(best_observable_filtered):,}", help="Best-record rows with Year <= 2014, used for fair PLE-linked descriptive summaries.")
