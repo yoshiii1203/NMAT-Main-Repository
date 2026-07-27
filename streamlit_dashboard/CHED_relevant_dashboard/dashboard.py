@@ -1,5 +1,5 @@
 """
-CHED Compliance Dashboard — CMO No. __, s. 2026
+CHED Compliance Dashboard - CMO No. __, s. 2026
 Streamlit dashboard providing data-driven evidence for NMAT cut-off policy decisions.
 
 Target audience: CHED policymakers, HEI administrators, and education researchers.
@@ -21,16 +21,16 @@ import streamlit as st
 
 warnings.filterwarnings("ignore")
 
-# ── Page Configuration ──
+# -- Page Configuration --
 
 st.set_page_config(
-    page_title="CHED Compliance Dashboard — CMO No. __, s. 2026",
+    page_title="CHED Compliance Dashboard - CMO No. __, s. 2026",
     page_icon="\U0001f4ca",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# ── Constants ──
+# -- Constants --
 
 BIN_ORDER = [f"B{i}" for i in range(1, 11)]
 
@@ -91,7 +91,7 @@ def render_caveat(caveat_type: str):
     st.warning(c)
 
 
-# ── Helper Functions ──
+# -- Helper Functions --
 
 
 def bin_at_or_above(b: str, threshold_b: str) -> bool:
@@ -119,7 +119,7 @@ def find_data_path() -> Path:
     )
 
 
-# ── Data Loading ──
+# -- Data Loading --
 
 
 @st.cache_data
@@ -134,7 +134,7 @@ def load_data():
     # Best NMAT record per examinee
     best = df[df["IS_BEST_NMAT_RECORD"] == True].copy()
 
-    # Best records within trend window (2006–2018)
+    # Best records within trend window (2006-2018)
     besttrend = best[best["Year"].between(YEAR_RANGE[0], YEAR_RANGE[1], inclusive="both")].copy()
 
     # Best records observable for PLE (Year <= 2014, allowing 4-year licensure window)
@@ -143,18 +143,48 @@ def load_data():
     return df, best, besttrend, bestobs
 
 
-# ── Main App ──
+# -- Main App --
 
 
 def main():
     # Title area
-    st.title("CHED Compliance Dashboard — CMO No. __, s. 2026")
+    st.title("CHED Compliance Dashboard - CMO No. __, s. 2026")
     st.caption(
         "Data-Driven Evidence for NMAT Cut-Off Policy. "
         "This dashboard supports CHED, HEI administrators, and education researchers "
         "in understanding the empirical basis for the amended NMAT cut-off score policy. "
-        "All figures are computed from NMAT_Exodus.parquet (Pipeline 4, 178,927 best records, 2006\u20132018)."
+        "All figures are computed from NMAT_Exodus.parquet (Pipeline 4, 178,927 best records, 2006-2018)."
     )
+
+    # Run Computation button
+    col_run, _ = st.columns([1, 5])
+    with col_run:
+        if st.button("\U0001f504 Run Computation Scripts"):
+            with st.spinner("Running computation scripts..."):
+                import subprocess, sys
+                script_dir = Path(__file__).parent.resolve()
+                scripts = [
+                    script_dir / "compute_pipeline4.py",
+                ]
+                for s in scripts:
+                    if s.exists():
+                        try:
+                            result = subprocess.run(
+                                [sys.executable, str(s)],
+                                capture_output=True, text=True, timeout=300
+                            )
+                            if result.returncode == 0:
+                                st.success(f"Script {s.name} completed successfully.")
+                            else:
+                                st.error(f"Script {s.name} failed:\\n{result.stderr[:500]}")
+                        except subprocess.TimeoutExpired:
+                            st.error(f"Script {s.name} timed out.")
+                        except Exception as e:
+                            st.error(f"Script {s.name} error:\\n{e}")
+                    else:
+                        st.info(f"Script {s.name} not found. Skipping.")
+            st.cache_data.clear()
+            st.rerun()
 
     # Load data
     with st.spinner("Loading NMAT data..."):
@@ -168,7 +198,7 @@ def main():
 
     st.divider()
 
-    # ── Navigation Tabs ──
+    # -- Navigation Tabs --
 
     tab_names = [
         "Overview",
@@ -179,13 +209,14 @@ def main():
         "Demographics",
         "PLE Alignment",
         "Trends",
+        "Accountability Framework",
         "Data Appendix",
     ]
     tabs = st.tabs(tab_names)
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 1: OVERVIEW
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[0]:
         st.header("Overview")
         st.info(
@@ -250,9 +281,9 @@ def main():
             "- **Data Appendix** \u2014 Methodology, data dictionary, and limitations."
         )
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 2: NATIONAL BENCHMARK
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[1]:
         st.header("National NMAT\u2013PLE Linkage Benchmark")
         st.info(
@@ -363,9 +394,9 @@ def main():
                 "of 3 years of data."
             )
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 3: CUT-OFF SCENARIOS
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[2]:
         st.header("30th vs 40th Percentile Cut-Off Analysis")
         st.info(
@@ -486,9 +517,9 @@ def main():
                 "cohorts as non-passers before their licensure window closes."
             )
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 4: PER-HEI ANALYSIS
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[3]:
         st.header("Per-Institution NMAT Score Distribution")
         st.info(
@@ -588,9 +619,9 @@ def main():
                     "PLE Linkage Rate requires >=5 observable examinees (Year <= 2014)."
                 )
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 5: FOREIGN STUDENTS
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[4]:
         st.header("Foreign Examinee Profile")
         st.info(
@@ -692,9 +723,9 @@ def main():
                 "enrollment, which requires data from HEIs that is not available in this dataset."
             )
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 6: DEMOGRAPHICS
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[5]:
         st.header("Demographic Profiles")
         st.info(
@@ -707,7 +738,7 @@ def main():
 
         col_dem1, col_dem2 = st.columns(2)
 
-        # ── By Sex ──
+        # -- By Sex --
         with col_dem1:
             st.subheader("By Sex")
             sex_data = besttrend.dropna(subset=["SEX"]).copy()
@@ -750,7 +781,7 @@ def main():
             else:
                 st.info("No sex data available.")
 
-        # ── By Course Group ──
+        # -- By Course Group --
         with col_dem2:
             st.subheader("By Course Group")
             course_data = besttrend.dropna(subset=["CourseGroup"]).copy()
@@ -814,11 +845,22 @@ def main():
             fig_course_bin.update_layout(height=400, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
             st.plotly_chart(fig_course_bin, use_container_width=True, key="fig_t6_course_bin")
 
-        st.caption("All demographic figures use best-record NMAT data from 2006\u20132018.")
+        st.caption("All demographic figures use best-record NMAT data from 2006-2018.")
 
-    # ════════════════════════════════════════════════════════════════
+        col_dl_dem, _ = st.columns([1, 3])
+        with col_dl_dem:
+            dem_dl_df = besttrend[["SEX", "CourseGroup", "PercentileBin", "NMS_PER_num", "UNI_TYPE"]].dropna(subset=["SEX", "CourseGroup"]).copy()
+            dem_dl_df.columns = ["Sex", "Course Group", "Percentile Bin", "NMS Percentile", "University Type"]
+            st.download_button(
+                "Download Demographics CSV",
+                data=dem_dl_df.to_csv(index=False).encode("utf-8"),
+                file_name="ched_demographics.csv",
+                mime="text/csv",
+            )
+
+    # ================================================================
     # TAB 7: PLE ALIGNMENT
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[6]:
         st.header("NMAT\u2013PLE Alignment Analysis")
         st.info(
@@ -951,9 +993,9 @@ def main():
                 "This is NOT a PLE pass rate."
             )
 
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     # TAB 8: TRENDS
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
     with tabs[7]:
         st.header("Historical Trends (2006\u20132018)")
         st.info(
@@ -1050,10 +1092,167 @@ def main():
 
             st.caption("All figures use best-record NMAT data. Percentile scores are NMS_PER_num.")
 
-    # ════════════════════════════════════════════════════════════════
-    # TAB 9: DATA APPENDIX
-    # ════════════════════════════════════════════════════════════════
+    # ================================================================
+    # TAB 9: ACCOUNTABILITY FRAMEWORK
+    # ================================================================
     with tabs[8]:
+        st.header("Accountability Framework")
+        st.info(
+            "\U0001f4a1 **What This Tab Answers:** How should HEIs be monitored and "
+            "held accountable under the new CMO NMAT cut-off policy?"
+        )
+        st.markdown(
+            "This tab provides a framework for CHED to monitor PHEI compliance with "
+            "the amended NMAT cut-off policy, including risk flags, data collection "
+            "recommendations, and transition guidance."
+        )
+        render_caveat("general")
+
+        # PHEI Risk Flags
+        with st.expander("PHEI Risk Flags -- Institutions Above/Below Benchmark", expanded=True):
+            st.markdown(
+                "The table below categorizes PHEIs based on their PLE linkage rate relative "
+                "to the national 5-year rolling average benchmark. Institutions **below** the "
+                "benchmark must maintain the 40th percentile cut-off; those **at or above** "
+                "may set the 30th percentile cut-off."
+            )
+
+            if not bestobs.empty and not besttrend.empty:
+                annual_linkage = (
+                    bestobs.groupby("Year", observed=True)
+                    .agg(
+                        n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
+                        n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
+                    )
+                    .reset_index()
+                )
+                annual_linkage["Linkage Rate (%)"] = (
+                    annual_linkage["n_confirmed_ple"] / annual_linkage["n_examinees"] * 100
+                ).round(2)
+                annual_linkage["5yr Rolling Avg (%)"] = (
+                    annual_linkage["Linkage Rate (%)"].rolling(window=5, min_periods=3).mean().round(2)
+                )
+                benchmark_val = annual_linkage[
+                    annual_linkage["5yr Rolling Avg (%)"].notna()
+                ].iloc[-1]["5yr Rolling Avg (%)"]
+
+                hei_flag_rows = []
+                for hei in sorted(besttrend["UNIVERSITY"].dropna().unique()):
+                    hei_data = besttrend[besttrend["UNIVERSITY"] == hei]
+                    hei_obs = bestobs[bestobs["UNIVERSITY"] == hei]
+                    if len(hei_data) < 5:
+                        continue
+                    hei_type = hei_data["UNI_TYPE"].mode().iloc[0] if not hei_data["UNI_TYPE"].mode().empty else "Unknown"
+                    ple_rate = round(
+                        hei_obs["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 2
+                    ) if not hei_obs.empty and len(hei_obs) >= 5 else None
+                    b4_pct = round(
+                        (hei_data["PercentileBin"].apply(lambda b: bin_at_or_above(b, "B4")).sum()
+                         / len(hei_data) * 100), 1
+                    )
+                    status = "Above Benchmark" if (ple_rate is not None and ple_rate >= benchmark_val) else "Below Benchmark"
+                    hei_flag_rows.append({
+                        "HEI": hei,
+                        "Type": hei_type,
+                        "N": len(hei_data),
+                        "PLE Linkage (%)": ple_rate,
+                        "B4+ (%)": b4_pct,
+                        "Benchmark Status": status,
+                    })
+
+                hei_flags = pd.DataFrame(hei_flag_rows)
+                if not hei_flags.empty:
+                    st.metric(
+                        "National Benchmark (5yr Rolling Avg)",
+                        f"{benchmark_val:.2f}%",
+                        help="PHEIs at or above this benchmark may use 30th percentile cut-off."
+                    )
+
+                    st.dataframe(
+                        hei_flags.sort_values("Benchmark Status"),
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "PLE Linkage (%)": st.column_config.NumberColumn(format="%.2f"),
+                            "B4+ (%)": st.column_config.NumberColumn(format="%.1f%%"),
+                        },
+                    )
+
+                    above_count = (hei_flags["Benchmark Status"] == "Above Benchmark").sum()
+                    below_count = (hei_flags["Benchmark Status"] == "Below Benchmark").sum()
+                    col_a1, col_a2, col_a3 = st.columns(3)
+                    col_a1.metric("PHEIs Above Benchmark", str(above_count))
+                    col_a2.metric("PHEIs Below Benchmark", str(below_count))
+                    col_a3.metric("Total PHEIs Assessed", str(len(hei_flags)), help="PHEIs with >= 5 examinees in the dataset.")
+
+                    col_dl_ac, _ = st.columns([1, 3])
+                    with col_dl_ac:
+                        st.download_button(
+                            "Download PHEI Risk Flags CSV",
+                            data=hei_flags.to_csv(index=False).encode("utf-8"),
+                            file_name="ched_phei_risk_flags.csv",
+                            mime="text/csv",
+                        )
+                else:
+                    st.info("No PHEI data available for risk flag assessment.")
+            else:
+                st.info("Insufficient data for PHEI risk flag assessment.")
+
+        with st.expander("Monitoring Template -- What CHED Should Collect"):
+            st.markdown(
+                "To effectively monitor compliance with the amended NMAT cut-off policy, "
+                "CHED should collect the following data elements from each PHEI:"
+            )
+            monitoring_items = [
+                ["Institution Profile", "HEI name, type (SUC/Private), location, CHED-recognized programs"],
+                ["NMAT Enrollment Data", "Annual count of incoming freshmen with NMAT scores, by percentile bin"],
+                ["Foreign Student Roster", "Annual count of foreign enrollees per program, with nationality"],
+                ["PLE Performance Summary", "Annual PLE takers and passers per HEI, reported by PRC reference"],
+                ["Cut-Off Declaration", "Which cut-off (30th or 40th percentile) the HEI adopts each AY"],
+                ["Compliance Attestation", "Signed attestation from HEI president confirming compliance with CMO"],
+                ["Remediation Plan", "For HEIs below benchmark: plan to improve PLE performance within 3 years"],
+            ]
+            mon_df = pd.DataFrame(monitoring_items, columns=["Data Element", "Description"])
+            st.dataframe(mon_df, use_container_width=True, hide_index=True)
+
+            col_dl_ac2, _ = st.columns([1, 3])
+            with col_dl_ac2:
+                st.download_button(
+                    "Download Monitoring Template CSV",
+                    data=mon_df.to_csv(index=False).encode("utf-8"),
+                    file_name="ched_monitoring_template.csv",
+                    mime="text/csv",
+                )
+
+        with st.expander("Transition Timeline & Recommendations"):
+            st.markdown(
+                "### Transition Timeline\n\n"
+                "Based on the empirical evidence in this dashboard, CHED should consider "
+                "the following transition timeline:\n\n"
+                "1. **AY 2026-2027 (Year 1):** Baseline data collection. All PHEIs report NMAT "
+                "enrollment data and cut-off declarations. CHED establishes the national benchmark "
+                "using 5-year rolling average from historical data.\n\n"
+                "2. **AY 2027-2028 (Year 2):** First compliance check. PHEIs above the benchmark "
+                "receive flexibility (30th percentile); those below maintain 40th percentile.\n\n"
+                "3. **AY 2028-2029 (Year 3):** Review and adjustment period. CHED reviews the "
+                "impact of the policy and adjusts the benchmark formula if needed.\n\n"
+                "### Recommendations\n\n"
+                "- **Data Infrastructure:** CHED should invest in a centralized data collection "
+                "system for NMAT enrollment and PLE outcomes to enable real-time monitoring.\n\n"
+                "- **Periodic Review:** The benchmark formula (5-year rolling average) should be "
+                "reviewed every 3 years to ensure it reflects current PLE performance trends.\n\n"
+                "- **Equity Considerations:** SUCs with limited resources may need transitional "
+                "support to improve PLE performance before being subject to the benchmark.\n\n"
+                "- **Stakeholder Engagement:** CHED should consult with PHEI administrators, "
+                "faculty associations, and student groups before finalizing implementation rules.\n\n"
+                "- **Data Validation:** Per-HEI PLE linkage rates should be cross-validated "
+                "against PRC's official PLE data before being used for compliance determinations."
+            )
+
+    # ================================================================
+    # TAB 10: DATA APPENDIX
+    # ================================================================
+    with tabs[9]:
         st.header("Methodology & Data Sources")
         st.info(
             "\U0001f4a1 **What This Tab Answers:** What data sources, methodologies, and "
@@ -1064,139 +1263,168 @@ def main():
             "for transparency and reproducibility."
         )
 
-        st.subheader("Data Source")
-        st.markdown(
-            "**NMAT_Exodus.parquet** \u2014 the final enriched dataset from Pipeline 4, containing "
-            "178,927 rows \u00d7 54 columns. This dataset integrates:\n\n"
-            "- Raw NMAT scores and percentile bins (B1\u2013B10) for each examinee\n"
-            "- Demographic data (sex, course group, institution, university type)\n"
-            "- PLE match status (IS_PLE_ANALYSIS_SAFE, IS_PLE_PASSER)\n"
-            "- Citizenship classification (CITIZENSHIP_FINAL, FOREIGNER_STATUS)\n"
-            "- Best-record flag (IS_BEST_NMAT_RECORD) ensuring one record per examinee\n\n"
-            "The original data sources are:\n"
-            "- **NMAT historical database** (2006\u20132018) from CEM\n"
-            "- **PLE_DATA.csv** (43,630 rows, 1 column: PLE_YEAR_PASSED) from PRC\n"
-            "- **REAL_FOREIGNERS.csv** for citizenship verification"
-        )
+        with st.expander("How the Data Was Produced - Pipeline Summary", expanded=True):
+            st.markdown(
+                "**NMAT_Exodus.parquet** \u2014 the final enriched dataset from Pipeline 4, containing "
+                "178,927 rows \u00d7 54 columns. This dataset integrates:\n\n"
+                "- Raw NMAT scores and percentile bins (B1\u2013B10) for each examinee\n"
+                "- Demographic data (sex, course group, institution, university type)\n"
+                "- PLE match status (IS_PLE_ANALYSIS_SAFE, IS_PLE_PASSER)\n"
+                "- Citizenship classification (CITIZENSHIP_FINAL, FOREIGNER_STATUS)\n"
+                "- Best-record flag (IS_BEST_NMAT_RECORD) ensuring one record per examinee\n\n"
+                "The original data sources are:\n"
+                "- **NMAT historical database** (2006\u20132018) from CEM\n"
+                "- **PLE_DATA.csv** (43,630 rows, 1 column: PLE_YEAR_PASSED) from PRC\n"
+                "- **REAL_FOREIGNERS.csv** for citizenship verification"
+            )
+            st.markdown(
+                "**Data Pipeline Overview:**\n\n"
+                "1. **Pipeline 1:** Raw score extraction and standardization\n"
+                "2. **Pipeline 2:** NMAT\u2013PLE linkage via fuzzy matching on name and birth year\n"
+                "3. **Pipeline 3:** Score sanity checks, deduplication, best-record selection\n"
+                "4. **Pipeline 4:** Citizenship classification using name-based assessment and "
+                "REAL_FOREIGNERS.csv\n\n"
+                "The output is NMAT_Exodus.parquet, which feeds both the main NMAT Performance Dashboard "
+                "and this CHED Compliance Dashboard."
+            )
 
-        st.subheader("Data Pipeline Overview")
-        st.markdown(
-            "The data flows through four pipelines:\n\n"
-            "1. **Pipeline 1:** Raw score extraction and standardization\n"
-            "2. **Pipeline 2:** NMAT\u2013PLE linkage via fuzzy matching on name and birth year\n"
-            "3. **Pipeline 3:** Score sanity checks, deduplication, best-record selection\n"
-            "4. **Pipeline 4:** Citizenship classification using name-based assessment and "
-            "REAL_FOREIGNERS.csv\n\n"
-            "The output is NMAT_Exodus.parquet, which feeds both the main NMAT Performance Dashboard "
-            "and this CHED Compliance Dashboard."
-        )
+        with st.expander("Key Terms and Definitions"):
+            terms_df = pd.DataFrame({
+                "Term": [
+                    "Best Record (IS_BEST_NMAT_RECORD)",
+                    "Observable Cohort",
+                    "Linkage Rate",
+                    "PLE Pass Rate",
+                    "B1\u2013B10 Bins",
+                    "B4+ (30th Percentile)",
+                    "B5+ (40th Percentile)",
+                    "FOREIGNER_STATUS",
+                    "CITIZENSHIP_FINAL",
+                    "SUC",
+                    "PHEI",
+                    "5-Year Rolling Average",
+                ],
+                "Definition": [
+                    "The highest-scoring NMAT attempt per examinee. Used to avoid double-counting.",
+                    "Best records with Year <= 2014, allowing a 4-year window for PLE licensure.",
+                    "Share of NMAT examinees found in PLE passer data. NOT a pass rate.",
+                    "Cannot be computed. Requires PLE taker data with pass/fail outcomes.",
+                    "Percentile rank bins: B1 (0\u20139.9) through B10 (90\u201399.9).",
+                    "Examinees at or above the 30th percentile (bins B4\u2013B10).",
+                    "Examinees at or above the 40th percentile (bins B5\u2013B10).",
+                    "Classification: Filipino, Verified Foreigner, or Likely Foreigner.",
+                    "Nationality as determined by Pipeline 4 citizenship integration.",
+                    "State University or College.",
+                    "Philippine Higher Education Institution.",
+                    "Average linkage rate over the most recent 5 years (min 3 years required).",
+                ],
+            })
+            st.dataframe(terms_df, use_container_width=True, hide_index=True)
+            col_dl_app1, _ = st.columns([1, 3])
+            with col_dl_app1:
+                st.download_button(
+                    "Download Glossary CSV",
+                    data=terms_df.to_csv(index=False).encode("utf-8"),
+                    file_name="ched_glossary.csv",
+                    mime="text/csv",
+                )
 
-        st.subheader("Key Terms and Definitions")
+        with st.expander("Full Limitations"):
+            st.warning(
+                "1. **No PLE pass rates.** PLE_DATA contains passers only (43,630 rows, no fail records). "
+                "What we report is the NMAT-to-PLE linkage rate, which is an evidence-based indicator "
+                "but different from the official PLE pass rate.\n\n"
+                "2. **Foreign student data counts examinees, not enrollees.** The 10-slot cap in the CMO "
+                "applies to enrolled foreign students. Our data shows who took the NMAT, not who enrolled.\n\n"
+                "3. **Temporal gap.** NMAT data covers 2006\u20132018. The CMO takes effect AY 2026\u20132027. "
+                "This is historical analysis, not current monitoring.\n\n"
+                "4. **Per-HEI PLE performance cannot determine compliance with Section IV-B-1b/c.** "
+                "The CMO requires per-HEI 'PLE performance at a rate above the average national passing "
+                "percentage.' Without PLE pass rates, we cannot definitively determine compliance.\n\n"
+                "5. **Province-level geography was removed** during column slimming (118 \u2192 54 columns). "
+                "Province-level analysis is not currently possible."
+            )
+            st.markdown(
+                "**Additional Limitations:**\n\n"
+                "- **Self-reported data:** University names and types are derived from NMAT registration "
+                "data, which may contain errors or inconsistencies.\n"
+                "- **Fuzzy matching uncertainty:** The NMAT-to-PLE linkage relies on fuzzy name matching, "
+                "which may produce false positives or false negatives.\n"
+                "- **Citizenship classification:** Foreigner status is based on name-based assessment "
+                "supplemented by REAL_FOREIGNERS.csv. It may not reflect actual citizenship for all "
+                "examinees.\n"
+                "- **Course group mapping:** Course groups are derived from NMAT registration data and "
+                "may not align perfectly with CHED program classifications.\n"
+                "- **No income/SES data:** The dataset contains no socioeconomic indicators, which "
+                "limits equity analysis.\n"
+                "- **No HEI-level PLE taker data:** Without knowing how many PLE takers each HEI had, "
+                "we cannot compute actual PLE pass rates at the institutional level."
+            )
 
-        terms_df = pd.DataFrame({
-            "Term": [
-                "Best Record (IS_BEST_NMAT_RECORD)",
-                "Observable Cohort",
-                "Linkage Rate",
-                "PLE Pass Rate",
-                "B1\u2013B10 Bins",
-                "B4+ (30th Percentile)",
-                "B5+ (40th Percentile)",
-                "FOREIGNER_STATUS",
-                "CITIZENSHIP_FINAL",
-                "SUC",
-                "PHEI",
-                "5-Year Rolling Average",
-            ],
-            "Definition": [
-                "The highest-scoring NMAT attempt per examinee. Used to avoid double-counting.",
-                "Best records with Year <= 2014, allowing a 4-year window for PLE licensure.",
-                "Share of NMAT examinees found in PLE passer data. NOT a pass rate.",
-                "Cannot be computed. Requires PLE taker data with pass/fail outcomes.",
-                "Percentile rank bins: B1 (0\u20139.9) through B10 (90\u201399.9).",
-                "Examinees at or above the 30th percentile (bins B4\u2013B10).",
-                "Examinees at or above the 40th percentile (bins B5\u2013B10).",
-                "Classification: Filipino, Verified Foreigner, or Likely Foreigner.",
-                "Nationality as determined by Pipeline 4 citizenship integration.",
-                "State University or College.",
-                "Philippine Higher Education Institution.",
-                "Average linkage rate over the most recent 5 years (min 3 years required).",
-            ],
-        })
-        st.dataframe(terms_df, use_container_width=True, hide_index=True)
+        with st.expander("How the Data Was Produced (Computation Details)"):
+            st.markdown(
+                "All computations in this dashboard are performed directly from NMAT_Exodus.parquet "
+                "using the following approach:\n\n"
+                "- `best` subset = IS_BEST_NMAT_RECORD == True\n"
+                "- `besttrend` subset = best filtered to 2006\u20132018\n"
+                "- `bestobs` subset = besttrend filtered to Year <= 2014 (observable PLE cohort)\n\n"
+                "Aggregations use groupby operations on these subsets. All charts use Plotly Express "
+                "or Plotly Graph Objects. Tables are rendered via Streamlit's st.dataframe with "
+                "built-in sorting, search, and download capabilities.\n\n"
+                "The dashboard is designed for reproducibility: the same NMAT_Exodus.parquet file "
+                "will produce identical results regardless of environment."
+            )
 
-        st.subheader("Data Limitations")
-        st.warning(
-            "1. **No PLE pass rates.** PLE_DATA contains passers only (43,630 rows, no fail records). "
-            "What we report is the NMAT-to-PLE linkage rate, which is an evidence-based indicator "
-            "but different from the official PLE pass rate.\n\n"
-            "2. **Foreign student data counts examinees, not enrollees.** The 10-slot cap in the CMO "
-            "applies to enrolled foreign students. Our data shows who took the NMAT, not who enrolled.\n\n"
-            "3. **Temporal gap.** NMAT data covers 2006\u20132018. The CMO takes effect AY 2026\u20132027. "
-            "This is historical analysis, not current monitoring.\n\n"
-            "4. **Per-HEI PLE performance cannot determine compliance with Section IV-B-1b/c.** "
-            "The CMO requires per-HEI 'PLE performance at a rate above the average national passing "
-            "percentage.' Without PLE pass rates, we cannot definitively determine compliance.\n\n"
-            "5. **Province-level geography was removed** during column slimming (118 \u2192 54 columns). "
-            "Province-level analysis is not currently possible."
-        )
+        with st.expander("Column Glossary for NMAT_Exodus.parquet"):
+            col_df = pd.DataFrame({
+                "Column": [
+                    "APPNO_CLEAN", "PERSON_KEY", "Year", "NMS_PER_num", "PercentileBin",
+                    "UNIVERSITY", "NMA_College", "UNI_TYPE", "UNI_LOCATION",
+                    "SEX", "CourseGroup", "CITIZENSHIP_FINAL", "FOREIGNER_STATUS",
+                    "IS_BEST_NMAT_RECORD", "IS_PLE_ANALYSIS_SAFE", "IS_PLE_PASSER",
+                    "TotalRawScoreTRUE", "NMS_GPS", "NMS_APT", "NMS_SA",
+                ],
+                "Description": [
+                    "Anonymized application number",
+                    "Deduplicated person identifier",
+                    "NMAT examination year",
+                    "NMAT percentile rank score",
+                    "Percentile bin classification (B1\u2013B10)",
+                    "University name (aggregated, deduplicated)",
+                    "College/institution name within university",
+                    "University type: Public, Private, Foreign, Not Specified",
+                    "University location (region/province)",
+                    "Sex: Female or Male",
+                    "Course group classification (6 categories)",
+                    "Final citizenship classification",
+                    "Foreigner status: Filipino, Verified Foreigner, Likely Foreigner",
+                    "Flag: best NMAT record per examinee",
+                    "Flag: confirmed PLE passer (observable)",
+                    "Flag: IS_PLE_PASSER (derived)",
+                    "True total raw score (sum of verified Part I and Part II)",
+                    "General Potential Standard Score",
+                    "Academic Potential Test score",
+                    "Spiritual Aptitude score",
+                ],
+            })
+            st.dataframe(col_df, use_container_width=True, hide_index=True)
+            col_dl_app2, _ = st.columns([1, 3])
+            with col_dl_app2:
+                st.download_button(
+                    "Download Column Glossary CSV",
+                    data=col_df.to_csv(index=False).encode("utf-8"),
+                    file_name="ched_column_glossary.csv",
+                    mime="text/csv",
+                )
 
-        st.subheader("How the Data Was Produced")
-        st.markdown(
-            "All computations in this dashboard are performed directly from NMAT_Exodus.parquet "
-            "using the following approach:\n\n"
-            "- `best` subset = IS_BEST_NMAT_RECORD == True\n"
-            "- `besttrend` subset = best filtered to 2006\u20132018\n"
-            "- `bestobs` subset = besttrend filtered to Year <= 2014 (observable PLE cohort)\n\n"
-            "Aggregations use groupby operations on these subsets. All charts use Plotly Express "
-            "or Plotly Graph Objects. Tables are rendered via Streamlit's st.dataframe with "
-            "built-in sorting, search, and download capabilities.\n\n"
-            "The dashboard is designed for reproducibility: the same NMAT_Exodus.parquet file "
-            "will produce identical results regardless of environment."
-        )
-
-        st.subheader("Glossary of Column Names in NMAT_Exodus.parquet")
-        col_df = pd.DataFrame({
-            "Column": [
-                "APPNO_CLEAN", "PERSON_KEY", "Year", "NMS_PER_num", "PercentileBin",
-                "UNIVERSITY", "NMA_College", "UNI_TYPE", "UNI_LOCATION",
-                "SEX", "CourseGroup", "CITIZENSHIP_FINAL", "FOREIGNER_STATUS",
-                "IS_BEST_NMAT_RECORD", "IS_PLE_ANALYSIS_SAFE", "IS_PLE_PASSER",
-                "TotalRawScoreTRUE", "NMS_GPS", "NMS_APT", "NMS_SA",
-            ],
-            "Description": [
-                "Anonymized application number",
-                "Deduplicated person identifier",
-                "NMAT examination year",
-                "NMAT percentile rank score",
-                "Percentile bin classification (B1\u2013B10)",
-                "University name (aggregated, deduplicated)",
-                "College/institution name within university",
-                "University type: Public, Private, Foreign, Not Specified",
-                "University location (region/province)",
-                "Sex: Female or Male",
-                "Course group classification (6 categories)",
-                "Final citizenship classification",
-                "Foreigner status: Filipino, Verified Foreigner, Likely Foreigner",
-                "Flag: best NMAT record per examinee",
-                "Flag: confirmed PLE passer (observable)",
-                "Flag: IS_PLE_PASSER (derived)",
-                "True total raw score (sum of verified Part I and Part II)",
-                "General Potential Standard Score",
-                "Academic Potential Test score",
-                "Spiritual Aptitude score",
-            ],
-        })
-        st.dataframe(col_df, use_container_width=True, hide_index=True)
-
-        st.subheader("References")
-        st.markdown(
-            "- CMO No. __, s. 2026: Amendment to NMAT Cut-Off Scores\n"
-            "- NMAT_Exodus.parquet: Pipeline 4 output (Pipeline 1\u20134 documentation available in the "
-            "repository)\n"
-            "- Main NMAT Performance Dashboard: `streamlit_dashboard/main_dashboard/dashboard.py`\n"
-            "- CHED Implementation Plan: `streamlit_dashboard/CHED_relevant_dashboard/IMPLEMENTATION_PLAN.md`"
-        )
+        with st.expander("References"):
+            st.markdown(
+                "- CMO No. __, s. 2026: Amendment to NMAT Cut-Off Scores\n"
+                "- NMAT_Exodus.parquet: Pipeline 4 output (Pipeline 1\u20134 documentation available in the "
+                "repository)\n"
+                "- Main NMAT Performance Dashboard: `streamlit_dashboard/main_dashboard/dashboard.py`\n"
+                "- CHED Implementation Plan: `streamlit_dashboard/CHED_relevant_dashboard/IMPLEMENTATION_PLAN.md`"
+            )
 
 
 if __name__ == "__main__":
