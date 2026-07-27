@@ -32,7 +32,7 @@ except Exception:
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="NMAT Performance Dashboard",
-    page_icon="?",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -726,18 +726,18 @@ with st.expander("Read this first: how to interpret the dashboard", expanded=Fal
     tab1, tab2, tab3, tab4, tab5, tab6,
     tab7, tab8, tab9, tab10, tab11, tab12,
 ) = st.tabs([
-    "? Executive Summary",
-    "? Data Integrity",
-    "? Trends & Stability",
-    "? Score Bins & Background",
-    "? University Type Analysis",
-    "? Flow & Pathways",
-    "? PLE Alignment",
-    "? Repeat Takers",
-    "? Subtests & Profiles",
-    "? Year Gap & Gender",
-    "? Statistical Tests",
-    "? Policy Tables & Export",
+    "🏠 Executive Summary",
+    "🧪 Data Integrity",
+    "📈 Trends & Stability",
+    "📊 Score Bins & Background",
+    "🏫 University Type Analysis",
+    "🔄 Flow & Pathways",
+    "🎯 PLE Alignment",
+    "🔁 Repeat Takers",
+    "🧠 Subtests & Profiles",
+    "⏰ Year Gap & Gender",
+    "📐 Statistical Tests",
+    "📋 Policy Tables & Export",
 ])
 
 # -----------------------------------------------------------------------------
@@ -763,7 +763,7 @@ with tab1:
     col4.metric("Confirmed PLE share in observable cohort", f"{observable['HAS_CONFIRMED_PLE'].mean() * 100:.2f}%", help="Confirmed PLE outcomes are based on the pipeline field IS_PLE_ANALYSIS_SAFE == True.")
 
     st.markdown("""
-    ? **Course Group Distribution**
+    📚 **Course Group Distribution**
 
     Course groups are sourced directly from the cleaned pipeline output (`CourseGroup`):
 
@@ -775,7 +775,7 @@ with tab1:
     - **Other**: All remaining courses
     """)
 
-    exec_tab1, exec_tab2, exec_tab3 = st.tabs(["? Overview", "? Composition", "? Quick Tables"])
+    exec_tab1, exec_tab2, exec_tab3 = st.tabs(["📊 Overview", "📈 Composition", "📋 Quick Tables"])
 
     with exec_tab1:
         st.markdown("**Figure 1. Annual NMAT score and volume profile**")
@@ -1126,7 +1126,7 @@ with tab4:
         st.caption("Browse all examinees under each university type. Sorted by year (newest first) then percentile rank (highest first).")
 
         _rec_tab_foreign, _rec_tab_public, _rec_tab_private = st.tabs(
-            ["? Foreign", "?? Public", "? Private"]
+            ["🌐 Foreign", "🏛️ Public", "🏫 Private"]
         )
         _rec_display_cols = [
             c for c in [
@@ -1175,7 +1175,7 @@ with tab4:
         _nople_df = F["uniobservable"]
 
         _nople_tab_foreign, _nople_tab_public, _nople_tab_private = st.tabs(
-            ["? Foreign", "?? Public", "? Private"]
+            ["🌐 Foreign", "🏛️ Public", "🏫 Private"]
         )
         _nople_display_cols = [
             c for c in [
@@ -2613,20 +2613,20 @@ with tab11:
                 st.markdown("**Table 45. Observed counts by university type and percentile bin**")
                 st.caption("Cell counts of examinees by university type (rows) and percentile bin (columns).")
                 st.dataframe(observed_tbl.reset_index(), use_container_width=True)
-                st.markdown("**Table 46. Chi-square summary (university type ? bin)**")
+                st.markdown("**Table 46. Chi-square summary (university type × bin)**")
                 st.caption("Chi-square statistic, degrees of freedom, and p-value testing independence between university type and bin.")
                 st.dataframe(chi_summary, use_container_width=True)
 
             with c2:
                 row_pct = observed_tbl.div(observed_tbl.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
-                st.markdown("**Figure 35. University type ? bin row percentages**")
+                st.markdown("**Figure 35. University type × bin row percentages**")
                 st.caption("Heatmap shows row-wise percent distribution (percent of each university type located in each bin).")
                 fig = px.imshow(
                     row_pct,
                     text_auto=".1f",
                     aspect="auto",
                     color_continuous_scale="YlGnBu",
-                    title="University type ? bin row percentages",
+                    title="University type × bin row percentages",
                     labels={"x": "Percentile bin", "y": "University type", "color": "Percent"},
                 )
                 fig.update_layout(height=450)
