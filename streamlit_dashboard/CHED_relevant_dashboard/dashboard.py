@@ -118,7 +118,7 @@ def find_data_path() -> Path:
 @st.cache_data(show_spinner="Loading NMAT data ...")
 def load_data():
     path = find_data_path()
-    df = pd.read_parquet(path, engine="pyarrow", use_threads=True)
+    df = pd.read_parquet(path, use_threads=True)
     df = validate_schema(df)
 
     # Subsets
@@ -312,7 +312,7 @@ with tab2:
     pct_year_t = pct_year.T.reindex(BIN_ORDER[::-1])
 
     fig = px.imshow(
-        pct_year_t, text_auto=".1f", aspect="auto",
+        pct_year_t, text_auto=True, aspect="auto",
         color_continuous_scale="YlOrRd",
         labels={"x": "Year", "y": "Percentile Bin", "color": "%"},
         title="Percentile Bin Distribution by NMAT Year (Row % per Year)",
@@ -647,7 +647,7 @@ with tab4:
     _, uni_bin_pct = make_bin_pct(uni_subset, "UNI_TYPE")
     uni_bin_pct.index.name = "University Type"
 
-    fig = px.imshow(uni_bin_pct, text_auto=".1f", aspect="auto",
+    fig = px.imshow(uni_bin_pct, text_auto=True, aspect="auto",
                     color_continuous_scale="YlOrRd",
                     labels={"x": "Percentile Bin", "y": "University Type", "color": "%"},
                     title="Bin Distribution by University Type (Row %)")
