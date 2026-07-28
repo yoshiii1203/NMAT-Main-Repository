@@ -1,12 +1,8 @@
-"""
-CHED Compliance Dashboard - CMO No. __, s. 2026
-Streamlit dashboard providing data-driven evidence for NMAT cut-off policy decisions.
+"""CHED Presentation Dashboard -- NMAT Cut-Off Policy Evidence.
 
-Target audience: CHED policymakers, HEI administrators, and education researchers.
-Data source: NMAT_Exodus.parquet (Pipeline 4, 178,927 rows x 54 columns).
-
-Usage:
-    streamlit run dashboard.py
+A clean, evidence-focused dashboard built from NMAT_Exodus.parquet for
+presentation to CHED stakeholders.  Only CMO-relevant insights that are
+directly supported by the available data are included.
 """
 
 import warnings
@@ -21,1382 +17,1022 @@ import streamlit as st
 
 warnings.filterwarnings("ignore")
 
-# -- Page Configuration --
-
+# ---------------------------------------------------------------------------
+# Page config
+# ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="CHED Compliance Dashboard - CMO No. __, s. 2026",
-    page_icon="\U0001f4ca",
+    page_title="CHED NMAT Cut-Off Evidence Dashboard",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# -- Constants --
-
 BIN_ORDER = [f"B{i}" for i in range(1, 11)]
-
-PAL_UNI = {
-    "Public": "#1f77b4",
-    "Private": "#ff7f0e",
-    "Foreign": "#9467bd",
-    "Not Specified": "#7f7f7f",
+BIN_LABELS = {
+    "B1": "0-9", "B2": "10-19", "B3": "20-29", "B4": "30-39",
+    "B5": "40-49", "B6": "50-59", "B7": "60-69", "B8": "70-79",
+    "B9": "80-89", "B10": "90-99",
 }
+PLE_LABELS = ["Confirmed PLE passer", "No confirmed PLE match"]
 
-PAL_BIN = {
-    "B1": "#8B0000",
-    "B2": "#B22222",
-    "B3": "#D9534F",
-    "B4": "#F0AD4E",
-    "B5": "#FFD166",
-    "B6": "#A0D468",
-    "B7": "#66C2A5",
-    "B8": "#41B6C4",
-    "B9": "#2C7FB8",
-    "B10": "#253494",
+COLORS_BIN = {
+    "B1": "#8B0000", "B2": "#B22222", "B3": "#D9534F", "B4": "#F0AD4E",
+    "B5": "#FFD166", "B6": "#A0D468", "B7": "#66C2A5", "B8": "#41B6C4",
+    "B9": "#2C7FB8", "B10": "#253494",
 }
+COLORS_PLE = {"Confirmed PLE passer": "#2e7d32", "No confirmed PLE match": "#c62828"}
+COLORS_UNI = {"Public": "#1f77b4", "Private": "#ff7f0e", "Foreign": "#9467bd", "Not Specified": "#7f7f7f"}
 
-PAL_COURSE = {
-    "Medical & Allied": "#1f77b4",
-    "Natural Sciences": "#2ca02c",
-    "Social & Behavioral Sciences": "#ff7f0e",
-    "Education": "#d62728",
-    "Engineering & Technology": "#9467bd",
-    "Other": "#7f7f7f",
-}
-
-PAL_SEX = {"Female": "#e377c2", "Male": "#1f77b4"}
-
-YEAR_RANGE = (2006, 2018)
-
-def render_caveat(caveat_type: str):
-    caveats = {
-        "general": " **Data Limitations:** NMAT data covers 2006-2018. "
-                   "PLE data covers 2011-2022. Observable cohort (Year \u2264 2014) used "
-                   "for all PLE-linked summaries. See Data Appendix for full details.",
-        "linkage": "\u26a0\ufe0f **Not a PLE Pass Rate:** All PLE metrics on this page are "
-                   "NMAT-to-PLE linkage rates -- the share of NMAT examinees later found in "
-                   "PLE passer records. We CANNOT compute actual PLE pass rates because our "
-                   "dataset contains only passers, not all PLE takers.",
-        "foreign": "\u26a0\ufe0f **Examinee Counts, Not Enrollment:** All foreign student figures "
-                   "reflect NMAT examinees. The CMO's 10-slot cap applies to enrolled students, "
-                   "which requires enrollment data from HEIs that we do not have.",
-        "cutoff": "\u26a0\ufe0f **Historical Data:** Cut-off scenarios use NMAT data from "
-                  "2006-2018. The CMO takes effect AY 2026-2027. There is an 8-year "
-                  "data gap. Trends may not reflect current conditions.",
-        "per_hei": "\u26a0\ufe0f **Not a Pass Rate:** Per-HEI PLE linkage rates are NOT PLE pass "
-                   "rates. They measure what share of an HEI's NMAT examinees were later "
-                   "found in PLE passer data. Do not use for CMO eligibility determination "
-                   "without validation against actual PRC data.",
-    }
-    c = caveats.get(caveat_type, caveats["general"])
-    st.warning(c)
-
-
-# -- Helper Functions --
-
-
-def bin_at_or_above(b: str, threshold_b: str) -> bool:
-    """Check if bin b is at or above threshold_b in BIN_ORDER."""
-    if pd.isna(b):
-        return False
-    try:
-        return BIN_ORDER.index(b) >= BIN_ORDER.index(threshold_b)
-    except (ValueError, IndexError):
-        return False
-
-
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 def find_data_path() -> Path:
-    """Locate NMAT_Exodus.parquet. Checks current dir first, then dataset/."""
     candidates = [
         Path("NMAT_Exodus.parquet"),
         Path("dataset/NMAT_Exodus.parquet"),
+        Path("../main_dashboard/NMAT_Exodus.parquet"),
+        Path("../../dataset/NMAT_Exodus.parquet"),
     ]
     for p in candidates:
         if p.exists():
-            return p
+            return p.resolve()
     raise FileNotFoundError(
-        "Could not find NMAT_Exodus.parquet. "
-        "Place it in the app root or in ./dataset/."
+        "Could not locate NMAT_Exodus.parquet. "
+        "Place it in ./dataset/ or in the app root."
     )
 
 
-# -- Data Loading --
-
-
-@st.cache_data
+@st.cache_data(show_spinner="Loading NMAT data ...")
 def load_data():
-    """Load NMAT_Exodus.parquet and return pre-computed subsets."""
     path = find_data_path()
-    df = pd.read_parquet(path)
+    df = pd.read_parquet(path, engine="pyarrow", use_threads=True)
 
-    # Ensure Year is integer
-    df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
+    # coerce types
+    for c in ["Year"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
+    for c in [
+        "TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
+        "NMS_PER_num", "NMS_GPS",
+    ]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    # Best NMAT record per examinee
-    best = df[df["IS_BEST_NMAT_RECORD"] == True].copy()
+    # bin order
+    if "PercentileBin" in df.columns:
+        df["PercentileBin"] = pd.Categorical(
+            df["PercentileBin"], categories=BIN_ORDER, ordered=True
+        )
 
-    # Best records within trend window (2006-2018)
-    besttrend = best[best["Year"].between(YEAR_RANGE[0], YEAR_RANGE[1], inclusive="both")].copy()
+    # best-record subset
+    df_best = df[df["IS_BEST_NMAT_RECORD"] == True].copy() if "IS_BEST_NMAT_RECORD" in df.columns else df.copy()
 
-    # Best records observable for PLE (Year <= 2014, allowing 4-year licensure window)
-    bestobs = besttrend[besttrend["Year"] <= 2014].copy()
+    # observable cohort (Year <= 2014)
+    df_obs = df_best[df_best["Year"] <= 2014].copy() if "Year" in df_best.columns else df_best.copy()
 
-    return df, best, besttrend, bestobs
+    # PLE flag
+    if "IS_PLE_ANALYSIS_SAFE" in df_obs.columns:
+        df_obs["HAS_CONFIRMED_PLE"] = (df_obs["IS_PLE_ANALYSIS_SAFE"] == True).astype("boolean")
+    else:
+        df_obs["HAS_CONFIRMED_PLE"] = pd.Series(pd.NA, index=df_obs.index, dtype="boolean")
+
+    return df, df_best, df_obs
 
 
-# -- Main App --
+def make_bin_pct(df, group_col):
+    """Return a DataFrame of row-wise bin percentages for a group column."""
+    ct = pd.crosstab(df[group_col], df["PercentileBin"], dropna=False)
+    ct = ct.reindex(columns=BIN_ORDER, fill_value=0)
+    # Ensure numeric dtype (PyArrow backend may return string-typed crosstab counts)
+    ct = ct.apply(pd.to_numeric, errors="coerce")
+    pct = ct.div(ct.sum(axis=1).replace(0, np.nan), axis=0).mul(100).fillna(0).round(2)
+    return ct, pct
 
 
-def main():
-    # Title area
-    st.title("CHED Compliance Dashboard - CMO No. __, s. 2026")
-    st.caption(
-        "Data-Driven Evidence for NMAT Cut-Off Policy. "
-        "This dashboard supports CHED, HEI administrators, and education researchers "
-        "in understanding the empirical basis for the amended NMAT cut-off score policy. "
-        "All figures are computed from NMAT_Exodus.parquet (Pipeline 4, 178,927 best records, 2006-2018)."
+# ---------------------------------------------------------------------------
+# Load
+# ---------------------------------------------------------------------------
+df_all, df_best, df_obs = load_data()
+
+# ---------------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------------
+st.title("NMAT Performance Evidence for CHED Cut-Off Policy Review")
+st.caption(
+    "This dashboard presents descriptive evidence from NMAT_Exodus.parquet "
+    "(178,927 examinee records, 2006-2018) to inform the CMO amendment on "
+    "NMAT cut-off scores.  All analyses use validated data from the "
+    "4-pipeline processing system.  PLE-linked analyses use the observable "
+    "cohort (Year <= 2014) to avoid right-censoring bias."
+)
+
+with st.expander("How to read this dashboard", expanded=False):
+    st.markdown(
+        """
+- **Best-record examinees** -- one NMAT record per person (removes repeat-taker inflation).
+- **Observable cohort** -- examinees with Year <= 2014, who have had time to take the PLE.
+- **Percentile bins** -- B1 (0-9) through B10 (90-99).  B4+ means at or above the 30th percentile.  B5+ means at or above the 40th percentile.
+- **NMAT-to-PLE linkage** -- this measures how many NMAT examinees were later matched to PLE passer records.  It is NOT a PLE pass rate.  The dataset does not contain all PLE takers or PLE failures.
+- **Foreign examinee counts** -- these are NMAT examinees, not enrolled medical students.  Enrollment numbers would require additional data.
+        """
     )
 
+# ---------------------------------------------------------------------------
+# Tabs
+# ---------------------------------------------------------------------------
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "National NMAT Profile",
+    "Percentile Distribution",
+    "NMAT-to-PLE Linkage",
+    "University Type Context",
+    "National Benchmark Context",
+    "Data Context & Limitations",
+])
 
-    # Load data
-    with st.spinner("Loading NMAT data..."):
-        df, best, besttrend, bestobs = load_data()
+# ===================================================================
+# TAB 1 -- National NMAT Profile & Coverage
+# ===================================================================
+with tab1:
+    st.subheader("National NMAT Profile and Coverage")
+    st.caption(
+        "What this shows: the size, scope, and basic score distribution of the "
+        "NMAT examinee population across 13 examination years.  These figures "
+        "establish the evidence base for cut-off policy discussions."
+    )
 
-    # Pre-compute commonly used flags
-    best["IS_B4_OR_ABOVE"] = best["PercentileBin"].apply(lambda b: bin_at_or_above(b, "B4"))
-    best["IS_B5_OR_ABOVE"] = best["PercentileBin"].apply(lambda b: bin_at_or_above(b, "B5"))
-    besttrend["IS_B4_OR_ABOVE"] = besttrend["PercentileBin"].apply(lambda b: bin_at_or_above(b, "B4"))
-    besttrend["IS_B5_OR_ABOVE"] = besttrend["PercentileBin"].apply(lambda b: bin_at_or_above(b, "B5"))
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(
+        "Best-record examinees",
+        f"{len(df_best):,}",
+        help="Unique examinees after deduplication (one record per person).",
+    )
+    c2.metric(
+        "NMAT years covered",
+        f"{int(df_best['Year'].nunique())}",
+        help="Examination years from 2006 through 2018.",
+    )
+    c3.metric(
+        "Median percentile rank",
+        f"{df_best['NMS_PER_num'].median():.1f}",
+        help="Median examinee percentile rank.",
+    )
+    c4.metric(
+        "Median TRUE raw score",
+        f"{df_best['TotalRawScoreTRUE'].median():.1f}",
+        help="Recalculated total raw score (corrected for 42.2% storage errors).",
+    )
 
-    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        uni_dist = (
+            df_best["UNI_TYPE"]
+            .value_counts()
+            .reset_index()
+        )
+        uni_dist.columns = ["UNI_TYPE", "Count"]
+        uni_dist["Count"] = pd.to_numeric(uni_dist["Count"], errors="coerce")
+        uni_dist["Share (%)"] = (uni_dist["Count"] / uni_dist["Count"].sum() * 100).round(1)
+        fig = px.pie(uni_dist, names="UNI_TYPE", values="Count", title="University Type Composition")
+        fig.update_traces(textinfo="label+percent", hovertemplate="%{label}: %{value} (%{percent})<extra></extra>")
+        st.plotly_chart(fig, use_container_width=True, key="t1_uni_pie")
+        st.caption("Private institutions account for the majority of examinees, followed by Public (SUCs).")
 
-    # -- Navigation Tabs --
+    with c2:
+        course_dist = (
+            df_best["CourseGroup"]
+            .value_counts()
+            .reset_index()
+        )
+        course_dist.columns = ["CourseGroup", "Count"]
+        course_dist["Count"] = pd.to_numeric(course_dist["Count"], errors="coerce")
+        course_dist["Share (%)"] = (course_dist["Count"] / course_dist["Count"].sum() * 100).round(1)
+        fig = px.pie(course_dist, names="CourseGroup", values="Count", title="Course Group Composition")
+        fig.update_traces(textinfo="label+percent", hovertemplate="%{label}: %{value} (%{percent})<extra></extra>")
+        st.plotly_chart(fig, use_container_width=True, key="t1_course_pie")
+        st.caption("Medical & Allied and Natural Sciences together account for nearly 80% of examinees.")
 
-    tab_names = [
-        "Overview",
-        "National Benchmark",
-        "Cut-Off Scenarios",
-        "Per-HEI Analysis",
-        "Foreign Students",
-        "Demographics",
-        "PLE Alignment",
-        "Trends",
-        "Accountability Framework",
-        "Data Appendix",
+    # Yearly examinee count table
+    yearly_counts = (
+        df_best.groupby("Year", observed=True)
+        .size()
+        .reset_index(name="Examinees")
+    )
+    yearly_counts["Year"] = yearly_counts["Year"].astype(str)
+    fig = px.bar(
+        yearly_counts, x="Year", y="Examinees",
+        title="Examinee Count by NMAT Year (Best Record)",
+        labels={"Examinees": "Examinees"},
+    )
+    fig.update_traces(hovertemplate="Year: %{x}<br>Examinees: %{y:,}<extra></extra>")
+    st.plotly_chart(fig, use_container_width=True, key="t1_year_bar")
+    st.caption("Examinee volume has grown substantially, particularly from 2015 onward.")
+
+    yearly_counts_display = yearly_counts.copy()
+    yearly_counts_display.columns = ["NMAT Year", "Examinees"]
+    st.dataframe(yearly_counts_display, use_container_width=True, hide_index=True)
+
+    st.markdown("**Interpretation.** The dataset covers the full national NMAT-taking population from 2006 to 2018, with 134,000 unique examinees after deduplication.  This provides a stable evidence base for analyzing the implications of cut-off policy changes.")
+
+# ===================================================================
+# TAB 2 -- Percentile Distribution & Cut-off Context
+# ===================================================================
+with tab2:
+    st.subheader("Percentile Distribution and Cut-Off Context")
+    st.caption(
+        "What this shows: how examinees are distributed across the percentile "
+        "spectrum, and how many fall at or above the two major cut-off thresholds "
+        "discussed in the CMO (30th and 40th percentile)."
+    )
+
+    # Yearly bin composition heatmap (transposed: bins as rows, years as cols)
+    ct_year, pct_year = make_bin_pct(df_best, "Year")
+    pct_year.index.name = "Year"
+    pct_year_t = pct_year.T
+    pct_year_t.index.name = "Bin"
+    pct_year_t = pct_year_t.reindex(BIN_ORDER[::-1])
+
+    fig = px.imshow(
+        pct_year_t,
+        text_auto=".1f",
+        aspect="auto",
+        color_continuous_scale="YlOrRd",
+        labels={"x": "Year", "y": "Percentile Bin", "color": "%"},
+        title="Percentile Bin Distribution by NMAT Year (Row % per Year)",
+    )
+    fig.update_layout(height=460)
+    st.plotly_chart(fig, use_container_width=True, key="t2_heatmap")
+    st.caption("Darker red = higher concentration in that bin for that year.  The share of bottom-bin (B1-B3) examinees has increased in later years.")
+
+    # 30th vs 40th percentile comparison
+    st.markdown("### Examinees at or Above Each Cut-Off Threshold")
+
+    df_best_bins = df_best.dropna(subset=["PercentileBin"]).copy()
+    df_obs_bins = df_obs.dropna(subset=["PercentileBin"]).copy()
+
+    def above_bin(df, threshold):
+        """Return subset at or above the given bin (B4 = 30th, B5 = 40th)."""
+        idx = BIN_ORDER.index(threshold)
+        return df[df["PercentileBin"].apply(
+            lambda b: BIN_ORDER.index(b) >= idx if pd.notna(b) else False
+        )]
+
+    def bin_range(df, low, high):
+        """Return subset between two bins (inclusive)."""
+        lo = BIN_ORDER.index(low)
+        hi = BIN_ORDER.index(high)
+        return df[df["PercentileBin"].apply(
+            lambda b: lo <= BIN_ORDER.index(b) <= hi if pd.notna(b) else False
+        )]
+
+    scenario_rows = []
+    for label, bin_thresh, cohort in [
+        ("30th percentile (B4+)", "B4", df_best_bins),
+        ("40th percentile (B5+)", "B5", df_best_bins),
+        ("30th-39th percentile only (B4)", "B4", bin_range(df_best_bins, "B4", "B4")),
+    ]:
+        if label == "30th-39th percentile only (B4)":
+            sub = cohort
+        else:
+            sub = above_bin(cohort, bin_thresh)
+
+        obs_sub = above_bin(df_obs_bins, bin_thresh) if label != "30th-39th percentile only (B4)" else bin_range(df_obs_bins, "B4", "B4")
+
+        scenario_rows.append({
+            "Threshold": label,
+            "Best-record examinees": len(sub),
+            "Share of all (%)": round(len(sub) / len(df_best_bins) * 100, 1),
+            "Median percentile": round(sub["NMS_PER_num"].median(), 1) if len(sub) > 0 else "-",
+            "Observable cohort size": len(obs_sub),
+        })
+
+    scenario_df = pd.DataFrame(scenario_rows)
+    st.dataframe(scenario_df, use_container_width=True, hide_index=True)
+    st.caption(
+        "The 30th-percentile cut-off (B4+) encompasses a substantially larger pool "
+        "than the 40th-percentile cut-off (B5+).  The B4-only group (30th-39th percentile) "
+        "represents the marginal population affected by a choice between the two thresholds."
+    )
+
+    # B4 group profile
+    b4_group = bin_range(df_best.dropna(subset=["PercentileBin"]), "B4", "B4")
+    if len(b4_group) > 0:
+        st.markdown("### Profile of the 30th-39th Percentile Group (B4)")
+
+        b4_by_uni = (
+            b4_group.groupby("UNI_TYPE", observed=True)
+            .size()
+            .reset_index(name="count")
+        )
+        b4_by_uni["count"] = pd.to_numeric(b4_by_uni["count"], errors="coerce")
+        b4_by_uni["share"] = (b4_by_uni["count"] / b4_by_uni["count"].sum() * 100).round(1)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("B4 examinees (best record)", f"{len(b4_group):,}")
+        c2.metric(
+            "Median total raw score",
+            f"{b4_group['TotalRawScoreTRUE'].median():.1f}"
+        )
+        c3.metric(
+            "Public institution share",
+            f"{b4_by_uni.loc[b4_by_uni['UNI_TYPE']=='Public', 'share'].values[0]:.1f}%" if "Public" in b4_by_uni["UNI_TYPE"].values else "0%"
+        )
+
+        fig = px.bar(
+            b4_by_uni, x="UNI_TYPE", y="count",
+            title="B4 Examinees by Institution Type",
+            labels={"count": "Examinees", "UNI_TYPE": ""},
+            color="UNI_TYPE", color_discrete_map=COLORS_UNI,
+        )
+        st.plotly_chart(fig, use_container_width=True, key="t2_b4_uni")
+
+        st.caption(
+            "Examinees in the 30th-39th percentile band are distributed across all "
+            "university types.  The majority come from Private institutions, consistent "
+            "with the overall composition of the dataset."
+        )
+
+    # Top vs bottom bin share over time
+    st.markdown("### Top-Bin (B8-B10) vs Bottom-Bin (B1-B3) Trend")
+    _, pct_year_2 = make_bin_pct(df_best, "Year")
+    top_share = pct_year_2[["B8", "B9", "B10"]].sum(axis=1)
+    bot_share = pct_year_2[["B1", "B2", "B3"]].sum(axis=1)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=top_share.index.astype(str), y=top_share.values,
+        mode="lines+markers", name="Top B8-B10",
+        line=dict(color="#2e7d32", width=3),
+    ))
+    fig.add_trace(go.Scatter(
+        x=bot_share.index.astype(str), y=bot_share.values,
+        mode="lines+markers", name="Bottom B1-B3",
+        line=dict(color="#c62828", width=3),
+    ))
+    fig.update_layout(
+        title="Share of Examinees in Top vs Bottom Bins by Year",
+        xaxis_title="Year", yaxis_title="Percent of examinees",
+        height=400,
+    )
+    st.plotly_chart(fig, use_container_width=True, key="t2_topbot")
+    st.caption(
+        "The proportion of examinees in the top bins (B8-B10) has declined since 2013, "
+        "while the bottom-bin share (B1-B3) has increased.  This shift affects how many "
+        "examinees would fall at or above any fixed cut-off threshold."
+    )
+
+    # Year-by-year table of B4+ and B5+ counts
+    st.markdown("### Yearly Threshold-Admitted Counts")
+    yearly_threshold = []
+    for yr in sorted(df_best_bins["Year"].dropna().unique()):
+        yr_df = df_best_bins[df_best_bins["Year"] == yr]
+        yr_obs = df_obs_bins[df_obs_bins["Year"] == yr]
+        above_b4 = above_bin(yr_df, "B4")
+        above_b5 = above_bin(yr_df, "B5")
+        obs_b4 = above_bin(yr_obs, "B4")
+        obs_b5 = above_bin(yr_obs, "B5")
+        yearly_threshold.append({
+            "Year": int(yr),
+            "Total (best record)": len(yr_df),
+            "B4+ (30th cut-off)": len(above_b4),
+            "B4+ share (%)": round(len(above_b4) / len(yr_df) * 100, 1),
+            "B5+ (40th cut-off)": len(above_b5),
+            "B5+ share (%)": round(len(above_b5) / len(yr_df) * 100, 1),
+            "Observable B4+": len(obs_b4),
+            "Observable B5+": len(obs_b5),
+        })
+    yr_tbl = pd.DataFrame(yearly_threshold)
+    st.dataframe(yr_tbl, use_container_width=True, hide_index=True)
+    st.caption(
+        "The difference between B4+ and B5+ shares indicates how many additional "
+        "examinees would meet a 30th-percentile cut-off versus a 40th-percentile cut-off.  "
+        "Observable counts use Year <= 2014 for PLE-linked analyses."
+    )
+
+    st.markdown("**Interpretation.** The data show a substantial and growing pool of examinees below both cut-off thresholds.  The 30th-percentile cut-off admits approximately 10-15 percentage points more examinees than the 40th-percentile cut-off, depending on the year.  The observable cohort provides the basis for comparing PLE outcomes between these groups.")
+
+# ===================================================================
+# TAB 3 -- NMAT-to-PLE Linkage by Percentile Band
+# ===================================================================
+with tab3:
+    st.subheader("NMAT-to-PLE Linkage by Percentile Band")
+    st.caption(
+        "What this shows: the proportion of NMAT examinees in each percentile band "
+        "who were later confirmed as PLE passers, using the observable cohort "
+        "(Year <= 2014).  This is NMAT-to-PLE linkage, not a PLE pass rate."
+    )
+
+    st.info(
+        "The dataset identifies NMAT examinees who were later matched to PLE passer "
+        "records.  It does not contain all PLE takers or PLE failures.  Therefore, "
+        "these values represent NMAT-to-PLE linkage, not PLE passing rates.  "
+        "They should be interpreted as: 'among NMAT examinees in this percentile "
+        "band, this percentage were later confirmed as having passed the PLE.'"
+    )
+
+    # PLE linkage by bin
+    ple_bin = (
+        df_obs.dropna(subset=["PercentileBin", "HAS_CONFIRMED_PLE"])
+        .groupby("PercentileBin", observed=True)
+        .agg(
+            n=("APPNO_CLEAN", "count"),
+            confirmed_passers=("HAS_CONFIRMED_PLE", "sum"),
+        )
+        .reset_index()
+    )
+    ple_bin.columns = ["Percentile Bin", "N (observable cohort)", "Confirmed PLE Passers"]
+    ple_bin["Linkage Rate (%)"] = (
+        ple_bin["Confirmed PLE Passers"] / ple_bin["N (observable cohort)"] * 100
+    ).round(2)
+    ple_bin["Percentile Bin"] = ple_bin["Percentile Bin"].astype(str)
+    ple_bin["Label"] = ple_bin["Percentile Bin"].map(BIN_LABELS)
+
+    fig = px.bar(
+        ple_bin, x="Percentile Bin", y="Linkage Rate (%)",
+        title="NMAT-to-PLE Linkage Rate by Percentile Band",
+        labels={"Percentile Bin": "Percentile Band", "Linkage Rate (%)": "NMAT-to-PLE Linkage (%)"},
+        color="Linkage Rate (%)", color_continuous_scale="Viridis",
+        text=ple_bin["Linkage Rate (%)"].round(1).astype(str) + "%",
+    )
+    fig.update_traces(textposition="outside", hovertemplate="Band: %{x}<br>Linkage: %{y:.1f}%<br>N: %{customdata:,}<extra></extra>",
+                      customdata=ple_bin["N (observable cohort)"].values)
+    fig.add_hline(y=50, line_dash="dash", line_color="gray", annotation_text="50%")
+    fig.update_layout(height=480)
+    st.plotly_chart(fig, use_container_width=True, key="t3_ple_bar")
+    st.caption(
+        "Linkage rates increase steadily across percentile bands.  The B4 band (30th-39th "
+        "percentile) shows approximately 23% NMAT-to-PLE linkage, compared to about 46% "
+        "for B5 (40th-49th percentile).  This is a descriptive pattern, not a causal "
+        "prediction."
+    )
+
+    # Table
+    st.dataframe(ple_bin[["Percentile Bin", "Label", "N (observable cohort)", "Confirmed PLE Passers", "Linkage Rate (%)"]],
+                 use_container_width=True, hide_index=True)
+
+    # Score profile by PLE status
+    st.markdown("### Score Profile by PLE Status")
+
+    desc_cols = ["TotalRawScoreTRUE", "NMS_PER_num", "PartIRawScoreTRUE", "PartIIRawScoreTRUE"]
+    desc_cols = [c for c in desc_cols if c in df_obs.columns]
+    if desc_cols:
+        desc = (
+            df_obs.groupby("HAS_CONFIRMED_PLE", observed=True)[desc_cols]
+            .agg(["count", "median", "mean", lambda x: x.quantile(0.25), lambda x: x.quantile(0.75)])
+            .round(2)
+        )
+        desc.index = ["No confirmed PLE match", "Confirmed PLE passer"]
+        st.dataframe(desc, use_container_width=True)
+        st.caption(
+            "Confirmed PLE passers show substantially higher median scores across all "
+            "measures compared to the group without a confirmed PLE match."
+        )
+
+    # PLE linkage by year
+    st.markdown("### PLE Linkage by NMAT Year")
+    ple_yr = (
+        df_obs.groupby("Year", observed=True)
+        .agg(
+            n=("APPNO_CLEAN", "count"),
+            confirmed=("HAS_CONFIRMED_PLE", "sum"),
+        )
+        .reset_index()
+    )
+    ple_yr["linkage_pct"] = (ple_yr["confirmed"] / ple_yr["n"] * 100).round(2)
+    ple_yr["Year"] = ple_yr["Year"].astype(str)
+
+    fig = px.line(
+        ple_yr, x="Year", y="linkage_pct",
+        markers=True,
+        title="NMAT-to-PLE Linkage Rate by NMAT Year (Observable Cohort)",
+        labels={"linkage_pct": "Linkage Rate (%)"},
+    )
+    fig.update_traces(hovertemplate="Year: %{x}<br>Linkage: %{y:.1f}%<br>N: %{customdata:,}<extra></extra>",
+                      customdata=ple_yr["n"].values,
+                      line=dict(color="#1f77b4", width=3))
+    fig.update_layout(height=400)
+    st.plotly_chart(fig, use_container_width=True, key="t3_ple_yr")
+    st.caption(
+        "Observed linkage rates decline for more recent years within the observable "
+        "cohort, which may reflect the shorter post-NMAT window for those cohorts."
+    )
+
+    # PLE linkage by course group
+    st.markdown("### PLE Linkage by Course Group")
+    if "CourseGroup" in df_obs.columns:
+        ple_course = (
+            df_obs.dropna(subset=["CourseGroup", "HAS_CONFIRMED_PLE"])
+            .groupby("CourseGroup", observed=True)
+            .agg(
+                n=("APPNO_CLEAN", "count"),
+                confirmed=("HAS_CONFIRMED_PLE", "sum"),
+                median_pct=("NMS_PER_num", "median"),
+            )
+            .reset_index()
+        )
+        ple_course["Linkage Rate (%)"] = (ple_course["confirmed"] / ple_course["n"] * 100).round(2)
+        ple_course.columns.values[0] = "Course Group"
+
+        fig = px.bar(
+            ple_course, x="Course Group", y="Linkage Rate (%)",
+            color="Course Group",
+            title="NMAT-to-PLE Linkage Rate by Course Group",
+            text=ple_course["Linkage Rate (%)"].round(1).astype(str) + "%",
+        )
+        fig.update_traces(textposition="outside")
+        fig.update_layout(height=400, showlegend=False, xaxis_tickangle=-20)
+        st.plotly_chart(fig, use_container_width=True, key="t3_ple_course")
+
+        st.dataframe(ple_course, use_container_width=True, hide_index=True)
+        st.caption(
+            "Linkage rates vary by pre-med course background.  Education and Natural Sciences "
+            "examinees show the highest linkage rates, while Engineering & Technology shows "
+            "the lowest, consistent with course-to-career pathways."
+        )
+
+    # PLE linkage by university type
+    st.markdown("### PLE Linkage by University Type")
+    if "UNI_TYPE" in df_obs.columns:
+        ple_uni = (
+            df_obs[df_obs["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+            .groupby("UNI_TYPE", observed=True)
+            .agg(
+                n=("APPNO_CLEAN", "count"),
+                confirmed=("HAS_CONFIRMED_PLE", "sum"),
+                median_pct=("NMS_PER_num", "median"),
+            )
+            .reset_index()
+        )
+        ple_uni["Linkage Rate (%)"] = (ple_uni["confirmed"] / ple_uni["n"] * 100).round(2)
+        ple_uni.columns.values[0] = "University Type"
+
+        fig = px.bar(
+            ple_uni, x="University Type", y="Linkage Rate (%)",
+            color="University Type", color_discrete_map=COLORS_UNI,
+            title="NMAT-to-PLE Linkage Rate by University Type",
+            text=ple_uni["Linkage Rate (%)"].round(1).astype(str) + "%",
+        )
+        fig.update_traces(textposition="outside")
+        fig.update_layout(height=400, showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, key="t3_ple_uni")
+
+        st.dataframe(ple_uni, use_container_width=True, hide_index=True)
+        st.caption(
+            "Public institution examinees show the highest linkage rate at approximately "
+            "50%, compared to 45% for Private institutions.  Foreign institution "
+            "examinees show markedly lower linkage rates, consistent with most being "
+            "ineligible or not pursuing the Philippine licensure examination."
+        )
+
+    st.markdown("**Interpretation.** The NMAT-to-PLE linkage rate rises steadily with percentile rank, from about 8% in B1 to 76% in B10.  The 30th-39th percentile band shows approximately 23% linkage, compared to 46% for the 40th-49th percentile band.  These patterns are descriptive and reflect the composition of NMAT examinees who also took and passed the PLE -- they do not represent the PLE success rate of all medical school graduates.")
+
+# ===================================================================
+# TAB 4 -- University Type & Institution Context
+# ===================================================================
+with tab4:
+    st.subheader("University Type and Institution Context")
+    st.caption(
+        "What this shows: how NMAT performance and PLE linkage differ across "
+        "Public (SUC), Private (PHEI), and Foreign institution types."
+    )
+
+    uni_subset = df_best[df_best["UNI_TYPE"].isin(["Public", "Private", "Foreign"])].copy()
+
+    # Score summary by university type
+    st.markdown("### Score Summary by University Type")
+
+    uni_score = (
+        uni_subset.groupby("UNI_TYPE", observed=True)
+        .agg(
+            n=("APPNO_CLEAN", "count"),
+            median_percentile=("NMS_PER_num", "median"),
+            q25_percentile=("NMS_PER_num", lambda x: x.quantile(0.25)),
+            q75_percentile=("NMS_PER_num", lambda x: x.quantile(0.75)),
+            median_raw=("TotalRawScoreTRUE", "median"),
+            median_gps=("NMS_GPS", "median"),
+        )
+        .round(2)
+        .reset_index()
+    )
+    uni_score.columns = [
+        "University Type", "N (best record)", "Median %ile", "Q25 %ile",
+        "Q75 %ile", "Median Raw Score", "Median GPS",
     ]
-    tabs = st.tabs(tab_names)
 
-    # ================================================================
-    # TAB 1: OVERVIEW
-    # ================================================================
-    with tabs[0]:
-        st.header("Overview")
-        st.info(
-            " **What This Tab Answers:** What is the overall policy context, "
-            "what are the key headline metrics, and how should this dashboard be used?"
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        st.dataframe(uni_score, use_container_width=True, hide_index=True)
+    with c2:
+        fig = px.box(
+            uni_subset.dropna(subset=["NMS_PER_num"]),
+            x="UNI_TYPE", y="NMS_PER_num",
+            color="UNI_TYPE", color_discrete_map=COLORS_UNI,
+            points=False,
+            title="Percentile Rank Distribution by University Type",
+            labels={"NMS_PER_num": "Percentile Rank", "UNI_TYPE": ""},
         )
-        st.subheader("Policy Context")
+        fig.update_layout(height=400, showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, key="t4_box_uni")
+
+    st.caption(
+        "Public institution examinees show a higher median percentile rank (57) "
+        "compared to Private (49) and Foreign (52) institution examinees."
+    )
+
+    # Bin distribution by university type
+    st.markdown("### Percentile Bin Distribution by University Type")
+    _, uni_bin_pct = make_bin_pct(uni_subset, "UNI_TYPE")
+    uni_bin_pct.index.name = "University Type"
+
+    fig = px.imshow(
+        uni_bin_pct,
+        text_auto=".1f",
+        aspect="auto",
+        color_continuous_scale="YlOrRd",
+        labels={"x": "Percentile Bin", "y": "University Type", "color": "%"},
+        title="Bin Distribution by University Type (Row %)",
+    )
+    fig.update_layout(height=350)
+    st.plotly_chart(fig, use_container_width=True, key="t4_uni_bin")
+    st.caption(
+        "Public institutions have a higher concentration in the top bins (B8-B10), "
+        "while Private and Foreign institutions show broader distributions across all bins."
+    )
+
+    # Top-bin share by university type
+    top_uni = uni_bin_pct[["B8", "B9", "B10"]].sum(axis=1).sort_values()
+    fig = go.Figure(go.Bar(
+        x=top_uni.values,
+        y=top_uni.index,
+        orientation="h",
+        marker_color=[COLORS_UNI.get(i, "#7f7f7f") for i in top_uni.index],
+        text=[f"{v:.1f}%" for v in top_uni.values],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        title="Top-Bin Share (B8-B10) by University Type",
+        xaxis_title="Percent in B8-B10",
+        yaxis_title="",
+        height=300,
+    )
+    st.plotly_chart(fig, use_container_width=True, key="t4_top_uni")
+
+    # Foreign examinee context (descriptive only)
+    st.markdown("### Foreign Examinee Context")
+    st.caption(
+        "The CMO includes provisions for foreign student enrollment at SUCs.  "
+        "The available data identify NMAT examinees by citizenship -- these are "
+        "NMAT examinees, not enrolled medical students.  Enrollment numbers "
+        "would require additional data from HEIs."
+    )
+
+    if "CITIZENSHIP_FINAL" in df_best.columns and "FOREIGNER_STATUS" in df_best.columns:
+        foreign = df_best[df_best["FOREIGNER_STATUS"] == "Verified Foreigner"]
+        filipino = df_best[df_best["CITIZENSHIP_FINAL"] == "Filipino"]
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric(
+            "Verified Foreign examinees (all years)",
+            f"{len(foreign):,}",
+            help="NMAT examinees with verified non-Filipino citizenship from REAL_FOREIGNERS.csv ground truth.",
+        )
+        c2.metric(
+            "Filipino examinees",
+            f"{len(filipino):,}",
+        )
+        c3.metric(
+            "Distinct foreign nationalities represented",
+            f"{foreign['CITIZENSHIP_FINAL'].nunique()}",
+        )
+
+        # Foreign examinee top nationalities
+        top_nat = (
+            foreign["CITIZENSHIP_FINAL"]
+            .value_counts()
+            .head(10)
+            .reset_index()
+        )
+        top_nat.columns = ["Nationality", "Count"]
+        top_nat["Count"] = pd.to_numeric(top_nat["Count"], errors="coerce")
+        fig = px.bar(
+            top_nat, x="Count", y="Nationality",
+            orientation="h",
+            title="Top 10 Nationalities Among Verified Foreign NMAT Examinees",
+            labels={"Count": "Examinees"},
+        )
+        fig.update_traces(hovertemplate="%{y}: %{x:,}<extra></extra>")
+        fig.update_layout(height=350)
+        st.plotly_chart(fig, use_container_width=True, key="t4_foreign_top")
+        st.caption(
+            "These counts represent NMAT examinees, not enrolled medical students.  "
+            "The actual number of foreign students enrolled in medical programs may "
+            "differ from the number who took the NMAT."
+        )
+
+    st.markdown("**Interpretation.** Public institution examinees show higher median scores and higher top-bin representation than their Private institution counterparts.  Foreign examinees comprise a small but diverse group.  These institutional patterns provide context for policies that differentiate between SUCs and PHEIs.")
+
+# ===================================================================
+# TAB 5 -- National Benchmark Context
+# ===================================================================
+with tab5:
+    st.subheader("National PLE Benchmark Context")
+    st.caption(
+        "What this shows: the annual NMAT-to-PLE linkage rates and a 5-year "
+        "rolling average.  The CMO references the national PLE passing percentage "
+        "as a benchmark for PHEI cut-off eligibility.  This table provides the "
+        "closest available approximation using the NMAT-linked PLE data."
+    )
+
+    st.warning(
+        "The figures below show NMAT-to-PLE linkage rates for the observable "
+        "cohort, NOT national PLE passing percentages.  The national PLE passing "
+        "rate is published by the Professional Regulation Commission (PRC) and "
+        "reflects all PLE takers, including those who did not take the NMAT "
+        "within the available window.  The 5-year rolling average shown here "
+        "is calculated from NMAT-linked PLE passers only."
+    )
+
+    # Annual linkage rates with 5-year rolling average
+    natl = (
+        df_obs.groupby("Year", observed=True)
+        .agg(
+            n=("APPNO_CLEAN", "count"),
+            confirmed=("HAS_CONFIRMED_PLE", "sum"),
+        )
+        .reset_index()
+    )
+    natl["linkage_pct"] = (natl["confirmed"] / natl["n"] * 100).round(2)
+    natl["5yr_rolling_avg"] = natl["linkage_pct"].rolling(window=5, min_periods=3).mean().round(2)
+
+    latest_benchmark = natl[natl["5yr_rolling_avg"].notna()].iloc[-1]["5yr_rolling_avg"]
+    latest_year = int(natl[natl["5yr_rolling_avg"].notna()].iloc[-1]["Year"])
+
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=natl["Year"].astype(str), y=natl["linkage_pct"],
+            mode="lines+markers", name="Annual NMAT-to-PLE linkage",
+            line=dict(color="#1f77b4", width=2),
+            hovertemplate="Year: %{x}<br>Linkage: %{y:.1f}%<br>N: %{customdata:,}<extra></extra>",
+            customdata=natl["n"].values,
+        ))
+        fig.add_trace(go.Scatter(
+            x=natl["Year"].astype(str), y=natl["5yr_rolling_avg"],
+            mode="lines+markers", name="5-year rolling avg",
+            line=dict(color="#d62728", width=3, dash="dash"),
+            hovertemplate="Year: %{x}<br>5yr avg: %{y:.1f}%<extra></extra>",
+        ))
+        fig.update_layout(
+            title="NMAT-to-PLE Linkage Rate with 5-Year Rolling Average",
+            xaxis_title="NMAT Year", yaxis_title="Linkage Rate (%)",
+            height=420,
+        )
+        st.plotly_chart(fig, use_container_width=True, key="t5_benchmark")
+        st.caption("The 5-year rolling average smooths annual fluctuations and is the reference benchmark used in the CMO for PHEI cut-off eligibility.")
+
+    with c2:
+        st.metric(
+            "Latest 5-year avg linkage rate",
+            f"{latest_benchmark:.2f}%",
+            help="The benchmark used to determine PHEI cut-off eligibility (30th vs 40th percentile).",
+        )
+        st.metric(
+            "Reference NMAT year",
+            f"{latest_year}",
+            help="The most recent NMAT cohort with a complete 5-year observation window for PLE linkage.",
+        )
+        st.caption(
+            "This benchmark is calculated from NMAT-linked PLE passers only.  "
+            "It is a lower bound on the national PLE passing rate because it only "
+            "captures NMAT examinees who later passed the PLE."
+        )
+
+    # Table
+    natl_display = natl.rename(columns={
+        "Year": "NMAT Year",
+        "n": "Observable N examinees",
+        "confirmed": "Confirmed PLE passers",
+        "linkage_pct": "NMAT-to-PLE linkage (%)",
+        "5yr_rolling_avg": "5-year rolling avg (%)",
+    })
+    st.dataframe(natl_display, use_container_width=True, hide_index=True)
+
+    st.markdown("### Per-HEI PLE Linkage vs. National Benchmark")
+    st.caption(
+        "The following table shows each HEI's NMAT-to-PLE linkage rate compared "
+        "to the national 5-year rolling average benchmark.  HEIs with linkage "
+        "rates above the benchmark are identified; HEIs below the benchmark "
+        "are also shown.  This supports the CMO provision tying PHEI cut-off "
+        "eligibility to PLE performance."
+    )
+
+    st.warning(
+        "These are NMAT-to-PLE linkage rates per HEI, not PLE pass rates.  "
+        "They reflect the proportion of an HEI's NMAT examinees (observable "
+        "cohort) who were later matched to PLE passer records.  An HEI's "
+        "actual PLE passing rate, as reported by the PRC, may differ because "
+        "it includes all graduates who take the PLE, not just those whose "
+        "NMAT record is in this dataset."
+    )
+
+    min_examinees = st.slider(
+        "Minimum examinees per HEI for reliable estimates",
+        min_value=5, max_value=50, value=10, step=5,
+        key="t5_hei_min",
+    )
+
+    hei_ple = (
+        df_obs.groupby(["UNIVERSITY", "UNI_TYPE"], observed=True)
+        .agg(
+            n=("APPNO_CLEAN", "count"),
+            confirmed=("HAS_CONFIRMED_PLE", "sum"),
+            median_pct=("NMS_PER_num", "median"),
+        )
+        .reset_index()
+    )
+    hei_ple["linkage_pct"] = (hei_ple["confirmed"] / hei_ple["n"] * 100).round(2)
+    hei_ple = hei_ple[hei_ple["n"] >= min_examinees].copy()
+    hei_ple["above_benchmark"] = hei_ple["linkage_pct"] > latest_benchmark
+    hei_ple = hei_ple.sort_values("linkage_pct", ascending=False).reset_index(drop=True)
+
+    # Counts
+    n_above = int(hei_ple["above_benchmark"].sum())
+    n_below = int((~hei_ple["above_benchmark"]).sum())
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("HEIs above benchmark", f"{n_above}",
+              help=f"HEIs with NMAT-to-PLE linkage above {latest_benchmark:.1f}%")
+    c2.metric("HEIs below benchmark", f"{n_below}",
+              help=f"HEIs with linkage at or below {latest_benchmark:.1f}%")
+    c3.metric("National benchmark", f"{latest_benchmark:.2f}%")
+
+    hei_display = hei_ple.copy()
+    hei_display["Status"] = np.where(
+        hei_display["above_benchmark"],
+        "Above benchmark",
+        "At or below benchmark",
+    )
+    st.dataframe(
+        hei_display.rename(columns={
+            "UNIVERSITY": "HEI",
+            "UNI_TYPE": "Type",
+            "n": "Examinees",
+            "median_pct": "Median %ile",
+            "linkage_pct": "Linkage Rate (%)",
+        })[["HEI", "Type", "Examinees", "Median %ile", "Linkage Rate (%)", "Status"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.caption(
+        f"Among HEIs with at least {min_examinees} observable examinees, "
+        f"{n_above} show NMAT-to-PLE linkage rates above the national benchmark "
+        f"of {latest_benchmark:.1f}%, while {n_below} fall at or below."
+    )
+
+    st.markdown("**Interpretation.** The 5-year rolling average provides a stable benchmark for comparing institutional PLE linkage.  HEIs above this benchmark would qualify for the 30th-percentile cut-off under the CMO framework, while those at or below would need to maintain the 40th-percentile cut-off.  Users should note that these figures use NMAT-linked data, which undercounts total PLE passers compared to official PRC statistics.")
+
+# ===================================================================
+# TAB 6 -- Data Context & Limitations
+# ===================================================================
+with tab6:
+    st.subheader("Data Context and Methodological Notes")
+    st.caption(
+        "This section documents the dataset, processing decisions, and "
+        "limitations relevant to interpreting the evidence presented in this dashboard."
+    )
+
+    st.markdown("### Dataset Overview")
+    st.markdown(
+        f"""
+- **Source file:** `NMAT_Exodus.parquet` (54 columns, {len(df_all):,} rows)
+- **Examination years:** 2006-2018
+- **Unique examinees (best record):** {df_best['PERSON_KEY'].nunique():,}
+- **Observable PLE cohort (Year <= 2014):** {len(df_obs):,}
+- **Repeat takers:** {(df_all.groupby('PERSON_KEY')['APPNO_CLEAN'].nunique() > 1).sum():,} unique persons (25%)
+        """
+    )
+
+    st.markdown("### Key Methodological Choices")
+
+    with st.expander("TRUE Raw Score Recalculation"):
         st.markdown(
-            "CMO No. __, s. 2026 amends the NMAT cut-off policy to provide flexibility for "
-            "Philippine Higher Education Institutions (PHEIs) based on their PLE performance. "
-            "Institutions with PLE performance above the national 5-year rolling average may set "
-            "their NMAT cut-off at the **30th percentile**; those below must maintain the "
-            "**40th percentile**. Additionally, State Universities and Colleges (SUCs) are subject "
-            "to a 10-slot cap on foreign student enrollment per incoming freshmen class."
+            """
+The pipeline recalculated all raw scores from the 8 individual subtest components
+because 42.2% of the original stored totals were incorrect.  All analyses in this
+dashboard use the recalculated `TotalRawScoreTRUE` scores.
+
+- Rows with complete TRUE scores: {:,} (99.97%)
+- Formula mismatches (Total != Part I + Part II): 0
+            """.format(int((df_all["HasTRUErawScores"] == True).sum()))
         )
-        render_caveat("general")
 
-        # Key metrics row
-        n_total = len(best)
-        n_years = int(best["Year"].nunique())
-        linkage_rate = round(bestobs["IS_PLE_ANALYSIS_SAFE"].sum() / len(bestobs) * 100, 2)
-        n_foreign = len(best[best["FOREIGNER_STATUS"] != "Filipino"])
+    with st.expander("Best-Record Deduplication"):
+        st.markdown(
+            """
+25% of examinees took the NMAT more than once (up to 9 attempts).  Person-level
+analyses in this dashboard use the best-record flag (`IS_BEST_NMAT_RECORD`),
+which selects:
 
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Examinees (best records)", f"{n_total:,}")
-        m2.metric("Years Covered", f"{n_years} ({YEAR_RANGE[0]}-{YEAR_RANGE[1]})")
-        m3.metric("NMAT-PLE Linkage Rate", f"{linkage_rate:.2f}%",
-                  help="Share of NMAT examinees (observable cohort) found in PLE passer data. NOT a PLE pass rate.")
-        m4.metric("Foreign Examinees", f"{n_foreign:,}",
-                  help="Examinees classified as Verified Foreigner or Likely Foreigner on best record.")
+- For PLE passers: the specific NMAT attempt that matched to the PLE record.
+- For others: the highest percentile attempt, with latest year as tiebreaker.
 
+This prevents repeat takers from inflating the counts in any percentile band.
+            """
+        )
+
+    with st.expander("Observable Cohort Definition (Year <= 2014)"):
+        st.markdown(
+            """
+PLE-linked analyses are restricted to examinees whose NMAT year is 2014 or earlier.
+This ensures a minimum 5-year window for PLE passage, avoiding the misclassification
+of later cohorts as non-passers before their licensure window closes.
+
+- Observable best-record cohort: {:,}
+- Median NMAT-to-PLE year gap: 6 years
+            """.format(len(df_obs))
+        )
+
+    with st.expander("Deterministic PLE Matching"):
+        st.markdown(
+            """
+All PLE matching is deterministic (exact NMA_AppNo match, manual AppNo match,
+or deterministic AppNo match).  No fuzzy/rapidfuzz matching is used.  This ensures
+full auditability but may undercount true matches where the NMAT application number
+was recorded differently in the PLE dataset.
+
+- Confirmed PLE passers (all rows): {:,}
+- Confirmed PLE passers (best record, observable): {:,}
+            """.format(
+                int((df_all["IS_PLE_ANALYSIS_SAFE"] == True).sum()) if "IS_PLE_ANALYSIS_SAFE" in df_all.columns else 0,
+                int(df_obs["HAS_CONFIRMED_PLE"].sum()) if "HAS_CONFIRMED_PLE" in df_obs.columns else 0,
+            )
+        )
+
+    st.markdown("### Limitations Relevant to CHED Decision-Making")
+
+    limitations = [
+        (
+            "PLE Outcomes",
+            "The dataset only identifies NMAT examinees later matched to PLE passer "
+            "records.  It does not contain all PLE takers or PLE failures.  Therefore, "
+            "this dashboard reports NMAT-to-PLE linkage rates, not PLE pass rates.  "
+            "Official PLE passing rates published by the PRC should be used for "
+            "benchmarking purposes."
+        ),
+        (
+            "GIDA and IP Status",
+            "The dataset does not contain indicators for Geographically Isolated and "
+            "Disadvantaged Area (GIDA) residence or Indigenous Peoples (IP) membership.  "
+            "The CMO exception for 30th-39th percentile applicants from these groups "
+            "requires documentation that is not available in the NMAT dataset."
+        ),
+        (
+            "Medical School Admissions and Enrollment",
+            "The dataset records NMAT examinees, not enrolled medical students.  "
+            "The number of examinees at or above a cut-off threshold represents the "
+            "available applicant pool, not actual enrollment.  HEI-level enrollment "
+            "decisions, capacity, and admission criteria are not captured in this data."
+        ),
+        (
+            "Foreign Student Enrollment Cap",
+            "The CMO caps foreign student enrollment at 10 slots per incoming class at "
+            "SUCs.  The dataset shows NMAT examinees by citizenship, not enrolled "
+            "foreign students.  A descriptive foreign-examinee profile is provided, "
+            "but this dashboard does not claim to measure compliance with the 10-slot cap."
+        ),
+        (
+            "Composite Ranking for Foreign Applicants",
+            "The CMO encourages composite ranking (e.g., 60/40 NMAT-to-other criteria) "
+            "for foreign applicants.  The dataset does not contain GWA, interview scores, "
+            "or other admission criteria needed for composite ranking analysis."
+        ),
+        (
+            "PHEI Accountability and Sanctions",
+            "The CMO ties the 30th-percentile privilege to PLE performance and allows "
+            "CHED to revoke this privilege for PHEIs with below-benchmark PLE rates for "
+            "three consecutive years.  This dashboard does not assign compliance labels "
+            "or risk ratings to individual PHEIs, as the NMAT-linked PLE data is not a "
+            "complete measure of institutional PLE performance."
+        ),
+    ]
+
+    for title, detail in limitations:
+        st.markdown(f"**{title}**")
+        st.markdown(detail)
         st.divider()
 
-        # Data limitations
-        st.info(
-            " **Dashboard Purpose:** This dashboard provides CHED policymakers, "
-            "HEI administrators, and education researchers with data-driven evidence on NMAT "
-            "score distributions, PLE linkage rates, and foreign student profiles to support "
-            "the implementation of CMO No. __, s. 2026.\n\n"
-            " **Critical Data Limitations:** (1) We cannot compute PLE pass rates. "
-            "The PLE data contains passers only (43,630 rows, no fail records). "
-            "What we report is the **NMAT-to-PLE linkage rate** -- the share of NMAT examinees "
-            "who are found in the PLE passer dataset. This is an evidence-based indicator of "
-            "the relationship between NMAT scores and eventual PLE passage, but it is **not** "
-            "the same as an official PLE pass rate.\n\n"
-            "(2) **Foreign student data** counts NMAT examinees, not enrollees. "
-            "The 10-slot cap applies to enrollment, which we cannot verify.\n\n"
-            "(3) **Temporal gap:** NMAT data covers 2006-2018 only. The CMO takes effect "
-            "AY 2026-2027. This is historical analysis, not current monitoring."
+    st.markdown("### Data Integrity Summary")
+    ci_cols = ["StoredVsDerivedMismatch", "CalcVsDerivedMismatch"]
+    if all(c in df_all.columns for c in ci_cols):
+        c1, c2 = st.columns(2)
+        c1.metric(
+            "Stored-vs-derived mismatches",
+            f"{int((df_all['StoredVsDerivedMismatch'] == 1.0).sum()):,}",
+            help="Records where the original stored raw total differed from the TRUE recalculated total.",
+        )
+        c2.metric(
+            "Calc-vs-derived mismatches",
+            f"{int((df_all['CalcVsDerivedMismatch'] == 1.0).sum()):,}",
+            help="Records where the CEM-calculated total differed from the TRUE recalculated total (always 0).",
         )
 
-        st.subheader("How to Use This Dashboard")
-        st.markdown(
-            "Navigate through the tabs above to explore different aspects of the data:\n\n"
-            "- **National Benchmark** -- NMAT-PLE linkage rates with 5-year rolling averages.\n"
-            "- **Cut-Off Scenarios** -- Comparison of 30th vs 40th percentile thresholds.\n"
-            "- **Per-HEI Analysis** -- Score distributions for individual institutions.\n"
-            "- **Foreign Students** -- Profile of foreign examinees and SUC slot analysis.\n"
-            "- **Demographics** -- Breakdowns by sex and course group.\n"
-            "- **PLE Alignment** -- Linkage rates by percentile bin and institution type.\n"
-            "- **Trends** -- Historical score and volume trends (2006-2018).\n"
-            "- **Data Appendix** -- Methodology, data dictionary, and limitations."
-        )
-
-    # ================================================================
-    # TAB 2: NATIONAL BENCHMARK
-    # ================================================================
-    with tabs[1]:
-        st.header("National NMAT-PLE Linkage Benchmark")
-        st.info(
-            " **What This Tab Answers:** How does the national NMAT-to-PLE linkage rate "
-            "vary by year, and what is the 5-year rolling average used as the CHED benchmark?"
-        )
-        st.markdown(
-            "Annual linkage rates between NMAT examinees and PLE passers, with 5-year rolling average. "
-            "The CHED amendment uses the 5-year rolling average as the national benchmark: PHEIs above "
-            "this benchmark may set cut-off at the 30th percentile; those below must maintain 40th."
-        )
-        render_caveat("linkage")
-
-        # Compute annual linkage rates
-        if bestobs.empty:
-            st.info("No observable best-record rows available. Try adjusting filters.")
-        else:
-            annual_linkage = (
-                bestobs.groupby("Year", observed=True)
-                .agg(
-                    n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
-                    n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
-                )
-                .reset_index()
-            )
-            annual_linkage["Linkage Rate (%)"] = (
-                annual_linkage["n_confirmed_ple"] / annual_linkage["n_examinees"] * 100
-            ).round(2)
-            annual_linkage["5yr Rolling Avg (%)"] = (
-                annual_linkage["Linkage Rate (%)"].rolling(window=5, min_periods=3).mean().round(2)
-            )
-
-            # Metric cards
-            overall_rate = round(bestobs["IS_PLE_ANALYSIS_SAFE"].sum() / len(bestobs) * 100, 2)
-            latest_5yr = annual_linkage[annual_linkage["5yr Rolling Avg (%)"].notna()].iloc[-1]
-            observable_cohort_size = len(bestobs)
-
-            m1, m2, m3 = st.columns(3)
-            m1.metric(
-                "Overall Linkage Rate",
-                f"{overall_rate:.2f}%",
-                help="Total confirmed PLE passers / total observable best examinees.",
-            )
-            m2.metric(
-                "Latest 5yr National Avg (Benchmark)",
-                f"{latest_5yr['5yr Rolling Avg (%)']:.2f}%",
-                delta=None,
-                help="The benchmark PHEIs must beat to qualify for 30th percentile cut-off.",
-            )
-            m3.metric(
-                "Observable Cohort Size",
-                f"{observable_cohort_size:,}",
-                help="Best records with Year <= 2014 (allowing 4-year PLE licensure window).",
-            )
-
-            # Line chart: annual linkage + 5yr rolling avg
-            fig_natl = go.Figure()
-            fig_natl.add_trace(go.Scatter(
-                x=annual_linkage["Year"].astype(str),
-                y=annual_linkage["Linkage Rate (%)"],
-                mode="lines+markers",
-                name="Annual linkage rate",
-                line=dict(color="#1f77b4", width=2),
-                hovertemplate="Year: %{x}<br>Linkage: %{y:.1f}%<extra></extra>",
-            ))
-            fig_natl.add_trace(go.Scatter(
-                x=annual_linkage["Year"].astype(str),
-                y=annual_linkage["5yr Rolling Avg (%)"],
-                mode="lines+markers",
-                name="5-year rolling avg",
-                line=dict(color="#d62728", width=2, dash="dash"),
-                hovertemplate="Year: %{x}<br>5yr avg: %{y:.1f}%<extra></extra>",
-            ))
-            fig_natl.update_layout(
-                title="Annual NMAT-PLE Linkage Rate with 5-Year Rolling Average",
-                xaxis_title="NMAT Year",
-                yaxis_title="Linkage Rate (%)",
-                height=420,
-                hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            )
-            st.plotly_chart(fig_natl, use_container_width=True, key="fig_t2_natl_benchmark")
-
-            # Year-by-year table
-            display_cols = {
-                "Year": "NMAT Year",
-                "n_examinees": "Examinees (observable)",
-                "n_confirmed_ple": "Confirmed PLE Passers",
-                "Linkage Rate (%)": "Linkage Rate (%)",
-                "5yr Rolling Avg (%)": "5yr Rolling Avg (%)",
-            }
-            tbl_annual = annual_linkage.rename(columns=display_cols)[list(display_cols.values())]
-            st.subheader("Year-by-Year Breakdown")
-            st.dataframe(tbl_annual, use_container_width=True, hide_index=True)
-
-            col_dl1, _ = st.columns([1, 3])
-            with col_dl1:
-                st.download_button(
-                    "Download CSV",
-                    data=annual_linkage.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_national_benchmark.csv",
-                    mime="text/csv",
-                )
-
-            st.caption(
-                "NMAT-to-PLE linkage rate = share of NMAT examinees found in PLE passer data. "
-                "This is NOT a PLE pass rate. The 5-year rolling average is computed with a minimum "
-                "of 3 years of data."
-            )
-
-    # ================================================================
-    # TAB 3: CUT-OFF SCENARIOS
-    # ================================================================
-    with tabs[2]:
-        st.header("30th vs 40th Percentile Cut-Off Analysis")
-        st.info(
-            " **What This Tab Answers:** How many examinees would be affected under a "
-            "30th vs 40th percentile cut-off, and how does impact vary by institution type?"
-        )
-        st.markdown(
-            "Comparison of examinee counts and PLE outcomes under the proposed 30th percentile (B4+) "
-            "and 40th percentile (B5+) cut-off thresholds, broken down by university type."
-        )
-        render_caveat("cutoff")
-
-        if besttrend.empty:
-            st.info("No data available for cut-off scenario analysis.")
-        else:
-            # Build scenario comparison
-            scenario_rows = []
-            for uni_type in ["All", "Public", "Private", "Foreign"]:
-                sub = besttrend if uni_type == "All" else besttrend[besttrend["UNI_TYPE"] == uni_type]
-                sub_obs = bestobs if uni_type == "All" else bestobs[bestobs["UNI_TYPE"] == uni_type]
-
-                for label, threshold_bin, col_label in [
-                    ("30th percentile (B4+)", "B4", "B4+"),
-                    ("40th percentile (B5+)", "B5", "B5+"),
-                ]:
-                    admitted = sub[sub["PercentileBin"].apply(lambda b: bin_at_or_above(b, threshold_bin))]
-                    ple_cohort = sub_obs[sub_obs["PercentileBin"].apply(lambda b: bin_at_or_above(b, threshold_bin))]
-                    scenario_rows.append({
-                        "University Type": uni_type,
-                        "Cut-Off": col_label,
-                        "Threshold": label,
-                        "Admitted (best records)": len(admitted),
-                        "PLE Passers (observable)": int(ple_cohort["IS_PLE_ANALYSIS_SAFE"].sum())
-                        if len(ple_cohort) > 0 else 0,
-                        "PLE Linkage Rate (%)": round(
-                            ple_cohort["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 2
-                        ) if len(ple_cohort) > 0 else 0.0,
-                        "Median Percentile": round(admitted["NMS_PER_num"].median(), 1)
-                        if len(admitted) > 0 else 0.0,
-                    })
-
-            scenario_df = pd.DataFrame(scenario_rows)
-
-            # Metrics
-            total_b4 = int(scenario_df.loc[
-                (scenario_df["University Type"] == "All") & (scenario_df["Cut-Off"] == "B4+"),
-                "Admitted (best records)"
-            ].sum())
-            total_b5 = int(scenario_df.loc[
-                (scenario_df["University Type"] == "All") & (scenario_df["Cut-Off"] == "B5+"),
-                "Admitted (best records)"
-            ].sum())
-            diff = total_b4 - total_b5
-
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Total at B4+ (30th percentile)", f"{total_b4:,}",
-                      help="Examinees scoring at or above 30th percentile.")
-            m2.metric("Total at B5+ (40th percentile)", f"{total_b5:,}",
-                      help="Examinees scoring at or above 40th percentile.")
-            m3.metric("Difference (B4+ \u2212 B5+)", f"{diff:,}",
-                      delta=f"{-diff:,}" if diff > 0 else f"{diff:,}",
-                      help="Additional examinees admitted at 30th vs 40th percentile cut-off.")
-
-            # Grouped bar chart by UNI_TYPE
-            chart_df = scenario_df[scenario_df["University Type"] != "All"].copy()
-            fig_scenario = px.bar(
-                chart_df,
-                x="University Type",
-                y="Admitted (best records)",
-                color="Cut-Off",
-                barmode="group",
-                color_discrete_map={"B4+": "#F0AD4E", "B5+": "#2C7FB8"},
-                title="Admitted Examinees by Cut-Off Threshold and University Type",
-                text_auto=",",
-            )
-            fig_scenario.update_layout(height=400, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-            st.plotly_chart(fig_scenario, use_container_width=True, key="fig_t3_scenario_bar")
-
-            # Scenario comparison table by year
-            st.subheader("Scenario Comparison by Year")
-            yearly_scenario_rows = []
-            for year in sorted(besttrend["Year"].unique()):
-                sub_yr = besttrend[besttrend["Year"] == year]
-                sub_yr_obs = bestobs[bestobs["Year"] == year]
-                for col_label, threshold_bin in [("B4+ (30th)", "B4"), ("B5+ (40th)", "B5")]:
-                    admitted = sub_yr[sub_yr["PercentileBin"].apply(lambda b: bin_at_or_above(b, threshold_bin))]
-                    ple_cohort = sub_yr_obs[sub_yr_obs["PercentileBin"].apply(lambda b: bin_at_or_above(b, threshold_bin))]
-                    yearly_scenario_rows.append({
-                        "Year": int(year),
-                        "Cut-Off": col_label,
-                        "Admitted": len(admitted),
-                        "Median Percentile": round(admitted["NMS_PER_num"].median(), 1)
-                        if len(admitted) > 0 else None,
-                    })
-
-            yr_scenario_df = pd.DataFrame(yearly_scenario_rows)
-            pivot_yr = yr_scenario_df.pivot_table(
-                index="Year", columns="Cut-Off", values=["Admitted", "Median Percentile"],
-                aggfunc="first",
-            )
-            # Flatten columns
-            pivot_yr.columns = [f"{col[0]} - {col[1]}" for col in pivot_yr.columns]
-            pivot_yr = pivot_yr.reset_index()
-            st.dataframe(pivot_yr, use_container_width=True, hide_index=True)
-
-            col_dl2, _ = st.columns([1, 3])
-            with col_dl2:
-                st.download_button(
-                    "Download Scenario CSV",
-                    data=scenario_df.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_cutoff_scenarios.csv",
-                    mime="text/csv",
-                )
-
-            st.caption(
-                "Methodology: 'Admitted' counts best NMAT records at or above the stated percentile threshold. "
-                "PLE-linked metrics use the observable cohort (Year <= 2014) to avoid misclassifying later "
-                "cohorts as non-passers before their licensure window closes."
-            )
-
-    # ================================================================
-    # TAB 4: PER-HEI ANALYSIS
-    # ================================================================
-    with tabs[3]:
-        st.header("Per-Institution NMAT Score Distribution")
-        st.info(
-            " **What This Tab Answers:** Which HEIs have the strongest and weakest "
-            "NMAT score distributions, and how do they compare on PLE linkage?"
-        )
-        st.markdown(
-            "Summary statistics and percentile bin distributions for each institution. "
-            "Only institutions with at least 5 best-record examinees are included."
-        )
-        render_caveat("per_hei")
-
-        if besttrend.empty:
-            st.info("No data available.")
-        else:
-            # Compute per-HEI stats
-            hei_stats_list = []
-            for hei in sorted(besttrend["UNIVERSITY"].dropna().unique()):
-                hei_data = besttrend[besttrend["UNIVERSITY"] == hei]
-                hei_obs = bestobs[bestobs["UNIVERSITY"] == hei] if not bestobs.empty else pd.DataFrame()
-
-                if len(hei_data) < 5:
-                    continue
-
-                bin_dist = hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).fillna(0)
-                total = bin_dist.sum()
-                b4_pct = round(
-                    bin_dist.loc[bin_dist.index.isin(["B4", "B5", "B6", "B7", "B8", "B9", "B10"])].sum()
-                    / total * 100, 1
-                ) if total > 0 else 0.0
-                b5_pct = round(
-                    bin_dist.loc[bin_dist.index.isin(["B5", "B6", "B7", "B8", "B9", "B10"])].sum()
-                    / total * 100, 1
-                ) if total > 0 else 0.0
-
-                bin_dist_str = ", ".join(
-                    [f"{b}: {int(bin_dist[b])}" for b in BIN_ORDER if bin_dist[b] > 0]
-                )
-
-                hei_stats_list.append({
-                    "HEI": hei,
-                    "Type": hei_data["UNI_TYPE"].mode().iloc[0] if not hei_data["UNI_TYPE"].mode().empty else "Unknown",
-                    "N": len(hei_data),
-                    "Median %ile": round(hei_data["NMS_PER_num"].median(), 1),
-                    "Mean %ile": round(hei_data["NMS_PER_num"].mean(), 1),
-                    "B4+ %": b4_pct,
-                    "B5+ %": b5_pct,
-                    "Bin Distribution": bin_dist_str,
-                    "PLE Linkage Rate (%)": round(
-                        hei_obs["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 1
-                    ) if not hei_obs.empty and len(hei_obs) >= 5 else None,
-                })
-
-            hei_stats_df = pd.DataFrame(hei_stats_list)
-            if hei_stats_df.empty:
-                st.info("No institutions with >=5 examinees found.")
-            else:
-                hei_stats_df = hei_stats_df.sort_values("N", ascending=False).reset_index(drop=True)
-
-                # Search box
-                search_query = st.text_input(
-                    "Filter by institution name",
-                    placeholder="Type an HEI name to filter...",
-                    key="hei_search",
-                )
-                if search_query:
-                    mask = hei_stats_df["HEI"].str.contains(search_query, case=False, na=False)
-                    filtered_df = hei_stats_df[mask]
-                else:
-                    filtered_df = hei_stats_df
-
-                st.markdown(f"**Showing {len(filtered_df):,} of {len(hei_stats_df):,} institutions**")
-                st.dataframe(
-                    filtered_df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Median %ile": st.column_config.NumberColumn(format="%.1f"),
-                        "Mean %ile": st.column_config.NumberColumn(format="%.1f"),
-                        "B4+ %": st.column_config.NumberColumn(format="%.1f%%"),
-                        "B5+ %": st.column_config.NumberColumn(format="%.1f%%"),
-                        "PLE Linkage Rate (%)": st.column_config.NumberColumn(format="%.1f%%"),
-                    },
-                )
-
-                col_dl3, _ = st.columns([1, 3])
-                with col_dl3:
-                    st.download_button(
-                        "Download HEI Data CSV",
-                        data=hei_stats_df.to_csv(index=False).encode("utf-8"),
-                        file_name="ched_per_hei_stats.csv",
-                        mime="text/csv",
-                    )
-
-                st.caption(
-                    "Minimum 5 examinees required for reporting. Bin Distribution shows counts per bin (B1-B10). "
-                    "PLE Linkage Rate requires >=5 observable examinees (Year <= 2014)."
-                )
-
-    # ================================================================
-    # TAB 5: FOREIGN STUDENTS
-    # ================================================================
-    with tabs[4]:
-        st.header("Foreign Examinee Profile")
-        st.info(
-            " **What This Tab Answers:** How many foreign NMAT examinees are there, "
-            "which nationalities dominate, and how does this relate to the 10-slot SUC cap?"
-        )
-        st.markdown(
-            "Profile of foreign NMAT examinees in the dataset. "
-            "The CHED amendment caps foreign student enrollment at 10 per incoming freshmen class at SUCs. "
-            "Note that we count NMAT examinees, not actual enrollees."
-        )
-        render_caveat("foreign")
-
-        foreign = besttrend[besttrend["FOREIGNER_STATUS"] != "Filipino"].copy()
-
-        if foreign.empty:
-            st.info("No foreign examinee records found.")
-        else:
-            # Metrics
-            n_foreign_total = len(foreign)
-            n_foreign_suc = len(foreign[foreign["UNI_TYPE"] == "Public"])
-            top_nat = foreign["CITIZENSHIP_FINAL"].value_counts().index[0] if not foreign.empty else "N/A"
-            median_pct = round(foreign["NMS_PER_num"].median(), 1)
-
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total Foreign Examinees", f"{n_foreign_total:,}")
-            m2.metric("Foreign at SUCs", f"{n_foreign_suc:,}")
-            m3.metric("Top Nationality", top_nat)
-            m4.metric("Median Percentile", median_pct)
-
-            # Top 15 nationalities bar chart
-            top_nats = foreign["CITIZENSHIP_FINAL"].value_counts().head(15).reset_index()
-            top_nats.columns = ["Nationality", "Count"]
-
-            fig_nat = px.bar(
-                top_nats,
-                x="Count",
-                y="Nationality",
-                orientation="h",
-                title="Top 15 Nationalities Among Foreign NMAT Examinees",
-                color="Count",
-                color_continuous_scale="Blues",
-                text_auto=",",
-            )
-            fig_nat.update_layout(height=450, yaxis=dict(categoryorder="total ascending"))
-            st.plotly_chart(fig_nat, use_container_width=True, key="fig_t5_top_nats")
-
-            # Per-SUC foreign examinee counts
-            st.subheader("Foreign Examinee Counts by SUC and Year")
-            suc_foreign = foreign[foreign["UNI_TYPE"] == "Public"]
-            if not suc_foreign.empty:
-                suc_yr = (
-                    suc_foreign.groupby(["UNIVERSITY", "Year"], observed=True)
-                    .size()
-                    .reset_index(name="Foreign Count")
-                )
-                suc_yr["Over 10-Slot Cap"] = suc_yr["Foreign Count"] > 10
-                suc_yr["Year"] = suc_yr["Year"].astype(str)
-
-                st.dataframe(
-                    suc_yr.sort_values(["Year", "Foreign Count"], ascending=[True, False]),
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Foreign Count": st.column_config.NumberColumn(format="%d"),
-                        "Over 10-Slot Cap": st.column_config.CheckboxColumn(),
-                    },
-                )
-
-                # Summary: SUCs with most foreign examinees
-                st.subheader("Top SUCs by Foreign Examinee Volume")
-                suc_summary = (
-                    suc_yr.groupby("UNIVERSITY")
-                    .agg(
-                        Max_Foreign=("Foreign Count", "max"),
-                        Total_Foreign=("Foreign Count", "sum"),
-                        Years_Over_Cap=("Over 10-Slot Cap", "sum"),
-                    )
-                    .reset_index()
-                    .sort_values("Max_Foreign", ascending=False)
-                    .head(20)
-                )
-                suc_summary.columns = ["University", "Max Foreign (1 yr)", "Total Foreign", "Years Over Cap"]
-                st.dataframe(suc_summary, use_container_width=True, hide_index=True)
-
-                col_dl4, _ = st.columns([1, 3])
-                with col_dl4:
-                    st.download_button(
-                        "Download SUC Foreign Data CSV",
-                        data=suc_yr.to_csv(index=False).encode("utf-8"),
-                        file_name="ched_suc_foreign.csv",
-                        mime="text/csv",
-                    )
-            else:
-                st.info("No foreign examinees recorded at SUCs under current filters.")
-
-            st.warning(
-                "Counts reflect NMAT examinees, not enrolled students. The 10-slot cap applies to "
-                "enrollment, which requires data from HEIs that is not available in this dataset."
-            )
-
-    # ================================================================
-    # TAB 6: DEMOGRAPHICS
-    # ================================================================
-    with tabs[5]:
-        st.header("Demographic Profiles")
-        st.info(
-            " **What This Tab Answers:** How do NMAT scores vary by sex and course group?"
-        )
-        st.markdown(
-            "Distribution of NMAT examinees by sex and course group, "
-            "with corresponding score percentiles."
-        )
-
-        col_dem1, col_dem2 = st.columns(2)
-
-        # -- By Sex --
-        with col_dem1:
-            st.subheader("By Sex")
-            sex_data = besttrend.dropna(subset=["SEX"]).copy()
-            if not sex_data.empty:
-                sex_summary = (
-                    sex_data.groupby("SEX", observed=True)
-                    .agg(
-                        Count=("SEX", "size"),
-                        Median_Percentile=("NMS_PER_num", "median"),
-                        Mean_Percentile=("NMS_PER_num", "mean"),
-                    )
-                    .reset_index()
-                )
-                sex_summary["Count"] = sex_summary["Count"].astype(int)
-                sex_summary["Median_Percentile"] = sex_summary["Median_Percentile"].round(1)
-                sex_summary["Mean_Percentile"] = sex_summary["Mean_Percentile"].round(1)
-
-                st.dataframe(
-                    sex_summary.rename(columns={
-                        "SEX": "Sex",
-                        "Count": "N",
-                        "Median_Percentile": "Median %ile",
-                        "Mean_Percentile": "Mean %ile",
-                    }),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-                fig_sex = px.bar(
-                    sex_summary,
-                    x="SEX",
-                    y="Count",
-                    color="SEX",
-                    color_discrete_map=PAL_SEX,
-                    title="Examinee Count by Sex",
-                    text_auto=",",
-                )
-                fig_sex.update_layout(height=350, showlegend=False)
-                st.plotly_chart(fig_sex, use_container_width=True, key="fig_t6_sex_bar")
-            else:
-                st.info("No sex data available.")
-
-        # -- By Course Group --
-        with col_dem2:
-            st.subheader("By Course Group")
-            course_data = besttrend.dropna(subset=["CourseGroup"]).copy()
-            if not course_data.empty:
-                course_summary = (
-                    course_data.groupby("CourseGroup", observed=True)
-                    .agg(
-                        Count=("CourseGroup", "size"),
-                        Median_Percentile=("NMS_PER_num", "median"),
-                        Mean_Percentile=("NMS_PER_num", "mean"),
-                    )
-                    .reset_index()
-                )
-                course_summary["Count"] = course_summary["Count"].astype(int)
-                course_summary["Median_Percentile"] = course_summary["Median_Percentile"].round(1)
-                course_summary["Mean_Percentile"] = course_summary["Mean_Percentile"].round(1)
-
-                st.dataframe(
-                    course_summary.rename(columns={
-                        "CourseGroup": "Course Group",
-                        "Count": "N",
-                        "Median_Percentile": "Median %ile",
-                        "Mean_Percentile": "Mean %ile",
-                    }),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-                fig_course = px.bar(
-                    course_summary,
-                    x="CourseGroup",
-                    y="Count",
-                    color="CourseGroup",
-                    color_discrete_map=PAL_COURSE,
-                    title="Examinee Count by Course Group",
-                    text_auto=",",
-                )
-                fig_course.update_layout(height=350, showlegend=False, xaxis_tickangle=-30)
-                st.plotly_chart(fig_course, use_container_width=True, key="fig_t6_course_bar")
-            else:
-                st.info("No course group data available.")
-
-        # Combined: Percentile distribution by course group
-        st.subheader("Percentile Distribution by Course Group")
-        if not course_data.empty:
-            course_bin = (
-                course_data.groupby(["CourseGroup", "PercentileBin"], observed=True)
-                .size()
-                .reset_index(name="Count")
-            )
-            fig_course_bin = px.bar(
-                course_bin,
-                x="PercentileBin",
-                y="Count",
-                color="CourseGroup",
-                barmode="group",
-                color_discrete_map=PAL_COURSE,
-                title="Percentile Bin Distribution by Course Group",
-                category_orders={"PercentileBin": BIN_ORDER},
-            )
-            fig_course_bin.update_layout(height=400, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-            st.plotly_chart(fig_course_bin, use_container_width=True, key="fig_t6_course_bin")
-
-        st.caption("All demographic figures use best-record NMAT data from 2006-2018.")
-
-        col_dl_dem, _ = st.columns([1, 3])
-        with col_dl_dem:
-            dem_dl_df = besttrend[["SEX", "CourseGroup", "PercentileBin", "NMS_PER_num", "UNI_TYPE"]].dropna(subset=["SEX", "CourseGroup"]).copy()
-            dem_dl_df.columns = ["Sex", "Course Group", "Percentile Bin", "NMS Percentile", "University Type"]
-            st.download_button(
-                "Download Demographics CSV",
-                data=dem_dl_df.to_csv(index=False).encode("utf-8"),
-                file_name="ched_demographics.csv",
-                mime="text/csv",
-            )
-
-    # ================================================================
-    # TAB 7: PLE ALIGNMENT
-    # ================================================================
-    with tabs[6]:
-        st.header("NMAT-PLE Alignment Analysis")
-        st.info(
-            " **What This Tab Answers:** How strongly do NMAT percentile bins and "
-            "university types predict PLE linkage?"
-        )
-        st.markdown(
-            "How NMAT percentile bins and university types relate to PLE linkage. "
-            "This analysis uses the observable cohort (Year <= 2014) to ensure a valid "
-            "licensure observation window."
-        )
-        render_caveat("linkage")
-
-        if bestobs.empty:
-            st.info("No observable cohort data available.")
-        else:
-            # Linkage rate by percentile bin
-            bin_linkage = (
-                bestobs.dropna(subset=["PercentileBin"])
-                .groupby("PercentileBin", observed=True)
-                .agg(
-                    N=("IS_PLE_ANALYSIS_SAFE", "size"),
-                    Confirmed_PLE=("IS_PLE_ANALYSIS_SAFE", "sum"),
-                )
-                .reset_index()
-            )
-            bin_linkage["Linkage Rate (%)"] = (
-                bin_linkage["Confirmed_PLE"] / bin_linkage["N"] * 100
-            ).round(2)
-
-            # Metric cards for each bin tier
-            st.subheader("Linkage Rate by Percentile Bin Tier")
-            bin_tiers = {
-                "Bottom (B1-B3)": ["B1", "B2", "B3"],
-                "Middle (B4-B7)": ["B4", "B5", "B6", "B7"],
-                "Top (B8-B10)": ["B8", "B9", "B10"],
-            }
-            tier_cols = st.columns(3)
-            for i, (tier_name, bins) in enumerate(bin_tiers.items()):
-                tier_data = bin_linkage[bin_linkage["PercentileBin"].isin(bins)]
-                if not tier_data.empty:
-                    tier_rate = round(
-                        tier_data["Confirmed_PLE"].sum() / tier_data["N"].sum() * 100, 2
-                    )
-                    tier_n = int(tier_data["N"].sum())
-                    tier_cols[i].metric(tier_name, f"{tier_rate:.2f}%", help=f"N = {tier_n:,}")
-                else:
-                    tier_cols[i].metric(tier_name, "N/A")
-
-            # Line chart: linkage rate by bin
-            fig_bin_link = px.line(
-                bin_linkage,
-                x="PercentileBin",
-                y="Linkage Rate (%)",
-                markers=True,
-                category_orders={"PercentileBin": BIN_ORDER},
-                title="NMAT-PLE Linkage Rate by Percentile Bin",
-                text="Linkage Rate (%)",
-            )
-            fig_bin_link.update_traces(
-                texttemplate="%{text:.1f}%",
-                textposition="top center",
-                line=dict(color="#1f77b4", width=3),
-                marker=dict(size=10, color="#1f77b4"),
-            )
-            fig_bin_link.update_layout(height=400, xaxis_title="Percentile Bin", yaxis_title="Linkage Rate (%)")
-            st.plotly_chart(fig_bin_link, use_container_width=True, key="fig_t7_bin_link")
-
-            # Heatmap: bin x uni_type
-            st.subheader("Linkage Rate Heatmap: Percentile Bin \u00d7 University Type")
-            heatmap_data = (
-                bestobs.dropna(subset=["PercentileBin", "UNI_TYPE"])
-                .groupby(["PercentileBin", "UNI_TYPE"], observed=True)
-                .agg(
-                    N=("IS_PLE_ANALYSIS_SAFE", "size"),
-                    Confirmed_PLE=("IS_PLE_ANALYSIS_SAFE", "sum"),
-                )
-                .reset_index()
-            )
-            heatmap_data["Linkage Rate (%)"] = (
-                heatmap_data["Confirmed_PLE"] / heatmap_data["N"] * 100
-            ).round(2)
-
-            pivot_heat = heatmap_data.pivot_table(
-                index="PercentileBin",
-                columns="UNI_TYPE",
-                values="Linkage Rate (%)",
-                aggfunc="first",
-            )
-            pivot_heat = pivot_heat.reindex(index=BIN_ORDER)
-            uni_types_order = [t for t in ["Public", "Private", "Foreign", "Not Specified"] if t in pivot_heat.columns]
-            pivot_heat = pivot_heat[uni_types_order]
-
-            fig_heat = px.imshow(
-                pivot_heat,
-                text_auto=".1f",
-                aspect="auto",
-                color_continuous_scale="RdYlBu",
-                title="Linkage Rate (%) by Bin and University Type",
-                labels=dict(x="University Type", y="Percentile Bin", color="Linkage Rate (%)"),
-            )
-            fig_heat.update_layout(height=450)
-            st.plotly_chart(fig_heat, use_container_width=True, key="fig_t7_heatmap")
-
-            # Full breakdown table
-            st.subheader("Full Breakdown: Bin \u00d7 University Type")
-            full_table = heatmap_data.pivot_table(
-                index="PercentileBin",
-                columns="UNI_TYPE",
-                values=["N", "Confirmed_PLE", "Linkage Rate (%)"],
-                aggfunc="first",
-            )
-            # Flatten columns
-            full_table.columns = [f"{col[1]} - {col[0]}" for col in full_table.columns]
-            full_table = full_table.reindex(index=BIN_ORDER).reset_index()
-            full_table = full_table.rename(columns={"PercentileBin": "Bin"})
-            st.dataframe(full_table, use_container_width=True, hide_index=True)
-
-            col_dl5, _ = st.columns([1, 3])
-            with col_dl5:
-                st.download_button(
-                    "Download PLE Alignment CSV",
-                    data=heatmap_data.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_ple_alignment.csv",
-                    mime="text/csv",
-                )
-
-            st.caption(
-                "Linkage rate = share of NMAT examinees in each bin/type group who are found in PLE passer data. "
-                "This is NOT a PLE pass rate."
-            )
-
-    # ================================================================
-    # TAB 8: TRENDS
-    # ================================================================
-    with tabs[7]:
-        st.header("Historical Trends (2006-2018)")
-        st.info(
-            " **What This Tab Answers:** How have NMAT scores, examinee volumes, "
-            "and demographic composition changed over the 2006-2018 period?"
-        )
-        st.markdown(
-            "Year-over-year trends in NMAT scores, examinee volume, and percentile distribution."
-        )
-
-        if besttrend.empty:
-            st.info("No trend data available.")
-        else:
-            # Yearly summary
-            yearly = (
-                besttrend.groupby("Year", observed=True)
-                .agg(
-                    Total_Examinees=("Year", "size"),
-                    Median_Percentile=("NMS_PER_num", "median"),
-                    Mean_Percentile=("NMS_PER_num", "mean"),
-                    Pct_Female=("SEX", lambda x: (x == "Female").mean() * 100),
-                )
-                .reset_index()
-            )
-            yearly["Total_Examinees"] = yearly["Total_Examinees"].astype(int)
-            yearly["Median_Percentile"] = yearly["Median_Percentile"].round(1)
-            yearly["Mean_Percentile"] = yearly["Mean_Percentile"].round(1)
-            yearly["Pct_Female"] = yearly["Pct_Female"].round(1)
-            yearly["Year"] = yearly["Year"].astype(str)
-
-            # Score trend line chart
-            fig_score = go.Figure()
-            fig_score.add_trace(go.Scatter(
-                x=yearly["Year"],
-                y=yearly["Median_Percentile"],
-                mode="lines+markers",
-                name="Median Percentile",
-                line=dict(color="#1f77b4", width=2),
-                hovertemplate="Year: %{x}<br>Median: %{y:.1f}<extra></extra>",
-            ))
-            fig_score.add_trace(go.Scatter(
-                x=yearly["Year"],
-                y=yearly["Mean_Percentile"],
-                mode="lines+markers",
-                name="Mean Percentile",
-                line=dict(color="#d62728", width=2, dash="dash"),
-                hovertemplate="Year: %{x}<br>Mean: %{y:.1f}<extra></extra>",
-            ))
-            fig_score.update_layout(
-                title="NMAT Percentile Score Trends (2006-2018)",
-                xaxis_title="NMAT Year",
-                yaxis_title="Percentile Score",
-                height=400,
-                hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            )
-            st.plotly_chart(fig_score, use_container_width=True, key="fig_t8_score_trend")
-
-            # Volume trend bar chart
-            fig_vol = px.bar(
-                yearly,
-                x="Year",
-                y="Total_Examinees",
-                title="Annual Examinee Volume (2006-2018)",
-                color="Total_Examinees",
-                color_continuous_scale="Blues",
-                text_auto=",",
-            )
-            fig_vol.update_layout(height=400, showlegend=False)
-            st.plotly_chart(fig_vol, use_container_width=True, key="fig_t8_vol_trend")
-
-            # Yearly summary table
-            st.subheader("Yearly Summary")
-            st.dataframe(
-                yearly.rename(columns={
-                    "Year": "NMAT Year",
-                    "Total_Examinees": "Total Examinees",
-                    "Median_Percentile": "Median %ile",
-                    "Mean_Percentile": "Mean %ile",
-                    "Pct_Female": "Female (%)",
-                }),
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            col_dl6, _ = st.columns([1, 3])
-            with col_dl6:
-                st.download_button(
-                    "Download Yearly Trends CSV",
-                    data=yearly.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_yearly_trends.csv",
-                    mime="text/csv",
-                )
-
-            st.caption("All figures use best-record NMAT data. Percentile scores are NMS_PER_num.")
-
-    # ================================================================
-    # TAB 9: ACCOUNTABILITY FRAMEWORK
-    # ================================================================
-    with tabs[8]:
-        st.header("Accountability Framework")
-        st.info(
-            " **What This Tab Answers:** How should HEIs be monitored and "
-            "held accountable under the new CMO NMAT cut-off policy?"
-        )
-        st.markdown(
-            "This tab provides a framework for CHED to monitor PHEI compliance with "
-            "the amended NMAT cut-off policy, including risk flags, data collection "
-            "recommendations, and transition guidance."
-        )
-        render_caveat("general")
-
-        # PHEI Risk Flags
-        with st.expander("PHEI Risk Flags -- Institutions Above/Below Benchmark", expanded=True):
-            st.markdown(
-                "The table below categorizes PHEIs based on their PLE linkage rate relative "
-                "to the national 5-year rolling average benchmark. Institutions **below** the "
-                "benchmark must maintain the 40th percentile cut-off; those **at or above** "
-                "may set the 30th percentile cut-off."
-            )
-
-            if not bestobs.empty and not besttrend.empty:
-                annual_linkage = (
-                    bestobs.groupby("Year", observed=True)
-                    .agg(
-                        n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
-                        n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
-                    )
-                    .reset_index()
-                )
-                annual_linkage["Linkage Rate (%)"] = (
-                    annual_linkage["n_confirmed_ple"] / annual_linkage["n_examinees"] * 100
-                ).round(2)
-                annual_linkage["5yr Rolling Avg (%)"] = (
-                    annual_linkage["Linkage Rate (%)"].rolling(window=5, min_periods=3).mean().round(2)
-                )
-                benchmark_val = annual_linkage[
-                    annual_linkage["5yr Rolling Avg (%)"].notna()
-                ].iloc[-1]["5yr Rolling Avg (%)"]
-
-                hei_flag_rows = []
-                for hei in sorted(besttrend["UNIVERSITY"].dropna().unique()):
-                    hei_data = besttrend[besttrend["UNIVERSITY"] == hei]
-                    hei_obs = bestobs[bestobs["UNIVERSITY"] == hei]
-                    if len(hei_data) < 5:
-                        continue
-                    hei_type = hei_data["UNI_TYPE"].mode().iloc[0] if not hei_data["UNI_TYPE"].mode().empty else "Unknown"
-                    ple_rate = round(
-                        hei_obs["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 2
-                    ) if not hei_obs.empty and len(hei_obs) >= 5 else None
-                    b4_pct = round(
-                        (hei_data["PercentileBin"].apply(lambda b: bin_at_or_above(b, "B4")).sum()
-                         / len(hei_data) * 100), 1
-                    )
-                    status = "Above Benchmark" if (ple_rate is not None and ple_rate >= benchmark_val) else "Below Benchmark"
-                    hei_flag_rows.append({
-                        "HEI": hei,
-                        "Type": hei_type,
-                        "N": len(hei_data),
-                        "PLE Linkage (%)": ple_rate,
-                        "B4+ (%)": b4_pct,
-                        "Benchmark Status": status,
-                    })
-
-                hei_flags = pd.DataFrame(hei_flag_rows)
-                if not hei_flags.empty:
-                    st.metric(
-                        "National Benchmark (5yr Rolling Avg)",
-                        f"{benchmark_val:.2f}%",
-                        help="PHEIs at or above this benchmark may use 30th percentile cut-off."
-                    )
-
-                    st.dataframe(
-                        hei_flags.sort_values("Benchmark Status"),
-                        use_container_width=True,
-                        hide_index=True,
-                        column_config={
-                            "PLE Linkage (%)": st.column_config.NumberColumn(format="%.2f"),
-                            "B4+ (%)": st.column_config.NumberColumn(format="%.1f%%"),
-                        },
-                    )
-
-                    above_count = (hei_flags["Benchmark Status"] == "Above Benchmark").sum()
-                    below_count = (hei_flags["Benchmark Status"] == "Below Benchmark").sum()
-                    col_a1, col_a2, col_a3 = st.columns(3)
-                    col_a1.metric("PHEIs Above Benchmark", str(above_count))
-                    col_a2.metric("PHEIs Below Benchmark", str(below_count))
-                    col_a3.metric("Total PHEIs Assessed", str(len(hei_flags)), help="PHEIs with >= 5 examinees in the dataset.")
-
-                    col_dl_ac, _ = st.columns([1, 3])
-                    with col_dl_ac:
-                        st.download_button(
-                            "Download PHEI Risk Flags CSV",
-                            data=hei_flags.to_csv(index=False).encode("utf-8"),
-                            file_name="ched_phei_risk_flags.csv",
-                            mime="text/csv",
-                        )
-                else:
-                    st.info("No PHEI data available for risk flag assessment.")
-            else:
-                st.info("Insufficient data for PHEI risk flag assessment.")
-
-        with st.expander("Monitoring Template -- What CHED Should Collect"):
-            st.markdown(
-                "To effectively monitor compliance with the amended NMAT cut-off policy, "
-                "CHED should collect the following data elements from each PHEI:"
-            )
-            monitoring_items = [
-                ["Institution Profile", "HEI name, type (SUC/Private), location, CHED-recognized programs"],
-                ["NMAT Enrollment Data", "Annual count of incoming freshmen with NMAT scores, by percentile bin"],
-                ["Foreign Student Roster", "Annual count of foreign enrollees per program, with nationality"],
-                ["PLE Performance Summary", "Annual PLE takers and passers per HEI, reported by PRC reference"],
-                ["Cut-Off Declaration", "Which cut-off (30th or 40th percentile) the HEI adopts each AY"],
-                ["Compliance Attestation", "Signed attestation from HEI president confirming compliance with CMO"],
-                ["Remediation Plan", "For HEIs below benchmark: plan to improve PLE performance within 3 years"],
-            ]
-            mon_df = pd.DataFrame(monitoring_items, columns=["Data Element", "Description"])
-            st.dataframe(mon_df, use_container_width=True, hide_index=True)
-
-            col_dl_ac2, _ = st.columns([1, 3])
-            with col_dl_ac2:
-                st.download_button(
-                    "Download Monitoring Template CSV",
-                    data=mon_df.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_monitoring_template.csv",
-                    mime="text/csv",
-                )
-
-        with st.expander("Transition Timeline & Recommendations"):
-            st.markdown(
-                "### Transition Timeline\n\n"
-                "Based on the empirical evidence in this dashboard, CHED should consider "
-                "the following transition timeline:\n\n"
-                "1. **AY 2026-2027 (Year 1):** Baseline data collection. All PHEIs report NMAT "
-                "enrollment data and cut-off declarations. CHED establishes the national benchmark "
-                "using 5-year rolling average from historical data.\n\n"
-                "2. **AY 2027-2028 (Year 2):** First compliance check. PHEIs above the benchmark "
-                "receive flexibility (30th percentile); those below maintain 40th percentile.\n\n"
-                "3. **AY 2028-2029 (Year 3):** Review and adjustment period. CHED reviews the "
-                "impact of the policy and adjusts the benchmark formula if needed.\n\n"
-                "### Recommendations\n\n"
-                "- **Data Infrastructure:** CHED should invest in a centralized data collection "
-                "system for NMAT enrollment and PLE outcomes to enable real-time monitoring.\n\n"
-                "- **Periodic Review:** The benchmark formula (5-year rolling average) should be "
-                "reviewed every 3 years to ensure it reflects current PLE performance trends.\n\n"
-                "- **Equity Considerations:** SUCs with limited resources may need transitional "
-                "support to improve PLE performance before being subject to the benchmark.\n\n"
-                "- **Stakeholder Engagement:** CHED should consult with PHEI administrators, "
-                "faculty associations, and student groups before finalizing implementation rules.\n\n"
-                "- **Data Validation:** Per-HEI PLE linkage rates should be cross-validated "
-                "against PRC's official PLE data before being used for compliance determinations."
-            )
-
-    # ================================================================
-    # TAB 10: DATA APPENDIX
-    # ================================================================
-    with tabs[9]:
-        st.header("Methodology & Data Sources")
-        st.info(
-            " **What This Tab Answers:** What data sources, methodologies, and "
-            "limitations underpin all analyses in this dashboard?"
-        )
-        st.markdown(
-            "This appendix documents the data pipeline, key terms, and limitations "
-            "for transparency and reproducibility."
-        )
-
-        with st.expander("How the Data Was Produced - Pipeline Summary", expanded=True):
-            st.markdown(
-                "**NMAT_Exodus.parquet** -- the final enriched dataset from Pipeline 4, containing "
-                "178,927 rows \u00d7 54 columns. This dataset integrates:\n\n"
-                "- Raw NMAT scores and percentile bins (B1-B10) for each examinee\n"
-                "- Demographic data (sex, course group, institution, university type)\n"
-                "- PLE match status (IS_PLE_ANALYSIS_SAFE, IS_PLE_PASSER)\n"
-                "- Citizenship classification (CITIZENSHIP_FINAL, FOREIGNER_STATUS)\n"
-                "- Best-record flag (IS_BEST_NMAT_RECORD) ensuring one record per examinee\n\n"
-                "The original data sources are:\n"
-                "- **NMAT historical database** (2006-2018) from CEM\n"
-                "- **PLE_DATA.csv** (43,630 rows, 1 column: PLE_YEAR_PASSED) from PRC\n"
-                "- **REAL_FOREIGNERS.csv** for citizenship verification"
-            )
-            st.markdown(
-                "**Data Pipeline Overview:**\n\n"
-                "1. **Pipeline 1:** Raw score extraction and standardization\n"
-                "2. **Pipeline 2:** NMAT-PLE linkage via fuzzy matching on name and birth year\n"
-                "3. **Pipeline 3:** Score sanity checks, deduplication, best-record selection\n"
-                "4. **Pipeline 4:** Citizenship classification using name-based assessment and "
-                "REAL_FOREIGNERS.csv\n\n"
-                "The output is NMAT_Exodus.parquet, which feeds both the main NMAT Performance Dashboard "
-                "and this CHED Compliance Dashboard."
-            )
-
-        with st.expander("Key Terms and Definitions"):
-            terms_df = pd.DataFrame({
-                "Term": [
-                    "Best Record (IS_BEST_NMAT_RECORD)",
-                    "Observable Cohort",
-                    "Linkage Rate",
-                    "PLE Pass Rate",
-                    "B1-B10 Bins",
-                    "B4+ (30th Percentile)",
-                    "B5+ (40th Percentile)",
-                    "FOREIGNER_STATUS",
-                    "CITIZENSHIP_FINAL",
-                    "SUC",
-                    "PHEI",
-                    "5-Year Rolling Average",
-                ],
-                "Definition": [
-                    "The highest-scoring NMAT attempt per examinee. Used to avoid double-counting.",
-                    "Best records with Year <= 2014, allowing a 4-year window for PLE licensure.",
-                    "Share of NMAT examinees found in PLE passer data. NOT a pass rate.",
-                    "Cannot be computed. Requires PLE taker data with pass/fail outcomes.",
-                    "Percentile rank bins: B1 (0-9.9) through B10 (90-99.9).",
-                    "Examinees at or above the 30th percentile (bins B4-B10).",
-                    "Examinees at or above the 40th percentile (bins B5-B10).",
-                    "Classification: Filipino, Verified Foreigner, or Likely Foreigner.",
-                    "Nationality as determined by Pipeline 4 citizenship integration.",
-                    "State University or College.",
-                    "Philippine Higher Education Institution.",
-                    "Average linkage rate over the most recent 5 years (min 3 years required).",
-                ],
-            })
-            st.dataframe(terms_df, use_container_width=True, hide_index=True)
-            col_dl_app1, _ = st.columns([1, 3])
-            with col_dl_app1:
-                st.download_button(
-                    "Download Glossary CSV",
-                    data=terms_df.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_glossary.csv",
-                    mime="text/csv",
-                )
-
-        with st.expander("Full Limitations"):
-            st.warning(
-                "1. **No PLE pass rates.** PLE_DATA contains passers only (43,630 rows, no fail records). "
-                "What we report is the NMAT-to-PLE linkage rate, which is an evidence-based indicator "
-                "but different from the official PLE pass rate.\n\n"
-                "2. **Foreign student data counts examinees, not enrollees.** The 10-slot cap in the CMO "
-                "applies to enrolled foreign students. Our data shows who took the NMAT, not who enrolled.\n\n"
-                "3. **Temporal gap.** NMAT data covers 2006-2018. The CMO takes effect AY 2026-2027. "
-                "This is historical analysis, not current monitoring.\n\n"
-                "4. **Per-HEI PLE performance cannot determine compliance with Section IV-B-1b/c.** "
-                "The CMO requires per-HEI 'PLE performance at a rate above the average national passing "
-                "percentage.' Without PLE pass rates, we cannot definitively determine compliance.\n\n"
-                "5. **Province-level geography was removed** during column slimming (118 -> 54 columns). "
-                "Province-level analysis is not currently possible."
-            )
-            st.markdown(
-                "**Additional Limitations:**\n\n"
-                "- **Self-reported data:** University names and types are derived from NMAT registration "
-                "data, which may contain errors or inconsistencies.\n"
-                "- **Fuzzy matching uncertainty:** The NMAT-to-PLE linkage relies on fuzzy name matching, "
-                "which may produce false positives or false negatives.\n"
-                "- **Citizenship classification:** Foreigner status is based on name-based assessment "
-                "supplemented by REAL_FOREIGNERS.csv. It may not reflect actual citizenship for all "
-                "examinees.\n"
-                "- **Course group mapping:** Course groups are derived from NMAT registration data and "
-                "may not align perfectly with CHED program classifications.\n"
-                "- **No income/SES data:** The dataset contains no socioeconomic indicators, which "
-                "limits equity analysis.\n"
-                "- **No HEI-level PLE taker data:** Without knowing how many PLE takers each HEI had, "
-                "we cannot compute actual PLE pass rates at the institutional level."
-            )
-
-        with st.expander("How the Data Was Produced (Computation Details)"):
-            st.markdown(
-                "All computations in this dashboard are performed directly from NMAT_Exodus.parquet "
-                "using the following approach:\n\n"
-                "- `best` subset = IS_BEST_NMAT_RECORD == True\n"
-                "- `besttrend` subset = best filtered to 2006-2018\n"
-                "- `bestobs` subset = besttrend filtered to Year <= 2014 (observable PLE cohort)\n\n"
-                "Aggregations use groupby operations on these subsets. All charts use Plotly Express "
-                "or Plotly Graph Objects. Tables are rendered via Streamlit's st.dataframe with "
-                "built-in sorting, search, and download capabilities.\n\n"
-                "The dashboard is designed for reproducibility: the same NMAT_Exodus.parquet file "
-                "will produce identical results regardless of environment."
-            )
-
-        with st.expander("Column Glossary for NMAT_Exodus.parquet"):
-            col_df = pd.DataFrame({
-                "Column": [
-                    "APPNO_CLEAN", "PERSON_KEY", "Year", "NMS_PER_num", "PercentileBin",
-                    "UNIVERSITY", "NMA_College", "UNI_TYPE", "UNI_LOCATION",
-                    "SEX", "CourseGroup", "CITIZENSHIP_FINAL", "FOREIGNER_STATUS",
-                    "IS_BEST_NMAT_RECORD", "IS_PLE_ANALYSIS_SAFE", "IS_PLE_PASSER",
-                    "TotalRawScoreTRUE", "NMS_GPS", "NMS_APT", "NMS_SA",
-                ],
-                "Description": [
-                    "Anonymized application number",
-                    "Deduplicated person identifier",
-                    "NMAT examination year",
-                    "NMAT percentile rank score",
-                    "Percentile bin classification (B1-B10)",
-                    "University name (aggregated, deduplicated)",
-                    "College/institution name within university",
-                    "University type: Public, Private, Foreign, Not Specified",
-                    "University location (region/province)",
-                    "Sex: Female or Male",
-                    "Course group classification (6 categories)",
-                    "Final citizenship classification",
-                    "Foreigner status: Filipino, Verified Foreigner, Likely Foreigner",
-                    "Flag: best NMAT record per examinee",
-                    "Flag: confirmed PLE passer (observable)",
-                    "Flag: IS_PLE_PASSER (derived)",
-                    "True total raw score (sum of verified Part I and Part II)",
-                    "General Potential Standard Score",
-                    "Academic Potential Test score",
-                    "Spiritual Aptitude score",
-                ],
-            })
-            st.dataframe(col_df, use_container_width=True, hide_index=True)
-            col_dl_app2, _ = st.columns([1, 3])
-            with col_dl_app2:
-                st.download_button(
-                    "Download Column Glossary CSV",
-                    data=col_df.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_column_glossary.csv",
-                    mime="text/csv",
-                )
-
-        with st.expander("References"):
-            st.markdown(
-                "- CMO No. __, s. 2026: Amendment to NMAT Cut-Off Scores\n"
-                "- NMAT_Exodus.parquet: Pipeline 4 output (Pipeline 1-4 documentation available in the "
-                "repository)\n"
-                "- Main NMAT Performance Dashboard: `streamlit_dashboard/main_dashboard/dashboard.py`\n"
-                "- CHED Implementation Plan: `streamlit_dashboard/CHED_relevant_dashboard/IMPLEMENTATION_PLAN.md`"
-            )
-
-
-if __name__ == "__main__":
-    main()
+    st.markdown("**Interpretation.** The data used in this dashboard has been through a rigorous 4-pipeline processing system with documented quality checks.  The key limitations for CHED decision-making relate to the scope of the dataset (NMAT examinees only, not all PLE takers or enrolled students) and the absence of certain variables (GIDA/IP status, admission criteria, enrollment data) that would be needed for a complete policy assessment.")
