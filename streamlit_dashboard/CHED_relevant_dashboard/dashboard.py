@@ -244,7 +244,7 @@ with tab1:
     fig = make_subplots(
         rows=2, cols=1,
         subplot_titles=("Examinee Volume by Year", "Median Percentile Rank by Year"),
-        vertical_spacing=0.12,
+        vertical_spacing=0.22,
     )
     fig.add_trace(go.Bar(x=yearly_summary["Year"], y=yearly_summary["examinees"],
                          name="Examinees", marker_color="#1f77b4",
