@@ -118,7 +118,7 @@ def find_data_path() -> Path:
 @st.cache_data(show_spinner="Loading NMAT data ...")
 def load_data():
     path = find_data_path()
-    df = pd.read_parquet(path, use_threads=True)
+    df = pd.read_parquet(path)
     df = validate_schema(df)
 
     # Subsets
