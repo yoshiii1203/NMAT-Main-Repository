@@ -16,6 +16,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
+from export_markdown import build_full_markdown
+
 warnings.filterwarnings("ignore")
 
 # ---------------------------------------------------------------------------
@@ -238,6 +240,33 @@ with st.expander("How to read this dashboard", expanded=False):
 - **All score summaries use recalculated TRUE raw scores** -- the original stored total was inconsistent for 42.2% of records and has been corrected.
         """
     )
+
+with st.expander("Export Complete Dashboard", expanded=False):
+    st.caption(
+        "Download a complete Markdown copy of all tabs, charts, "
+        "tables, notes, and underlying chart data.  Charts are "
+        "generated only when you click \"Generate & Download\"."
+    )
+
+    if st.button("Generate & Download (with Charts)", use_container_width=True):
+        with st.spinner("Generating charts and markdown..."):
+            _md = build_full_markdown(
+                df_all=df_all,
+                df_best=df_best,
+                df_obs=df_obs,
+                viz_dir="viz",
+            )
+            st.session_state["_md_export"] = _md
+        st.success("Charts saved to viz/ folder. Click below to download.")
+
+    if "_md_export" in st.session_state:
+        st.download_button(
+            label="Download Complete Dashboard (Markdown)",
+            data=st.session_state["_md_export"],
+            file_name="CHED_NMAT_Dashboard_Complete.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
 
 # ---------------------------------------------------------------------------
 # Tabs
