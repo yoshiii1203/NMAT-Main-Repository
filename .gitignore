@@ -61,3 +61,5 @@ vault/
 # ── Environment files ────────────────────────────────────────────
 .env
 .env.local
+
+# Temp files.temp/
