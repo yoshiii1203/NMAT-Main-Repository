@@ -6,9 +6,9 @@ import os
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 ROOT_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..")
 )
-DATASET_DIR = os.path.join(ROOT_DIR, "dataset")
+DATASET_DIR = ROOT_DIR
 EXODUS_PATH = os.path.join(DATASET_DIR, "NMAT_Exodus.parquet")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "page_results")
 
@@ -34,6 +34,10 @@ NUMERIC_COLS = [
 ]
 
 BIN_ORDER = ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10"]
+B4_PLUS = ["B4", "B5", "B6", "B7", "B8", "B9", "B10"]
+B5_PLUS = ["B5", "B6", "B7", "B8", "B9", "B10"]
+TOP_BINS = ["B8", "B9", "B10"]
+BOTTOM_BINS = ["B1", "B2", "B3"]
 
 UNI_TYPE_ORDER = ["Public", "Private", "Foreign", "Not Specified"]
 

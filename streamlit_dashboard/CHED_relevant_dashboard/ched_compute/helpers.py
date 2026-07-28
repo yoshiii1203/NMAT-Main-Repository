@@ -38,7 +38,7 @@ def create_subsets(df: pd.DataFrame) -> dict:
     best = df[df["IS_BEST_NMAT_RECORD"] == True].copy()
     best_pre2015 = best[best["Year"] <= PLE_OBSERVABLE_MAX_YEAR].copy()
 
-    best_ple_matched = best[best["IS_PLE_PASSER"] == True].copy()
+    best_ple_matched = best[best["IS_PLE_ANALYSIS_SAFE"] == True].copy() if "IS_PLE_ANALYSIS_SAFE" in best.columns else best[best["IS_PLE_PASSER"] == True].copy()
     best_ple_matched_pre2015 = best_ple_matched[
         best_ple_matched["Year"] <= PLE_OBSERVABLE_MAX_YEAR
     ].copy()
@@ -53,6 +53,15 @@ def create_subsets(df: pd.DataFrame) -> dict:
         "best_ple_matched_pre2015": best_ple_matched_pre2015,
         "uni": uni,
     }
+
+
+def create_clean_subset(df_obs: pd.DataFrame) -> pd.DataFrame:
+    """Return strictest defensible PLE subset: best record, IS_PLE_ANALYSIS_SAFE, >=5yr gap, Filipino."""
+    return df_obs[
+        (df_obs["IS_PLE_ANALYSIS_SAFE"] == True)
+        & (df_obs["PLE_YEAR_GAP"] >= 5)
+        & (df_obs["FOREIGNER_STATUS"] == "Filipino")
+    ].copy()
 
 
 def today_str() -> str:

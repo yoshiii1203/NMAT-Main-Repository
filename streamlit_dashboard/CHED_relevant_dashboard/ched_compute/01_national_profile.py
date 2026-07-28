@@ -1,7 +1,8 @@
 """
-01_national_benchmark.py — NMAT-to-PLE linkage rates, national trends.
+01_national_benchmark.py — National NMAT profile and linkage analysis.
 
 Computes:
+  - National NMAT examinee profile with score bin distribution and reference table
   - Annual NMAT-to-PLE linkage rates for the observable cohort (Year <= 2014)
   - 5-year rolling average linkage rate
   - Metric cards with key figures
@@ -26,8 +27,8 @@ from helpers import (
     write_output,
 )
 
-SCRIPT = "01_national_benchmark"
-TITLE = "National NMAT-to-PLE Linkage Benchmark"
+SCRIPT = "01_national_profile"
+TITLE = "National NMAT Profile and Linkage Analysis"
 
 
 def compute():
@@ -40,10 +41,38 @@ def compute():
     lines = []
     lines.append("## Results\n")
     lines.append(
-        "This section computes the annual and 5-year rolling NMAT-to-PLE linkage rate — "
-        "the share of NMAT examinees from a given year who were later found in official PLE "
-        "passer records. This is **not** a PLE pass rate."
+        "This section presents the national NMAT examinee profile and computes the annual "
+        "and 5-year rolling NMAT-to-PLE linkage rate — the share of NMAT examinees from a "
+        "given year who were later found in official PLE passer records. This is **not** a "
+        "PLE pass rate."
     )
+    lines.append("")
+
+    # ── Bin reference table ─────────────────────────────────────────────
+    lines.append("### Score Bin Reference\n")
+    lines.append(
+        "Each bin corresponds to a range of NMAT percentile rank scores. B4+ corresponds "
+        "to the CMO exception floor (30th–39th percentile range). B5+ corresponds to the "
+        "SUC standard floor (40th–49th percentile range).\n"
+    )
+    bin_header = "| Bin | Score Range | Threshold |"
+    bin_sep = "|:---:|:-----------:|:----------|"
+    lines.append(bin_header)
+    lines.append(bin_sep)
+    bin_data = [
+        ("B1", "0–9", ""),
+        ("B2", "10–19", ""),
+        ("B3", "20–29", ""),
+        ("B4", "30–39", "CMO exception floor (B4+)"),
+        ("B5", "40–49", "SUC standard floor (B5+)"),
+        ("B6", "50–59", ""),
+        ("B7", "60–69", ""),
+        ("B8", "70–79", ""),
+        ("B9", "80–89", ""),
+        ("B10", "90–100", ""),
+    ]
+    for b, r, t in bin_data:
+        lines.append(f"| {b} | {r} | {t} |")
     lines.append("")
 
     # ── Metric cards ────────────────────────────────────────────────────
@@ -149,7 +178,8 @@ def compute():
     lines.append("")
     lines.append(
         "**Important:** This is an NMAT-to-PLE **linkage rate**, not a PLE pass rate. "
-        "It measures the share of NMAT examinees found in PLE passer records. "
+        "It measures the share of NMAT examinees found in PLE passer records, "
+        "not the share who passed PLE. "
         "We cannot distinguish between examinees who never took PLE, those who took "
         "it but failed, those who passed but weren't matched, and those who took PLE "
         "after our data cutoff."

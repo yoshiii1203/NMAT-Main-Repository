@@ -5,7 +5,7 @@ Computes:
   - Foreign examinee counts by UNI_TYPE, Year, nationality
   - Foreign count per SUC per year
   - Nationality distribution (top 20)
-  - NMAT performance by nationality (median percentile)
+  - NMAT performance by nationality (median score)
 
 CRITICAL: All counts are labeled as "examinee counts" NOT "enrollment".
 Every foreign count specifies best-record vs all-records denominator.
@@ -30,7 +30,7 @@ from helpers import (
     write_output,
 )
 
-SCRIPT = "04_foreign_analysis"
+SCRIPT = "04_institution_context"
 TITLE = "Foreign Examinee Analysis"
 
 def compute():
@@ -170,17 +170,17 @@ def compute():
 
     # ── Nationality distribution ────────────────────────────────────────
     lines.append("### Foreign Examinees by Nationality\n")
-    lines.append("Distribution of foreign examinees by citizenship (best-record basis).\n")
+    lines.append("Distribution of foreign examinees by citizenship (all-records basis, includes repeat takers).\n")
 
-    nat_counts = foreign["CITIZENSHIP_FINAL"].value_counts().head(20)
+    nat_counts = full_foreign["CITIZENSHIP_FINAL"].value_counts().head(20)
 
-    nat_header = "| Rank | Nationality | n (Best Record) | % of Foreign | Median Percentile |"
+    nat_header = "| Rank | Nationality | n (All Records) | % of Foreign | Median |"
     nat_sep = "|:----:|:------------|:---------------:|:------------:|:-----------------:|"
     lines.append(nat_header)
     lines.append(nat_sep)
 
     for i, (nat, n) in enumerate(nat_counts.items(), 1):
-        nat_median = foreign.loc[foreign["CITIZENSHIP_FINAL"] == nat, "NMS_PER_num"].median()
+        nat_median = full_foreign.loc[full_foreign["CITIZENSHIP_FINAL"] == nat, "NMS_PER_num"].median()
         med_str = f"{nat_median:.1f}" if not pd.isna(nat_median) else "N/A"
         lines.append(
             f"| {i} | {nat} | {n:,} | {n/total_foreign*100:.2f}% | {med_str} |"
@@ -191,17 +191,17 @@ def compute():
     # ── Performance by nationality ──────────────────────────────────────
     lines.append("### NMAT Performance by Nationality\n")
     lines.append(
-        "Median NMAT percentile for top nationalities, showing score distribution "
-        "(best-record basis).\n"
+        "Median NMAT score for top nationalities, showing score distribution "
+        "(all-records basis).\n"
     )
 
-    perf_header = "| Nationality | n (Best Record) | Median Pctl | Q1 Pctl | Q3 Pctl | % Below B4 (30th) |"
+    perf_header = "| Nationality | n (All Records) | Median | Q1 | Q3 | % Below B4+ |"
     perf_sep = "|:------------|:---------------:|:----------:|:-------:|:-------:|:-----------------:|"
     lines.append(perf_header)
     lines.append(perf_sep)
 
     for nat, n in nat_counts.items():
-        sub = foreign[foreign["CITIZENSHIP_FINAL"] == nat]
+        sub = full_foreign[full_foreign["CITIZENSHIP_FINAL"] == nat]
         med = sub["NMS_PER_num"].median()
         q1 = sub["NMS_PER_num"].quantile(0.25)
         q3 = sub["NMS_PER_num"].quantile(0.75)
@@ -257,7 +257,7 @@ def compute():
     )
     lines.append("")
 
-    india_sub = foreign[foreign["CITIZENSHIP_FINAL"] == "India"]
+    india_sub = full_foreign[full_foreign["CITIZENSHIP_FINAL"] == "India"]
     india_median = india_sub["NMS_PER_num"].median()
     india_below_b4 = int((
         india_sub["PercentileBin"].apply(
@@ -267,9 +267,9 @@ def compute():
     india_pct_below = india_below_b4 / len(india_sub) * 100 if len(india_sub) > 0 else 0
 
     lines.append(
-        f"Indian-origin examinees have a median percentile of {india_median:.1f} (B2 range), "
-        f"and {india_pct_below:.1f}% fall below the 30th percentile threshold (B4). "
-        "This has significant implications for the proposed 30th/40th cut-off policy."
+        f"Indian-origin examinees have a median score of {india_median:.1f} (B2 range), "
+        f"and {india_pct_below:.1f}% fall below the B4+ threshold. "
+        "This has significant implications for the proposed B4+/B5+ cut-off policy."
     )
     lines.append("")
 
@@ -286,7 +286,7 @@ def compute():
     print(f"  Likely Foreigners (best-record):         {likely_foreign:>7,}")
     print(f"  Filipino examinees (best-record):        {total_local:>7,}")
     print(f"  Top nationality:                         India ({india_count:,})")
-    print(f"  Top nationality median pctl:             {india_median:.1f}")
+    print(f"  Top nationality median score:            {india_median:.1f}")
     print(f"  Output: {path}")
     print(f"{'='*70}\n")
 

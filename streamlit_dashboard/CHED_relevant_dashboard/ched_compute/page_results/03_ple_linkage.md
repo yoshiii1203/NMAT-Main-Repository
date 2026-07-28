@@ -2,13 +2,13 @@
 
 **Date:** July 28, 2026
 **Data Source:** `NMAT_Exodus.parquet` (178,927 records, 54 columns)
-**Script:** `ched_compute/06_ple_alignment.py`
+**Script:** `ched_compute/03_ple_linkage.py`
 
 ---
 
 ## Results
 
-This section examines how NMAT percentile bins align with PLE linkage rates. **Important:** All rates shown are NMAT-to-PLE linkage rates — the share of NMAT examinees later found in PLE passer records. These are NOT PLE pass rates.
+This section examines how NMAT score bins align with PLE linkage rates. **Important:** All rates shown are NMAT-to-PLE linkage rates — the share of NMAT examinees later found in PLE passer records. These are NOT PLE pass rates.
 
 ### Overview
 
@@ -19,11 +19,11 @@ This section examines how NMAT percentile bins align with PLE linkage rates. **I
 | **Overall NMAT-to-PLE Linkage Rate** | 45.38% |
 | **Source** | NMAT_Exodus.parquet (best records, Year <= 2014) |
 
-### PLE Linkage by PercentileBin
+### PLE Linkage by Score Bin
 
-The NMAT-to-PLE linkage rate for each percentile bin. The B4->B5 jump is the largest adjacent-bin increase.
+The NMAT-to-PLE linkage rate for each score bin. The B4->B5 jump is the largest adjacent-bin increase.
 
-| PercentileBin | Range | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |
+| Score Bin | Range | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |
 |:------------:|:-----:|:------------:|:-----------:|:------------------------:|
 | B1 | 0--10th | 6,104 | 505 | 8.27% |
 | B2 | 10--20th | 5,254 | 830 | 15.80% |
@@ -39,11 +39,11 @@ The NMAT-to-PLE linkage rate for each percentile bin. The B4->B5 jump is the lar
 *B4 linkage: 22.85%, B5 linkage: 46.27%, B4->B5 jump: +23.41 pp*
 
 
-### Linkage by PercentileBin and UNI_TYPE
+### Linkage by Score Bin and UNI_TYPE
 
-How linkage rates vary by university type within each percentile bin.
+How linkage rates vary by university type within each score bin.
 
-| PercentileBin | Public | Private | Foreign | Not Specified |
+| Score Bin | Public | Private | Foreign | Not Specified |
 |:------------:|:---:|:---:|:---:|:---:|
 | B1 | 6.70% (1030) | 8.82% (4843) | 3.47% (144) | 4.60% (87) |
 | B2 | 11.44% (822) | 16.94% (4257) | 7.87% (89) | 9.30% (86) |
@@ -56,11 +56,11 @@ How linkage rates vary by university type within each percentile bin.
 | B9 | 65.09% (1630) | 68.76% (5007) | 29.32% (133) | 61.90% (84) |
 | B10 | 77.48% (3468) | 76.74% (5876) | 38.97% (195) | 67.80% (118) |
 
-### Linkage by PercentileBin and CourseGroup
+### Linkage by Score Bin and CourseGroup
 
-How linkage rates differ by course group across the percentile distribution.
+How linkage rates differ by course group across the score bin distribution.
 
-| PercentileBin | Medical & Allied | Natural Sciences | Other | Social & Behavioral Sciences | Education | Engineering & Technology |
+| Score Bin | Medical & Allied | Natural Sciences | Other | Social & Behavioral Sciences | Education | Engineering & Technology |
 |:------------:|:---:|:---:|:---:|:---:|:---:|:---:|
 | B1 | 8.83% | 3.97% | 12.50% | 3.47% | 22.38% | 10.53% |
 | B2 | 16.08% | 8.47% | 21.76% | 9.43% | 31.80% | 16.67% |
@@ -91,18 +91,18 @@ Median, Q1, and Q3 of NMAT scores for PLE-linked vs non-linked examinees (pre-20
 | Metric | PLE Passers (Linked) | Non-Linked Examinees | Difference |
 |--------|:--------------------:|:--------------------:|:----------:|
 | n | 29,273 | 35,228 | -5,955 |
-| Median Percentile | 73.0 | 36.0 | +37.0 |
-| Q1 Percentile (25th) | 52.0 | 15.0 | +37.0 |
-| Q3 Percentile (75th) | 90.0 | 63.0 | +27.0 |
+| Median Score | 73.0 | 36.0 | +37.0 |
+| Q1 Score (25th) | 52.0 | 15.0 | +37.0 |
+| Q3 Score (75th) | 90.0 | 63.0 | +27.0 |
 | Median TotalRawScore | 143.0 | 112.0 | +31.0 |
 | Q1 Raw Score | 125.0 | 94.0 | +31.0 |
 | Q3 Raw Score | 164.0 | 134.0 | +30.0 |
 
-PLE-linked examinees have substantially higher NMAT scores across all metrics. The median percentile for PLE-linked examinees is 73, compared to 36 for non-linked examinees.
+PLE-linked examinees have substantially higher NMAT scores across all metrics. The median score for PLE-linked examinees is 73, compared to 36 for non-linked examinees.
 
-### Course Group Survival (B8-B10)
+### Course Group Survival (B8-B10+)
 
-For each course group, the percentage of examinees in the top 3 percentile bins (B8-B10, 70th-100th percentile) and the NMAT-to-PLE linkage rate. Higher B8-B10 share generally correlates with higher linkage.
+For each course group, the percentage of examinees in the top 3 score bins (B8-B10+, 70th-100th percentile) and the NMAT-to-PLE linkage rate. Higher B8-B10 share generally correlates with higher linkage.
 
 | Course Group | n (Best Record) | n in B8-B10 | % in B8-B10 | PLE Linkage Rate (Pre-2015) |
 |:-------------|:---------------:|:-----------:|:-----------:|:--------------------------:|
@@ -113,10 +113,52 @@ For each course group, the percentage of examinees in the top 3 percentile bins 
 | Education | 3,279 | 1,086 | 33.12% | 51.83% |
 | Engineering & Technology | 750 | 382 | 50.93% | 37.75% |
 
+### Matching Limitations
+
+
+NMAT-to-PLE linkage relies on name-based matching across separate datasets. Several limitations apply:
+
+- **Name variations:** Name changes (e.g., marriage), data entry errors, and inconsistent formatting reduce match rates.
+- **Incomplete coverage:** Only PLE passers are in the matched dataset. Examinees who took but did not pass PLE, or who took PLE after the dataset cutoff, are not captured.
+- **Observable cohort:** Only pre-2015 NMAT examinees have sufficient PLE follow-up time. More recent cohorts cannot be fully evaluated.
+- **Clean subset:** The strictest subset (IS_PLE_ANALYSIS_SAFE, gap >= 5 years, Filipino only) provides more reliable estimates but with reduced sample size.
+
+These limitations mean linkage rates are conservative lower bounds. True NMAT-to-PLE progression rates are likely higher.
+
+
+### Clean PLE Subset
+
+A strict, defensible subset for more reliable PLE linkage analysis. This subset filters to best-record examinees with IS_PLE_ANALYSIS_SAFE=True, PLE_YEAR_GAP >= 5, and Filipino citizenship only.
+
+| Metric | Value |
+|--------|-------|
+| **Clean Subset Size** | 27,151 |
+| **PLE Matched in Clean Subset** | 27,151 |
+| **NMAT-to-PLE Linkage Rate (Clean)** | 100.00% |
+| **Filters Applied** | Best record, IS_PLE_ANALYSIS_SAFE, Gap >= 5yrs, Filipino |
+
+#### Clean Subset: Linkage by Score Bin
+
+| Score Bin | n (Clean) | PLE Matched | Linkage Rate |
+|:--------:|:---------:|:-----------:|:------------:|
+| B1 | 433 | 433 | 100.00% |
+| B2 | 729 | 729 | 100.00% |
+| B3 | 881 | 881 | 100.00% |
+| B4 | 1,163 | 1,163 | 100.00% |
+| B5 | 2,678 | 2,678 | 100.00% |
+| B6 | 2,775 | 2,775 | 100.00% |
+| B7 | 3,139 | 3,139 | 100.00% |
+| B8 | 3,554 | 3,554 | 100.00% |
+| B9 | 4,325 | 4,325 | 100.00% |
+| B10 | 6,886 | 6,886 | 100.00% |
+
+**Caution:** This small subset is the most defensible for causal inference but may not be representative of the full examinee population. Use alongside the full observable cohort analysis above.
+
+
 ### Key Interpretation
 
 
-The NMAT-to-PLE linkage rate increases monotonically from B1 (lowest) to B10 (highest). This monotonic relationship provides empirical support for NMAT cut-off scores as a screening tool: examinees with higher NMAT percentiles are more likely to be found in PLE passer records.
+The NMAT-to-PLE linkage rate increases monotonically from B1 (lowest) to B10 (highest). This monotonic relationship provides empirical support for NMAT cut-off scores as a screening tool: examinees with higher NMAT scores are more likely to be found in PLE passer records.
 
 **However, this is an association, not a causal relationship.** Examinees with higher NMAT scores may: (a) attend higher-quality medical schools, (b) have better study habits or preparation, (c) be more motivated, or (d) have other advantages that contribute both to higher NMAT scores and higher PLE linkage. The linkage rate alone cannot be used to set a specific cut-off threshold without consideration of other factors.
 

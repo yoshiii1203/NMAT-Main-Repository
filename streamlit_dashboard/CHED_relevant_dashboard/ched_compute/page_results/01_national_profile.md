@@ -1,14 +1,31 @@
-# National NMAT-to-PLE Linkage Benchmark
+# National NMAT Profile and Linkage Analysis
 
 **Date:** July 28, 2026
 **Data Source:** `NMAT_Exodus.parquet` (178,927 records, 54 columns)
-**Script:** `ched_compute/01_national_benchmark.py`
+**Script:** `ched_compute/01_national_profile.py`
 
 ---
 
 ## Results
 
-This section computes the annual and 5-year rolling NMAT-to-PLE linkage rate — the share of NMAT examinees from a given year who were later found in official PLE passer records. This is **not** a PLE pass rate.
+This section presents the national NMAT examinee profile and computes the annual and 5-year rolling NMAT-to-PLE linkage rate — the share of NMAT examinees from a given year who were later found in official PLE passer records. This is **not** a PLE pass rate.
+
+### Score Bin Reference
+
+Each bin corresponds to a range of NMAT percentile rank scores. B4+ corresponds to the CMO exception floor (30th–39th percentile range). B5+ corresponds to the SUC standard floor (40th–49th percentile range).
+
+| Bin | Score Range | Threshold |
+|:---:|:-----------:|:----------|
+| B1 | 0–9 |  |
+| B2 | 10–19 |  |
+| B3 | 20–29 |  |
+| B4 | 30–39 | CMO exception floor (B4+) |
+| B5 | 40–49 | SUC standard floor (B5+) |
+| B6 | 50–59 |  |
+| B7 | 60–69 |  |
+| B8 | 70–79 |  |
+| B9 | 80–89 |  |
+| B10 | 90–100 |  |
 
 ### Key Metrics
 
@@ -48,7 +65,7 @@ The national NMAT-to-PLE linkage rate across the pre-2015 cohort (64,501 examine
 
 The 5-year rolling average linkage rate for 2010–2014 is **43.46%**. This declining trend (from ~55% in 2006 to ~38% in 2014) may reflect several factors: (a) increasing NMAT examinee volume outpacing medical school capacity, (b) changes in medical school admission policies, (c) data matching limitations, or (d) examinees taking PLE outside the observation window.
 
-**Important:** This is an NMAT-to-PLE **linkage rate**, not a PLE pass rate. It measures the share of NMAT examinees found in PLE passer records. We cannot distinguish between examinees who never took PLE, those who took it but failed, those who passed but weren't matched, and those who took PLE after our data cutoff.
+**Important:** This is an NMAT-to-PLE **linkage rate**, not a PLE pass rate. It measures the share of NMAT examinees found in PLE passer records, not the share who passed PLE. We cannot distinguish between examinees who never took PLE, those who took it but failed, those who passed but weren't matched, and those who took PLE after our data cutoff.
 
 ### Data Quality Notes
 

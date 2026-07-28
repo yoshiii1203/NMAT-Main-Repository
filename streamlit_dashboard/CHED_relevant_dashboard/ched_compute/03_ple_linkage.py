@@ -2,13 +2,13 @@
 06_ple_alignment.py — PLE linkage alignment analysis.
 
 Computes:
-  - PLE linkage rate by PercentileBin
-  - PLE linkage by UNI_TYPE x PercentileBin
-  - PLE linkage by CourseGroup x PercentileBin
+  - PLE linkage rate by ScoreBin
+  - PLE linkage by UNI_TYPE x ScoreBin
+  - PLE linkage by CourseGroup x ScoreBin
   - Box plot data: score distribution by PLE status (median, Q1, Q3)
   - Course group survival: % in B8-B10 and PLE linkage rate
 
-CRITICAL: All labeled as "linkage rate" not "pass rate".
+CRITICAL: All labeled as "NMAT-to-PLE linkage rate" not "pass rate".
 """
 
 import sys
@@ -21,6 +21,7 @@ from config import BIN_ORDER, UNI_TYPE_ORDER
 from helpers import (
     load_data,
     create_subsets,
+    create_clean_subset,
     today_str,
     write_md,
     pct,
@@ -30,7 +31,7 @@ from helpers import (
     write_output,
 )
 
-SCRIPT = "06_ple_alignment"
+SCRIPT = "03_ple_linkage"
 TITLE = "PLE Linkage Alignment with NMAT Performance"
 
 def compute():
@@ -42,7 +43,7 @@ def compute():
     lines = []
     lines.append("## Results\n")
     lines.append(
-        "This section examines how NMAT percentile bins align with PLE linkage rates. "
+        "This section examines how NMAT score bins align with PLE linkage rates. "
         "**Important:** All rates shown are NMAT-to-PLE linkage rates — the share of "
         "NMAT examinees later found in PLE passer records. These are NOT PLE pass rates."
     )
@@ -64,15 +65,15 @@ def compute():
     lines.append("")
 
     # ────────────────────────────────────────────────────────────────────
-    # 1) PLE Linkage by PercentileBin
+    # 1) PLE Linkage by Score Bin
     # ────────────────────────────────────────────────────────────────────
-    lines.append("### PLE Linkage by PercentileBin\n")
+    lines.append("### PLE Linkage by Score Bin\n")
     lines.append(
-        "The NMAT-to-PLE linkage rate for each percentile bin. "
+        "The NMAT-to-PLE linkage rate for each score bin. "
         "The B4->B5 jump is the largest adjacent-bin increase.\n"
     )
 
-    bin_header = "| PercentileBin | Range | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |"
+    bin_header = "| Score Bin | Range | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |"
     bin_sep = "|:------------:|:-----:|:------------:|:-----------:|:------------------------:|"
     lines.append(bin_header)
     lines.append(bin_sep)
@@ -106,14 +107,14 @@ def compute():
     lines.append("")
 
     # ────────────────────────────────────────────────────────────────────
-    # 2) PercentileBin x UNI_TYPE heatmap
+    # 2) Score Bin x UNI_TYPE heatmap
     # ────────────────────────────────────────────────────────────────────
-    lines.append("### Linkage by PercentileBin and UNI_TYPE\n")
+    lines.append("### Linkage by Score Bin and UNI_TYPE\n")
     lines.append(
-        "How linkage rates vary by university type within each percentile bin.\n"
+        "How linkage rates vary by university type within each score bin.\n"
     )
 
-    ut_bin_header = "| PercentileBin | " + " | ".join(UNI_TYPE_ORDER) + " |"
+    ut_bin_header = "| Score Bin | " + " | ".join(UNI_TYPE_ORDER) + " |"
     ut_bin_sep = "|:------------:|" + "|".join([":---:"] * len(UNI_TYPE_ORDER)) + "|"
     lines.append(ut_bin_header)
     lines.append(ut_bin_sep)
@@ -134,16 +135,16 @@ def compute():
     lines.append("")
 
     # ────────────────────────────────────────────────────────────────────
-    # 3) PercentileBin x CourseGroup heatmap
+    # 3) Score Bin x CourseGroup heatmap
     # ────────────────────────────────────────────────────────────────────
-    lines.append("### Linkage by PercentileBin and CourseGroup\n")
+    lines.append("### Linkage by Score Bin and CourseGroup\n")
     lines.append(
-        "How linkage rates differ by course group across the percentile distribution.\n"
+        "How linkage rates differ by course group across the score bin distribution.\n"
     )
 
     cg_order = obs["CourseGroup"].value_counts().index.tolist()
 
-    cg_bin_header = "| PercentileBin | " + " | ".join(str(cg) for cg in cg_order) + " |"
+    cg_bin_header = "| Score Bin | " + " | ".join(str(cg) for cg in cg_order) + " |"
     cg_bin_sep = "|:------------:|" + "|".join([":---:"] * len(cg_order)) + "|"
     lines.append(cg_bin_header)
     lines.append(cg_bin_sep)
@@ -198,13 +199,13 @@ def compute():
 
     bp_metrics = [
         ("n", len(ple_passers), len(non_passers), None),
-        ("Median Percentile",
+        ("Median Score",
          ple_passers["NMS_PER_num"].median(),
          non_passers["NMS_PER_num"].median(), None),
-        ("Q1 Percentile (25th)",
+        ("Q1 Score (25th)",
          ple_passers["NMS_PER_num"].quantile(0.25),
          non_passers["NMS_PER_num"].quantile(0.25), None),
-        ("Q3 Percentile (75th)",
+        ("Q3 Score (75th)",
          ple_passers["NMS_PER_num"].quantile(0.75),
          non_passers["NMS_PER_num"].quantile(0.75), None),
         ("Median TotalRawScore",
@@ -229,7 +230,7 @@ def compute():
     lines.append("")
     lines.append(
         "PLE-linked examinees have substantially higher NMAT scores across all metrics. "
-        "The median percentile for PLE-linked examinees is "
+        "The median score for PLE-linked examinees is "
         f"{ple_passers['NMS_PER_num'].median():.0f}, compared to "
         f"{non_passers['NMS_PER_num'].median():.0f} for non-linked examinees."
     )
@@ -238,10 +239,10 @@ def compute():
     # ────────────────────────────────────────────────────────────────────
     # 5) Course Group Survival: % in B8-B10 and PLE linkage rate
     # ────────────────────────────────────────────────────────────────────
-    lines.append("### Course Group Survival (B8-B10)\n")
+    lines.append("### Course Group Survival (B8-B10+)\n")
     lines.append(
-        "For each course group, the percentage of examinees in the top 3 percentile bins "
-        "(B8-B10, 70th-100th percentile) and the NMAT-to-PLE linkage rate. "
+        "For each course group, the percentage of examinees in the top 3 score bins "
+        "(B8-B10+, 70th-100th percentile) and the NMAT-to-PLE linkage rate. "
         "Higher B8-B10 share generally correlates with higher linkage.\n"
     )
 
@@ -270,6 +271,87 @@ def compute():
     lines.append("")
 
     # ────────────────────────────────────────────────────────────────────
+    # 6) Matching Limitations
+    # ────────────────────────────────────────────────────────────────────
+    lines.append("### Matching Limitations\n")
+    lines.append("")
+    lines.append(
+        "NMAT-to-PLE linkage relies on name-based matching across separate datasets. "
+        "Several limitations apply:"
+    )
+    lines.append("")
+    lines.append(
+        "- **Name variations:** Name changes (e.g., marriage), data entry errors, "
+        "and inconsistent formatting reduce match rates."
+    )
+    lines.append(
+        "- **Incomplete coverage:** Only PLE passers are in the matched dataset. "
+        "Examinees who took but did not pass PLE, or who took PLE after the dataset "
+        "cutoff, are not captured."
+    )
+    lines.append(
+        "- **Observable cohort:** Only pre-2015 NMAT examinees have sufficient PLE "
+        "follow-up time. More recent cohorts cannot be fully evaluated."
+    )
+    lines.append(
+        "- **Clean subset:** The strictest subset (IS_PLE_ANALYSIS_SAFE, gap >= 5 years, "
+        "Filipino only) provides more reliable estimates but with reduced sample size."
+    )
+    lines.append("")
+    lines.append(
+        "These limitations mean linkage rates are conservative lower bounds. "
+        "True NMAT-to-PLE progression rates are likely higher.\n"
+    )
+    lines.append("")
+
+    # ────────────────────────────────────────────────────────────────────
+    # 7) Clean PLE Subset Analysis
+    # ────────────────────────────────────────────────────────────────────
+    lines.append("### Clean PLE Subset\n")
+    lines.append(
+        "A strict, defensible subset for more reliable PLE linkage analysis. "
+        "This subset filters to best-record examinees with IS_PLE_ANALYSIS_SAFE=True, "
+        "PLE_YEAR_GAP >= 5, and Filipino citizenship only.\n"
+    )
+
+    clean_obs = create_clean_subset(obs)
+    n_clean = len(clean_obs)
+    n_ple_clean = int(clean_obs["IS_PLE_PASSER"].sum())
+    lr_clean = (n_ple_clean / n_clean * 100) if n_clean > 0 else 0
+
+    clean_metrics = [
+        ("Clean Subset Size", fmt(n_clean)),
+        ("PLE Matched in Clean Subset", fmt(n_ple_clean)),
+        ("NMAT-to-PLE Linkage Rate (Clean)", f"{lr_clean:.2f}%"),
+        ("Filters Applied", "Best record, IS_PLE_ANALYSIS_SAFE, Gap >= 5yrs, Filipino"),
+    ]
+    lines.append(make_metric_table(clean_metrics))
+    lines.append("")
+
+    # By Score Bin
+    lines.append("#### Clean Subset: Linkage by Score Bin\n")
+    clean_bin_header = "| Score Bin | n (Clean) | PLE Matched | Linkage Rate |"
+    clean_bin_sep = "|:--------:|:---------:|:-----------:|:------------:|"
+    lines.append(clean_bin_header)
+    lines.append(clean_bin_sep)
+
+    for b in BIN_ORDER:
+        sub = clean_obs[clean_obs["PercentileBin"] == b]
+        n_sub = len(sub)
+        ple_sub = int(sub["IS_PLE_PASSER"].sum())
+        lr_sub = (ple_sub / n_sub * 100) if n_sub > 0 else 0
+        lines.append(f"| {b} | {n_sub:,} | {ple_sub:,} | {lr_sub:.2f}% |")
+
+    lines.append("")
+
+    lines.append(
+        "**Caution:** This small subset is the most defensible for causal inference but "
+        "may not be representative of the full examinee population. Use alongside the "
+        "full observable cohort analysis above.\n"
+    )
+    lines.append("")
+
+    # ────────────────────────────────────────────────────────────────────
     # Key interpretation
     # ────────────────────────────────────────────────────────────────────
     lines.append("### Key Interpretation\n")
@@ -277,7 +359,7 @@ def compute():
     lines.append(
         "The NMAT-to-PLE linkage rate increases monotonically from B1 (lowest) to B10 (highest). "
         "This monotonic relationship provides empirical support for NMAT cut-off scores as a "
-        "screening tool: examinees with higher NMAT percentiles are more likely to be found "
+        "screening tool: examinees with higher NMAT scores are more likely to be found "
         "in PLE passer records."
     )
     lines.append("")
@@ -316,8 +398,8 @@ def compute():
     print(f"  B4 linkage rate:            {b4_lr:>6.2f}%")
     print(f"  B5 linkage rate:            {b5_lr:>6.2f}%")
     print(f"  B4->B5 jump:               +{jump:>5.2f} pp")
-    print(f"  PLE-linked median pctl:     {ple_passers['NMS_PER_num'].median():>6.1f}")
-    print(f"  Non-linked median pctl:     {non_passers['NMS_PER_num'].median():>6.1f}")
+    print(f"  PLE-linked median score:    {ple_passers['NMS_PER_num'].median():>6.1f}")
+    print(f"  Non-linked median score:    {non_passers['NMS_PER_num'].median():>6.1f}")
     for cg, pct_b8b10, lr_cg in surv_data:
         print(f"  {cg:40s} B8-B10: {pct_b8b10:>5.1f}%  Linkage: {lr_cg:.2f}%")
     print(f"  Output: {path}")

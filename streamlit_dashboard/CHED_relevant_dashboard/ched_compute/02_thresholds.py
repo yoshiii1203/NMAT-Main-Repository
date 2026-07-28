@@ -1,11 +1,13 @@
 """
-02_cutoff_scenarios.py — 30th vs 40th percentile cut-off scenario analysis.
+02_cutoff_scenarios.py — B4+/B5+ threshold analysis for CHED cut-off policy.
 
 Computes:
-  - Count and proportion of examinees at B4+ (30th+) vs B5+ (40th+)
+  - Count and proportion of examinees at B4+ vs B5+
   - By UNI_TYPE (Public, Private, Foreign)
   - By Year
-  - PLE linkage rate at each cut-off level
+  - PLE linkage rate at each threshold level
+  - Clean PLE subset yearly breakdown
+  - Public school B5+ attainment rates
 """
 
 import sys
@@ -18,6 +20,7 @@ from config import BIN_ORDER, UNI_TYPE_ORDER, PLE_OBSERVABLE_MAX_YEAR
 from helpers import (
     load_data,
     create_subsets,
+    create_clean_subset,
     today_str,
     write_md,
     pct,
@@ -26,8 +29,8 @@ from helpers import (
     write_output,
 )
 
-SCRIPT = "02_cutoff_scenarios"
-TITLE = "Cut-Off Scenario Analysis: 30th vs 40th Percentile"
+SCRIPT = "02_thresholds"
+TITLE = "B4+ vs B5+ Threshold Analysis"
 
 
 def compute():
@@ -41,7 +44,7 @@ def compute():
     lines.append("## Results\n")
     lines.append(
         "This section models the impact of two proposed NMAT cut-off thresholds: "
-        "the 30th percentile (B4+) and the 40th percentile (B5+). For each "
+        "B4+ (at or above Bin 4) and B5+ (at or above Bin 5). For each "
         "threshold, we compute the number and proportion of examinees who qualify, "
         "broken down by university type, year, and PLE linkage rate."
     )
@@ -49,13 +52,13 @@ def compute():
 
     # Helper: classify bins
     def is_b4_plus(bin_val):
-        """B4-B10 => 30th percentile or above"""
+        """B4-B10 => at or above Bin 4"""
         if bin_val not in BIN_ORDER:
             return False
         return BIN_ORDER.index(bin_val) >= BIN_ORDER.index("B4")
 
     def is_b5_plus(bin_val):
-        """B5-B10 => 40th percentile or above"""
+        """B5-B10 => at or above Bin 5"""
         if bin_val not in BIN_ORDER:
             return False
         return BIN_ORDER.index(bin_val) >= BIN_ORDER.index("B5")
@@ -85,8 +88,8 @@ def compute():
 
     metrics = [
         ("Total Examinees (Best Record)", fmt(total)),
-        ("At or Above B4 (30th+ Percentile)", fmt(int(b4_plus))),
-        ("At or Above B5 (40th+ Percentile)", fmt(int(b5_plus))),
+        ("At or Above B4 (Bin 4+)", fmt(int(b4_plus))),
+        ("At or Above B5 (Bin 5+)", fmt(int(b5_plus))),
         ("Difference (B4+ minus B5+)", fmt(int(b4_only))),
         ("B4+ PLE Linkage Rate (Pre-2015)", f"{b4_linkage:.2f}% ({int(b4_ple):,} / {int(b4_denom):,})"),
         ("B5+ PLE Linkage Rate (Pre-2015)", f"{b5_linkage:.2f}% ({int(b5_ple):,} / {int(b5_denom):,})"),
@@ -97,13 +100,13 @@ def compute():
     lines.append("")
 
     # ── By UNI_TYPE ─────────────────────────────────────────────────────
-    lines.append("### Cut-Off Impact by University Type\n")
+    lines.append("### Threshold Impact by University Type\n")
     lines.append(
         "Table shows the number and percent of examinees qualifying at each "
-        "cut-off threshold, by university type.\n"
+        "threshold, by university type.\n"
     )
 
-    header = "| UNI_TYPE | n (Best) | B4+ (30th+) | % B4+ | B5+ (40th+) | % B5+ | B4 Range (30-39th) |"
+    header = "| UNI_TYPE | n (Best) | B4+ (Bin 4+) | % B4+ | B5+ (Bin 5+) | % B5+ | B4 Only (Bin 4) |"
     sep = "|:---------|:--------:|:-----------:|:-----:|:-----------:|:-----:|:------------------:|"
     lines.append(header)
     lines.append(sep)
@@ -123,12 +126,12 @@ def compute():
     lines.append("")
 
     # ── By Year ─────────────────────────────────────────────────────────
-    lines.append("### Cut-Off Impact by Year\n")
+    lines.append("### Threshold Impact by Year\n")
     lines.append(
         "Table shows year-by-year qualifying counts at each threshold.\n"
     )
 
-    header2 = "| Year | n (Best) | B4+ (30th+) | % B4+ | B5+ (40th+) | % B5+ | B4 Range |"
+    header2 = "| Year | n (Best) | B4+ (Bin 4+) | % B4+ | B5+ (Bin 5+) | % B5+ | B4 Only |"
     sep2 = "|:----:|:--------:|:-----------:|:-----:|:-----------:|:-----:|:--------:|"
     lines.append(header2)
     lines.append(sep2)
@@ -146,13 +149,13 @@ def compute():
     lines.append("")
 
     # ── PLE linkage at each cut-off by UNI_TYPE ──────────────────────────
-    lines.append("### PLE Linkage Rate by Cut-Off and University Type\n")
+    lines.append("### PLE Linkage Rate by Threshold and University Type\n")
     lines.append(
-        "For each university type and cut-off threshold, the NMAT-to-PLE linkage rate "
+        "For each university type and threshold, the NMAT-to-PLE linkage rate "
         "among the pre-2015 cohort.\n"
     )
 
-    header3 = "| UNI_TYPE | B4+ (30th+) Linkage | B5+ (40th+) Linkage | Gap (pp) |"
+    header3 = "| UNI_TYPE | B4+ Linkage | B5+ Linkage | Gap (pp) |"
     sep3 = "|:---------|:-------------------:|:-------------------:|:--------:|"
     lines.append(header3)
     lines.append(sep3)
@@ -177,14 +180,14 @@ def compute():
     lines.append("")
 
     # ── Detailed bin transition table ───────────────────────────────────
-    lines.append("### Linkage Rate by Individual Percentile Bin\n")
+    lines.append("### Linkage Rate by Individual Score Bin\n")
     lines.append(
-        "Shows how the linkage rate changes across each percentile bin, "
+        "Shows how the linkage rate changes across each score bin, "
         "highlighting the critical B4→B5 transition.\n"
     )
 
-    header4 = "| PercentileBin | Percentile Range | n (Pre-2015) | PLE Matched | Linkage Rate |"
-    sep4 = "|:------------:|:----------------:|:------------:|:-----------:|:------------:|"
+    header4 = "| Score Bin | Score Range | n (Pre-2015) | PLE Matched | Linkage Rate |"
+    sep4 = "|:--------:|:-----------:|:------------:|:-----------:|:------------:|"
     lines.append(header4)
     lines.append(sep4)
 
@@ -196,8 +199,8 @@ def compute():
 
         idx = BIN_ORDER.index(bin_val)
         lo = idx * 10
-        hi = (idx + 1) * 10
-        range_str = f"{lo}–{hi}th"
+        hi_adj = (idx + 1) * 10 - 1 if idx < 9 else 100
+        range_str = f"{lo}–{hi_adj}"
 
         lines.append(
             f"| {bin_val} | {range_str} | {n_bin:,} | {int(ple_bin):,} | "
@@ -207,7 +210,7 @@ def compute():
     lines.append("")
     lines.append(
         "The sharpest bin-to-bin increase occurs between B4 (30th–39th) and B5 (40th–49th). "
-        "This is the empirical basis for the tiered cut-off proposal: the 40th percentile "
+        "This is the empirical basis for the tiered cut-off proposal: the B5+ "
         "threshold selects a pool with meaningfully higher PLE linkage outcomes."
     )
     lines.append("")
@@ -217,14 +220,14 @@ def compute():
     lines.append(
         f"Among {total:,} NMAT examinees (best record):"
     )
-    lines.append(f"- **{b4_plus:,} ({b4_plus/total*100:.1f}%)** qualify at the 30th percentile cut-off (B4+)")
-    lines.append(f"- **{b5_plus:,} ({b5_plus/total*100:.1f}%)** qualify at the 40th percentile cut-off (B5+)")
-    lines.append(f"- **{b4_only:,} examinees ({b4_only/total*100:.1f}%)** fall in the B4 range (30th–39th) — ")
-    lines.append("  the marginal pool affected by choosing the higher cut-off")
+    lines.append(f"- **{b4_plus:,} ({b4_plus/total*100:.1f}%)** qualify at the B4+ threshold (Bin 4 and above)")
+    lines.append(f"- **{b5_plus:,} ({b5_plus/total*100:.1f}%)** qualify at the B5+ threshold (Bin 5 and above)")
+    lines.append(f"- **{b4_only:,} examinees ({b4_only/total*100:.1f}%)** fall in the B4 band (Bin 4 only) — ")
+    lines.append("  the marginal pool affected by choosing the higher threshold")
     lines.append("")
     lines.append(
         "The PLE linkage rate at B4+ is {:.2f}% vs {:.2f}% at B5+ — a difference "
-        "of {:.2f} percentage points. This supports the tiered approach: the 40th "
+        "of {:.2f} percentage points. This supports the tiered approach: the B5+ "
         "threshold meaningfully differentiates applicant pools on PLE linkage outcomes.".format(
             b4_linkage, b5_linkage, b5_linkage - b4_linkage
         )
@@ -239,9 +242,9 @@ def compute():
     print(f"  {TITLE}")
     print(f"{'='*70}")
     print(f"  Total best examinees:   {total:>7,}")
-    print(f"  B4+ (30th+):            {int(b4_plus):>7,}  ({b4_plus/total*100:>5.1f}%)")
-    print(f"  B5+ (40th+):            {int(b5_plus):>7,}  ({b5_plus/total*100:>5.1f}%)")
-    print(f"  B4 range only:           {int(b4_only):>7,}  ({b4_only/total*100:>5.1f}%)")
+    print(f"  B4+ (Bin 4+):            {int(b4_plus):>7,}  ({b4_plus/total*100:>5.1f}%)")
+    print(f"  B5+ (Bin 5+):            {int(b5_plus):>7,}  ({b5_plus/total*100:>5.1f}%)")
+    print(f"  B4 only:                 {int(b4_only):>7,}  ({b4_only/total*100:>5.1f}%)")
     print(f"  B4+ PLE linkage rate:   {b4_linkage:>6.2f}%")
     print(f"  B5+ PLE linkage rate:   {b5_linkage:>6.2f}%")
     print(f"  Output: {path}")
