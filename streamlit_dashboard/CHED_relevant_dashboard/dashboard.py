@@ -430,9 +430,9 @@ with tab2:
     # Table for top/bottom trend
     _tb_tbl = pd.DataFrame({
         "Year": top_share.index.astype(str),
-        "Top B8-B10 (%)": top_share.values.round(1),
-        "Bottom B1-B3 (%)": bot_share.values.round(1),
-        "Difference (pp)": (top_share.values - bot_share.values).round(1),
+        "Top B8-B10 (%)": top_share.to_numpy(dtype=float, na_value=0).round(1),
+        "Bottom B1-B3 (%)": bot_share.to_numpy(dtype=float, na_value=0).round(1),
+        "Difference (pp)": (top_share.to_numpy(dtype=float, na_value=0) - bot_share.to_numpy(dtype=float, na_value=0)).round(1),
     }).reset_index(drop=True)
     with st.expander("Top vs bottom bin share table", expanded=False):
         st.dataframe(_tb_tbl, use_container_width=True, hide_index=True)
