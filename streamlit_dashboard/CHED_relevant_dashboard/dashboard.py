@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 warnings.filterwarnings("ignore")
@@ -158,6 +159,8 @@ N_BEST = len(df_best)
 N_OBS = len(df_obs)
 N_UNIQUE = int(df_best["PERSON_KEY"].nunique())
 N_REPEAT = int((df_all.groupby("PERSON_KEY")["APPNO_CLEAN"].nunique() > 1).sum())
+N_FOREIGN_ALL = int((df_all["FOREIGNER_STATUS"] == "Verified Foreigner").sum()) if "FOREIGNER_STATUS" in df_all.columns else 0
+N_FILIPINO_ALL = int((df_all["CITIZENSHIP_FINAL"] == "Filipino").sum()) if "CITIZENSHIP_FINAL" in df_all.columns else 0
 
 # Pre-compute key values for dynamic captions
 _PLE_BIN_ALL = (
@@ -560,8 +563,9 @@ with tab3:
         ple_course["Linkage Rate (%)"] = (ple_course["confirmed"] / ple_course["n"] * 100).round(2)
         ple_course.columns = [ple_course.columns[0], "N", "Confirmed", "Median %ile", "Linkage Rate (%)"]
 
-        fig = px.bar(ple_course, x="Course Group", y="Linkage Rate (%)",
-                     color="Course Group",
+        _cg_col = ple_course.columns[0]
+        fig = px.bar(ple_course, x=_cg_col, y="Linkage Rate (%)",
+                     color=_cg_col,
                      title="NMAT-to-PLE-Passer Linkage Rate by Course Group",
                      text=ple_course["Linkage Rate (%)"].round(1).astype(str) + "%")
         fig.update_traces(textposition="outside")
@@ -682,17 +686,19 @@ with tab4:
         "separate data from HEIs."
     )
 
-    if "CITIZENSHIP_FINAL" in df_best.columns and "FOREIGNER_STATUS" in df_best.columns:
-        foreign = df_best[df_best["FOREIGNER_STATUS"] == "Verified Foreigner"]
+    # Use ALL records for citizenship context (consistent with data-aggregator page 04)
+    if "CITIZENSHIP_FINAL" in df_all.columns and "FOREIGNER_STATUS" in df_all.columns:
+        foreign_all = df_all[df_all["FOREIGNER_STATUS"] == "Verified Foreigner"]
+        filipino_all = df_all[df_all["CITIZENSHIP_FINAL"] == "Filipino"]
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("Verified Foreign NMAT examinees (all years)", f"{len(foreign):,}")
+        c1.metric("Verified Foreign NMAT examinees (all records)", f"{len(foreign_all):,}")
         c2.metric("Filipino examinees",
-                  f"{int((df_best['CITIZENSHIP_FINAL'] == 'Filipino').sum()):,}")
+                  f"{len(filipino_all):,}")
         c3.metric("Distinct foreign nationalities",
-                  f"{foreign['CITIZENSHIP_FINAL'].nunique()}")
+                  f"{foreign_all['CITIZENSHIP_FINAL'].nunique()}")
 
-        top_nat = foreign["CITIZENSHIP_FINAL"].value_counts().head(10).reset_index()
+        top_nat = foreign_all["CITIZENSHIP_FINAL"].value_counts().head(10).reset_index()
         top_nat.columns = ["Nationality", "Count"]
         top_nat["Count"] = pd.to_numeric(top_nat["Count"], errors="coerce")
 
@@ -794,11 +800,10 @@ with tab5:
         "records and is not directly comparable to official PLE passing rates."
     )
 
-    _tot_foreign = len(foreign) if "foreign" in dir() else 0
     finding5 = (
         f"Foreign nationals represent approximately "
-        f"{_tot_foreign / N_BEST * 100:.1f}% of NMAT examinees "
-        f"({_tot_foreign:,} verified foreign records).  India accounts for "
+        f"{N_FOREIGN_ALL / len(df_all) * 100:.1f}% of all NMAT records "
+        f"({N_FOREIGN_ALL:,} verified foreign records out of {len(df_all):,} total).  India accounts for "
         f"the largest share of foreign examinees.  These are NMAT examinee "
         f"counts, not enrolled medical students."
     )
