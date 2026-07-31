@@ -1,7 +1,7 @@
 """
 Pipeline 4: Citizenship Integration
 ====================================
-NMAT_Ultima -> NMAT_Exodus
+NMAT_Ultima -> NMAT_Exodus.parquet.bak (wide, ~117-120 cols)
 
 Enriches NMAT_Ultima.parquet with definitive citizenship labels using a
 3-tier hierarchy of truth:
@@ -10,8 +10,16 @@ Enriches NMAT_Ultima.parquet with definitive citizenship labels using a
   Tier 2 (Priority 2): pseudo-citizenship CSV -- name-based inference
   Tier 3 (Default):     "Filipino"
 
-Output: dataset/NMAT_Exodus.parquet  (with CITIZENSHIP_FINAL + FOREIGNER_STATUS)
-        dataset/NMAT_Exodus.csv       (for manual inspection)
+This is the WIDE intermediate step. It does not produce the shipped
+dataset/NMAT_Exodus.parquet directly (that was Audit-01 Finding F2: the old
+version of this script wrote straight to NMAT_Exodus.parquet, so "re-run the
+pipeline" silently overwrote the shipped 54-col file with a ~118-col one).
+Run `5_Slim_Exodus.py` immediately after this script -- it reads the .bak
+file this script writes and produces the final, narrow, contract-shaped
+dataset/NMAT_Exodus.parquet (+ its dashboard-folder copies + manifest).
+
+Output: dataset/NMAT_Exodus.parquet.bak  (wide, with CITIZENSHIP_FINAL + FOREIGNER_STATUS)
+        dataset/NMAT_Exodus.csv.bak      (for manual inspection)
 
 Author: Automated Pipeline 4
 Date:   2026-07-27
@@ -25,8 +33,8 @@ ROOT = Path("dataset")
 ULTIMA_PATH = ROOT / "NMAT_Ultima.parquet"
 RF_PATH = ROOT / "REAL_FOREIGNERS.csv"
 PSEUDO_PATH = ROOT / "pseudo_citizenship_profiling_FINAL.csv"
-EXODUS_PARQUET = ROOT / "NMAT_Exodus.parquet"
-EXODUS_CSV = ROOT / "NMAT_Exodus.csv"
+EXODUS_PARQUET = ROOT / "NMAT_Exodus.parquet.bak"
+EXODUS_CSV = ROOT / "NMAT_Exodus.csv.bak"
 
 # -- Nationality canonicalization map ----------------------------------------
 # Normalizes country-name vs demonym variants and corrects typos.
@@ -458,9 +466,11 @@ def main():
         (df["IN_REAL_FOREIGNERS"] == True)
         & ~tier1a_mask
     )
-    df.loc[tier1b_mask, "CITIZENSHIP_FINAL"] = "Foreign"
+    # Explicit placeholder (not "Foreign" -- that reads as a country name in any
+    # naive groupby/value_counts/chart over CITIZENSHIP_FINAL). See contract Task 1.
+    df.loc[tier1b_mask, "CITIZENSHIP_FINAL"] = "Foreign (unspecified)"
     df.loc[tier1b_mask, "FOREIGNER_STATUS"] = "Verified Foreigner"
-    print(f"       Tier 1b (RF match, ambiguous nationality): {tier1b_mask.sum():,} records")
+    print(f"       Tier 1b (RF match, ambiguous nationality -> 'Foreign (unspecified)'): {tier1b_mask.sum():,} records")
 
     # Combined Tier 1
     tier1_mask = tier1a_mask | tier1b_mask
@@ -517,11 +527,25 @@ def main():
     expected_new = 3  # CITIZENSHIP_FINAL, FOREIGNER_STATUS, RF_NATIONALITY
     print(f"       ? Total columns: {len(df.columns)} ({len(df.columns) - expected_new} original + {expected_new} new)")
 
+    # 9F: P1's new columns (IS_OBSERVABLE_COHORT, PERSON_KEY_AMBIGUOUS, PLE_MATCH_OUTCOME) --
+    # this pipeline never touches or drops them; log whether they've landed yet.
+    for c in ["IS_OBSERVABLE_COHORT", "PERSON_KEY_AMBIGUOUS", "PLE_MATCH_OUTCOME"]:
+        print(f"       P1 column '{c}': {'present, carried through' if c in df.columns else 'not yet landed'}")
+
     # -- STEP 10: Save output ------------------------------------------------
     print(f"\n[10/10] Saving output...")
 
-    # Drop intermediate merge columns before saving
-    cols_to_drop = [c for c in ["RF_NATIONALITY", "IN_REAL_FOREIGNERS", "override_applied", "pseudo_citizenship"] if c in df.columns]
+    # Drop intermediate merge columns before saving.
+    # name_based_assessment is dropped deliberately here (not an intermediate merge
+    # column -- a documented decision, see contract Task 1 item 2): it is merged in
+    # at [7/10] but never used in the tier decision above, disagrees with the final
+    # label in 23/871 rows, and ships in the dashboard looking like corroborating
+    # evidence for CITIZENSHIP_FINAL/FOREIGNER_STATUS when it influences nothing.
+    # Dropping it removes that trap rather than wiring it in after the fact.
+    cols_to_drop = [c for c in [
+        "RF_NATIONALITY", "IN_REAL_FOREIGNERS", "override_applied", "pseudo_citizenship",
+        "name_based_assessment",
+    ] if c in df.columns]
     if cols_to_drop:
         df = df.drop(columns=cols_to_drop)
 
