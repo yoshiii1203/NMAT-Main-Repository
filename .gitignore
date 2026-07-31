@@ -62,4 +62,14 @@ vault/
 .env
 .env.local
 
-# Temp files.temp/
+# Temp files
+# ── Temp / agent scratch ─────────────────────────────────────────
+.temp/
+.agents/
+.artifacts/
+
+# ── Installers / tunnels / captured stdout ───────────────────────
+*.msi
+ngrok*.zip
+ngrok_log.txt
+*_out.txt
