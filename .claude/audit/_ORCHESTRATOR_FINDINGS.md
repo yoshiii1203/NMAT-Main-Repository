@@ -527,6 +527,80 @@ The original 21-point jump was *more* striking than the truth, and I built a rec
 without questioning whether the data-generating process could manufacture it. A finding that looks
 unusually clean deserves suspicion of the pipeline before it earns an interpretation.
 
+## O-23 [HEADLINE FINDING — replaces the withdrawn discontinuity story]
+### Roughly a quarter of below-40 examinees became licensed physicians
+
+Computed on the corrected data, observable cohort, one row per person
+(`IS_BEST_OBSERVABLE_RECORD`):
+
+```
+people scoring below the 40th percentile : 25,596
+of whom confirmed PLE passers            :  6,173   =  24.1%
+
+by bin:   B1 795   B2 1,336   B3 1,703   B4 2,330
+```
+
+### Why this survives the obvious objections
+
+| Objection | Check | Result |
+|---|---|---|
+| "These are name-collision artefacts" | `PERSON_KEY_AMBIGUOUS` rate among them | **3.0%** — *lower* than the 3.5% cohort base rate |
+| "It's foreign students under different rules" | citizenship | **6,152 of 6,173 are Filipino** (20 verified foreigners) |
+| "It's one anomalous year" | year distribution | spread across **all nine years** 2006-2014 (min 463, max 953) |
+| "It's an artefact of the matcher we just fixed" | direction | the fix *raised* these counts by removing suppression; the pre-fix data understated them |
+
+Undergraduate origin: 5,208 private / 862 public / 59 not specified / 44 foreign.
+
+### Why it matters more than the discontinuity story it replaces
+
+CMO §IV.B.1 asks whether the PHEI floor should drop from the 40th to the 30th percentile. This is
+the most direct evidence the dataset can offer: under the *existing* 40th-percentile rule, 25,596
+observable examinees scored below it anyway and **6,173 of them went on to pass the licensure exam**.
+The rule was evidently not uniformly binding, and the people admitted below it passed at a
+non-trivial rate.
+
+### Caveats that must travel with this number
+
+1. **Linkage, not pass rate.** 24.1% is the share *confirmed linked to a passer record*. The PLE
+   source contains passers only, so this is a floor, not a completion rate. Non-linked ≠ failed.
+2. **"Below 40" means at their best attempt within the observable window.** Some later exceeded 40
+   outside the window.
+3. It does not establish that lowering the floor is advisable — only that below-40 admission
+   already occurred at scale and produced licensed physicians. Admission-selection still applies:
+   these are people who were admitted despite the rule, and may differ systematically from the
+   below-40 population as a whole.
+
+## O-24 [CRITICAL, pre-existing] The documented DOB disambiguation step was dead code
+
+Found by agent P1 while implementing the Case A/B split; **not in the original audit**.
+
+`disambiguate()` Step 2 filters candidates on `BDATE_CLEAN` — the date-of-birth check that every
+document describes as the backbone of the "5-step deterministic disambiguator". But `BDATE_CLEAN`
+was added to the DataFrame **after** the row-dict snapshot that `disambiguate()` reads from. So
+`r.get("BDATE_CLEAN", "")` returned the default for every candidate, `has_dob` was always empty, and
+the function fell through to `identity_pass = gap_pass` every single time.
+
+**The DOB filter never ran, in any historical execution of this pipeline.**
+
+Consequences:
+- Every published PLE match was resolved without the single strongest piece of identity evidence
+  available. Name collisions that DOB would have separated instead fell through to the later
+  steps — including the percentile floor (O-21), which is how a score ended up doing the work that
+  a birthdate should have done.
+- It compounds O-21 precisely: with DOB dead, step 4 became the *de facto* discriminator, so the
+  circular percentile filter was carrying far more weight than its authors can have intended.
+- It also partly explains `PERSON_KEY`'s weakness (O-17): the birthdate component was being
+  under-used throughout the pipeline, not merely under-populated.
+
+Fixed by reordering so `BDATE_CLEAN` exists before the snapshot. Post-fix funnel, from P1's log:
+**13,895 candidate groups in → 1 rejected at year-gap → 10,316 resolved uniquely → 3,578 genuinely
+ambiguous and rejected.**
+
+**Why this matters beyond the fix:** two independent defects (dead DOB filter, circular percentile
+floor) both pushed in the same direction — toward resolving identity on score. Neither was visible
+from reading the documentation, which describes a clean deterministic cascade that did not exist as
+written. Documentation described intent; only execution revealed behaviour.
+
 ## O-9 [CONFIRMED] Everything compiles
 
 `main_dashboard/dashboard.py` (3,207 lines), `CHED_relevant_dashboard/dashboard.py` (1,262 lines),
