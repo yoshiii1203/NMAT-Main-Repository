@@ -405,6 +405,128 @@ This matters beyond the individual bugs. A directory named `verified_true/` and 
 `CONSOLIDATED_VERIFICATION_REPORT.md` are exactly what would persuade a reviewer that the numbers had
 been checked. That assurance is unearned, which makes it worse than no assurance at all.
 
+## O-21 [CRITICAL — the most serious defect found in the entire engagement]
+### The PLE matcher refuses to match examinees below the 40th percentile
+
+Found during remediation, on 2026-07-31, by reading `2_PLE_Matching_Pipeline.ipynb` cell 6 while
+arbitrating a subagent's numbers. **The original 12-agent audit missed it.**
+
+`disambiguate()` — invoked for every multi-candidate name collision — contains at **Step 4**:
+
+```python
+PERCENTILE_FLOOR = 40                       # cell 1
+
+pct_pass = [r for r in latest_pass
+            if pd.notna(r.get("NMS_PER_num")) and r["NMS_PER_num"] >= PERCENTILE_FLOOR]
+...
+if not pct_pass:
+    return {"status": "NO_VALID_MATCH",
+            "reason": f"Percentile < {PERCENTILE_FLOOR} for all latest-year candidates"}
+```
+
+This is a **hard filter, not a tie-break**. Among name-collision groups it:
+1. discards every candidate scoring below the 40th percentile, and
+2. **rejects the match entirely** when all candidates score below 40.
+
+### Why this matters more than anything else in the audit
+
+The project's central question — the one the CHED brief exists to answer — is *whether examinees
+below the 40th percentile go on to pass the PLE*. **The matching pipeline systematically refuses to
+match them.** The observed collapse in linkage below B5 is therefore **partly an artefact of the
+matcher**, not solely the admission-policy selection effect described in O-13.
+
+Everything downstream inherits it: the B1→B10 linkage gradient, the cut-off brief and its PDF, the
+forensic audit's entire "below cut-off yet passed" premise, and every bin-level table in both
+dashboards.
+
+Note the constant is `40` — **exactly the CMO threshold under review**. The policy being evaluated
+was baked into the identity-resolution step that produces the evidence.
+
+### Why the original audit missed it
+
+Auditor 12 examined the *step-5 tie-break* and correctly judged its circularity "structurally small
+(~0.006%)". That assessment was right about step 5 and irrelevant to step 4. The lesson: the audit
+looked for circularity in the tie-break because that is where circularity is *expected*, and a hard
+filter three lines earlier went unread. It surfaced only because a remediation agent's passer counts
+would not reconcile and I went to read the predicate myself rather than accept its explanation.
+
+### Scope limiter (important — do not overstate this)
+
+`disambiguate()` is called **only when `len(candidates) > 1`** (cell 9). Single exact-name matches
+bypass it and receive only the year-gap check. So below-40 examinees *can* still be matched when
+their name is unique — which is why B1-B4 passers exist at all (556 / 939 / 1,224 / 1,677 in the
+pre-fix data). The bias is confined to name-collision groups, but it is **directional and lands
+precisely on the population under study**, so magnitude must be measured, not assumed.
+
+### The fix (ordered)
+
+Delete Step 4 outright. Percentile carries no information about *which person* a PLE record belongs
+to. Keep Steps 1-3 (year gap, DOB/sex, latest year) — legitimate identity evidence. After Step 3:
+exactly one candidate → match; more than one → `rejected_ambiguous_person`. No score-based
+selection anywhere in identity resolution.
+
+Expect movement in **both** directions: people who previously won only because they cleared 40 while
+their name-twin did not become correctly ambiguous and are dropped; people whose entire candidate
+group scored below 40 become resolvable and are **newly matched**. The second group is the one that
+matters for the CHED question and must be reported with its bin distribution.
+
+## O-22 [CORRECTION TO O-13 — I was substantially wrong, and the corrected data proves it]
+
+After removing the `PERCENTILE_FLOOR = 40` hard filter (O-21) and re-running the chain, the
+person-level observable linkage gradient changed materially:
+
+| Bin | BEFORE (biased matcher) | AFTER (corrected) | change |
+|---|---|---|---|
+| B1 | 8.1% | **11.6%** | +3.5 |
+| B2 | 16.0% | **22.7%** | +6.7 |
+| B3 | 21.1% | **29.3%** | +8.2 |
+| B4 | 25.9% | **36.0%** | +10.1 |
+| B5 | 46.8% | **45.6%** | −1.2 |
+| B6 | 52.9% | **50.4%** | −2.5 |
+| B7 | 58.0% | **53.6%** | −4.4 |
+| B8 | 61.3% | **55.0%** | −6.3 |
+| B9 | 68.0% | **61.6%** | −6.4 |
+| B10 | 76.6% | **71.0%** | −5.6 |
+
+Exactly the predicted two-directional movement: below-40 bins gained (they were being suppressed),
+above-40 bins lost (they were absorbing collisions they had not earned).
+
+### What I got wrong
+
+In O-13 I wrote that the **21-point jump between B4 and B5 is the existing 40th-percentile
+admission policy**, and built the regression-discontinuity recommendation on it. That jump was
+**mostly our own matcher**. Corrected step sizes across the gradient:
+
+```
+B1→B2 +11.1   B2→B3 +6.6   B3→B4 +6.7   B4→B5 +9.6   B5→B6 +4.8
+B6→B7 +3.2    B7→B8 +1.4   B8→B9 +6.6   B9→B10 +9.4
+```
+
+**B4→B5 (+9.6) is no longer an outlier** — it sits between B1→B2 (+11.1) and B9→B10 (+9.4). The
+sharp discontinuity I identified does not survive the fix.
+
+### Consequences
+
+1. **Downgrade the RDD recommendation.** A regression discontinuity design needs a sharp jump at a
+   known threshold. The corrected data shows a smooth monotonic gradient instead. RDD is no longer
+   the headline recommendation; it may still be worth testing formally, but the visual evidence that
+   motivated it is gone. §10 of the plan must be revised, not merely annotated.
+2. **The admission-selection effect is still real but much smaller than I claimed.** The mechanism
+   (people below 40 were largely barred from enrolling) is sound in principle; its empirical
+   signature was mostly artefact.
+3. **A genuinely interesting policy finding replaces it:** **795 examinees in B1 — the lowest decile
+   — are confirmed PLE passers**, an 11.6% linkage rate, and B4 reaches 36.0%. Under a strictly
+   enforced 40th-percentile rule these people should barely exist. Their number implies the rule was
+   not uniformly binding (exemptions, foreign applicants, pre-2016 practice, or institutional
+   discretion). **This is a stronger and more defensible contribution to the CHED question than the
+   discontinuity story ever was** — it speaks directly to what a 30th-percentile floor would admit.
+
+### The lesson worth recording
+
+The original 21-point jump was *more* striking than the truth, and I built a recommendation on it
+without questioning whether the data-generating process could manufacture it. A finding that looks
+unusually clean deserves suspicion of the pipeline before it earns an interpretation.
+
 ## O-9 [CONFIRMED] Everything compiles
 
 `main_dashboard/dashboard.py` (3,207 lines), `CHED_relevant_dashboard/dashboard.py` (1,262 lines),

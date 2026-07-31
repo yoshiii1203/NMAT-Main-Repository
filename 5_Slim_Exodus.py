@@ -102,6 +102,13 @@ BOOL_COERCE = ["HasTRUErawScores", "StoredVsDerivedMismatch"]
 # --- Columns P1 must land for this script to produce a contract-valid file -
 P1_NEW_COLUMNS = ["IS_OBSERVABLE_COHORT", "PERSON_KEY_AMBIGUOUS", "IS_BEST_OBSERVABLE_RECORD"]
 
+# Diagnostic provenance columns from P1's Pipeline 2. Carried through when present so the
+# dashboards can state WHY a candidate match was not counted, instead of silently showing a
+# smaller passer count. Optional: an older Ultima without them still slims cleanly.
+#   PLE_MATCH_OUTCOME   -- accepted / rejected / rejected_ambiguous_person / no_match
+#   PLE_YEAR_UNCERTAIN  -- accepted passer whose PLE *year* could not be disambiguated
+P1_OPTIONAL_COLUMNS = ["PLE_MATCH_OUTCOME", "PLE_YEAR_UNCERTAIN"]
+
 # --- The full pre-rename baseline column list (contract's "54"), taken from
 # the currently-shipped dataset/NMAT_Exodus.parquet (Audit-02 appendix,
 # confirmed against the live file). Kept columns = BASELINE_54 minus both
@@ -176,7 +183,11 @@ def build_target_columns(df: pd.DataFrame) -> list[str]:
             f"per the P2 brief, fail loudly rather than silently degrade. "
             f"Re-run this script after P1's pipeline lands."
         )
-    return kept + P1_NEW_COLUMNS
+    present_optional = [c for c in P1_OPTIONAL_COLUMNS if c in df.columns]
+    for c in P1_OPTIONAL_COLUMNS:
+        if c not in df.columns:
+            print(f"       NOTE: optional provenance column '{c}' absent upstream; skipping")
+    return kept + P1_NEW_COLUMNS + present_optional
 
 
 def main():

@@ -93,6 +93,47 @@ you are currently not using.
 
 ---
 
+## 2.4 ADDENDUM (found during remediation, 2026-07-31) — RC-0, which outranks all five
+
+**The PLE matcher refuses to match examinees below the 40th percentile.**
+
+`2_PLE_Matching_Pipeline.ipynb` cell 6, `disambiguate()`, **Step 4**:
+
+```python
+PERCENTILE_FLOOR = 40                       # cell 1
+pct_pass = [r for r in latest_pass
+            if pd.notna(r.get("NMS_PER_num")) and r["NMS_PER_num"] >= PERCENTILE_FLOOR]
+if not pct_pass:
+    return {"status": "NO_VALID_MATCH", ...}
+```
+
+A **hard filter, not a tie-break**: among name-collision groups it discards every candidate below the
+40th percentile, and rejects the match outright when all candidates fall below it.
+
+**Why this outranks RC-1 through RC-5.** The question this project exists to answer is whether
+examinees below the 40th percentile pass the PLE. The pipeline systematically refuses to match them.
+So the collapse in linkage below B5 is **partly manufactured by the matcher**, not solely the
+admission-selection effect described in §6. The constant is `40` — precisely the CMO threshold under
+review. Everything downstream inherits it: the bin gradient, the cut-off brief and its PDF, the
+forensic audit's entire premise, and every bin-level table in both dashboards.
+
+**Scope limiter, stated honestly:** `disambiguate()` runs only when a name matches >1 NMAT record.
+Unique-name matches bypass it, which is why B1–B4 passers exist at all. The bias is confined to
+name-collision groups — but it is directional and lands exactly on the population under study, so it
+must be measured rather than waved away.
+
+**How it was missed:** the original audit examined the *step-5 tie-break* and correctly judged its
+circularity negligible (~0.006%). That verdict was right about step 5 and irrelevant to step 4. It
+surfaced only because a remediation agent's passer counts would not reconcile and the predicate was
+read directly instead of its explanation being accepted.
+
+**Fix:** delete Step 4. Percentile says nothing about *which person* a PLE record belongs to. Keep
+year-gap, DOB/sex and latest-year; if more than one candidate survives, reject as ambiguous rather
+than selecting on score. Expect movement both ways — and report the newly-matched below-40 group
+with its bin distribution, because that is the group the CHED question is about.
+
+---
+
 ## 3. The five root causes
 
 Fix these five and roughly 40 downstream symptoms resolve.
@@ -766,12 +807,21 @@ not-linked — reports base rates, states that "not linked" ≠ "failed", and ru
 
 ## 10. Analyses worth adding (all within the existing 54 columns)
 
-1. **Regression discontinuity at the 40th percentile — the strongest thing this dataset can do.**
-   The sharp policy-induced jump between B4 (25.9%) and B5 (46.8%) is the textbook RD setting.
-   Comparing outcomes just above and just below a threshold that was externally imposed is the one
-   defensible route to a causal statement about the cut-off. It uses only `NMS_PER_num` and
-   `IS_PLE_PASSER`. **This directly answers the policy question the CMO is asking**, and you are
-   currently not doing it.
+1. ~~**Regression discontinuity at the 40th percentile.**~~ **WITHDRAWN — see §2.4 (RC-0).**
+   This recommendation rested on a sharp jump between B4 (25.9%) and B5 (46.8%). After removing the
+   `PERCENTILE_FLOOR = 40` filter from the matcher, that jump is **9.6 points, not 21**, and no
+   longer an outlier among the other bin-to-bin steps (B1→B2 is +11.1, B9→B10 is +9.4). The
+   discontinuity was mostly our own code. RDD may still be worth testing formally, but the visual
+   evidence that motivated it does not survive the fix — do not lead with it.
+
+1b. **The replacement, and it is stronger: characterise the below-threshold passers directly.**
+   On corrected data, **795 examinees in B1 — the lowest decile — are confirmed PLE passers (11.6%
+   linkage), and B4 reaches 36.0%.** Under a strictly enforced 40th-percentile rule these people
+   should barely exist. Their number implies the existing rule was not uniformly binding. Profile
+   this group (year, undergraduate origin, citizenship, subtest pattern, repeat-taker status) and
+   report it with the linkage caveat. It speaks directly to what a 30th-percentile floor would
+   admit, which is the actual question in CMO §IV.B.1 — and unlike the discontinuity story, it is
+   robust.
 2. **Full threshold contingency tables** at 30/35/40/45/50 with base rates — replaces the
    one-directional gradient that invites over-reading.
 3. **Subtest profile of the B4-only band** — who exactly is in the 30–39 window the CMO exception

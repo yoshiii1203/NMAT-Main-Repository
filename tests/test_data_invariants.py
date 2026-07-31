@@ -35,11 +35,14 @@ EXPECTED_ROWS = 178_927
 EXPECTED_UNIQUE_PERSONS = 134_869
 EXPECTED_BEST_OBSERVABLE = 69_503
 EXPECTED_AMBIGUOUS_KEYS = 6_148
-EXPECTED_PLE_PASSERS = 49_986
+# 49,086 after removing the PERCENTILE_FLOOR=40 hard filter from disambiguate() step 4,
+# which had been refusing to match below-40 examinees in name-collision groups (RC-0).
+# Was 49,986 pre-fix. Composition shifted toward low bins - that is the point.
+EXPECTED_PLE_PASSERS = 49_086
 # 52 = 54 baseline - 5 removed (4 contract + name_based_assessment, Task 1
 # item 2) + 3 added. Orchestrator-approved into the contract (was originally
 # flagged as a deviation; see .claude/audit/logs/P2_pipelines_4_5_tests.md).
-EXPECTED_COLUMNS = 52
+EXPECTED_COLUMNS = 53  # +PLE_YEAR_UNCERTAIN from P1's disambiguator rework
 
 RAW_8 = [
     "Raw_Biology", "Raw_Chemistry", "Raw_InductiveReasoning", "Raw_PerceptualAcuity",
@@ -52,7 +55,8 @@ REMOVED_COLUMNS = ["IS_PLE_ANALYSIS_SAFE", "NMA_College", "AllRawComponentsPrese
 RENAMED_COLUMNS = ["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE",
                    "UNDERGRAD_UNI_LOCATION", "UNDERGRAD_COURSE_GROUP"]
 OLD_RENAMED_NAMES = ["UNIVERSITY", "UNI_TYPE", "UNI_LOCATION", "CourseGroup"]
-COERCED_BOOL_COLUMNS = ["HasCEMMatch", "HasTRUErawScores", "StoredVsDerivedMismatch"]
+# HasCEMMatch dropped: byte-identical to HasTRUErawScores (found by this suite).
+COERCED_BOOL_COLUMNS = ["HasTRUErawScores", "StoredVsDerivedMismatch"]
 
 
 def _md5(path: Path) -> str:
@@ -251,9 +255,9 @@ def test_ple_linkage_metadata_is_not_nested_with_passer_flag(df):
         "matching pipeline changed for the better (update docs) or a regression "
         "silently made these two columns redundant (investigate)."
     )
-    if (year_not_passer, passer_no_year) != (7_318, 2_776):
+    if (year_not_passer, passer_no_year) != (8_218, 2_775):
         pytest.fail(
-            f"non-nested counts changed from documented (7318, 2776) to "
+            f"non-nested counts changed from documented (8218, 2775) to "
             f"({year_not_passer}, {passer_no_year}). This may be legitimate if "
             f"P1's matching cascade changed -- update EXPECTED and contract "
             f"section 7 together, don't just silence this test."

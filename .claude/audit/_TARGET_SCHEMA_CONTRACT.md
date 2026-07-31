@@ -33,6 +33,17 @@ Baseline (pre-fix): 178,927 rows x 54 cols.
 | `CalcVsDerivedMismatch` | Constant (nunique = 1). Zero information. |
 | `name_based_assessment` | Non-null for 871/178,927 rows (0.5%); never used in the tier decision; contradicts the final label in 23 of 871. Looks like evidence, influences nothing. |
 
+## 2b. Provenance columns carried through when present (optional, +1 or +2)
+
+| Column | Type | Meaning |
+|---|---|---|
+| `PLE_MATCH_OUTCOME` | `str` | `accepted` / `rejected` / `rejected_ambiguous_person` / `no_match`. Lets the dashboards state **why** a candidate match was not counted, instead of silently showing a smaller passer count. |
+| `PLE_YEAR_UNCERTAIN` | `bool` | Accepted passer whose PLE *year* could not be disambiguated (one person, two candidate passer records). Passer status is certain; the year is not. |
+
+Final shipped width is therefore **52** (with `PLE_MATCH_OUTCOME`) or **53** (once
+`PLE_YEAR_UNCERTAIN` lands from P1's disambiguator rework). Both are contract-valid;
+`5_Slim_Exodus.py` carries them through when present and logs a NOTE when absent.
+
 ## 2. Columns ADDED (3)
 
 | Column | Type | Definition |
