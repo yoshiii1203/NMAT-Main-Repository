@@ -3,7 +3,7 @@ page_07_ple_alignment.py — PLE Alignment of NMAT Performance (Pages 7-8)
 
 Produces: page_results/07_ple_alignment.md
 
-Score profile by PLE status, box-plot data, Mann-Whitney U tests, bin pass rates,
+Score profile by PLE status, box-plot data, Mann-Whitney U tests, bin linkage rates,
 stacked-bar composition, survival to top bins, alignment tables by year/course/uni,
 and top-percentile record-level summary.
 
@@ -28,7 +28,7 @@ def run():
 
     # Observable best-record cohort for PLE analyses
     obs = subsets["bestobservable"].copy()
-    # Full best-trend cohort for survival analysis (broader CourseGroup coverage)
+    # Full best-trend cohort for survival analysis (broader UNDERGRAD_COURSE_GROUP coverage)
     trend = subsets["besttrend"].copy()
 
     results = {}
@@ -37,7 +37,7 @@ def run():
     # 1. Score profile by PLE status
     # ----------------------------------------------------------------
     desc_cols = [
-        "TotalRawScoreTRUE", "NMS_PER_num", "NMS_GPS",
+        "TotalRawScoreTRUE", "NMS_PER_num", "NMS_GPS", "NMS_APT", "NMS_SA",
         "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
     ]
     desc_cols = [c for c in desc_cols if c in obs.columns]
@@ -98,7 +98,7 @@ def run():
     results["mannwhitney"] = mw_df
 
     # ----------------------------------------------------------------
-    # 4. PLE pass rate by PercentileBin
+    # 4. PLE linkage rate by PercentileBin
     # ----------------------------------------------------------------
     bin_ple = (
         obs.dropna(subset=["PercentileBin", "PLE_STATUS_LABEL"])
@@ -106,14 +106,14 @@ def run():
         .agg(
             n=("PLE_STATUS_LABEL", "size"),
             confirmed_passers=("HAS_CONFIRMED_PLE", "sum"),
-            pass_rate_pct=("HAS_CONFIRMED_PLE", lambda x: round(x.mean() * 100, 2)),
+            linkage_rate_pct=("HAS_CONFIRMED_PLE", lambda x: round(x.mean() * 100, 2)),
         )
         .reindex(BIN_ORDER)
         .reset_index()
     )
-    bin_ple.columns = ["PercentileBin", "n", "confirmed_passers", "pass_rate_pct"]
+    bin_ple.columns = ["PercentileBin", "n", "confirmed_passers", "linkage_rate_pct"]
     bin_ple["confirmed_passers"] = bin_ple["confirmed_passers"].astype(int)
-    results["bin_pass_rate"] = bin_ple
+    results["bin_linkage_rate"] = bin_ple
 
     # ----------------------------------------------------------------
     # 5. Stacked bar data — bin composition by PLE status
@@ -145,12 +145,12 @@ def run():
     results["status_distribution_pct"] = status_dist_pct
 
     # ----------------------------------------------------------------
-    # 6. Survival rate to top bins (B8-B10) by CourseGroup
+    # 6. Survival rate to top bins (B8-B10) by UNDERGRAD_COURSE_GROUP
     # ----------------------------------------------------------------
-    surv_base = trend.dropna(subset=["CourseGroup", "PercentileBin"]).copy()
+    surv_base = trend.dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"]).copy()
     surv_base["IS_TOP_BIN"] = surv_base["PercentileBin"].isin(["B8", "B9", "B10"])
     survival = (
-        surv_base.groupby("CourseGroup", observed=True)
+        surv_base.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
         .agg(
             total_examinees=("IS_TOP_BIN", "size"),
             top_bin_n=("IS_TOP_BIN", "sum"),
@@ -191,7 +191,7 @@ def run():
     # 8. PLE alignment by course group
     # ----------------------------------------------------------------
     align_course = (
-        pol_base.groupby("CourseGroup", observed=True)
+        pol_base.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
         .apply(lambda x: pd.Series({
             "n_observable_best_records": len(x),
             "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -207,11 +207,11 @@ def run():
     results["align_course"] = align_course
 
     # ----------------------------------------------------------------
-    # 9. PLE alignment by UNI_TYPE (Public, Private, Foreign only)
+    # 9. PLE alignment by UNDERGRAD_UNI_TYPE (Public, Private, Foreign only)
     # ----------------------------------------------------------------
-    uni_sub = pol_base[pol_base["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+    uni_sub = pol_base[pol_base["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
     align_uni = (
-        uni_sub.groupby("UNI_TYPE", observed=True)
+        uni_sub.groupby("UNDERGRAD_UNI_TYPE", observed=True)
         .apply(lambda x: pd.Series({
             "n_observable_best_records": len(x),
             "confirmed_ple_passers": int(x["HAS_CONFIRMED_PLE"].sum()),
@@ -232,7 +232,7 @@ def run():
     record_cols = [
         "PERSON_KEY", "APPNO_CLEAN", "Year", "TotalRawScoreTRUE",
         "NMS_PER_num", "NMS_GPS", "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
-        "PercentileBin", "PLE_STATUS_LABEL", "UNI_TYPE", "CourseGroup",
+        "PercentileBin", "PLE_STATUS_LABEL", "UNDERGRAD_UNI_TYPE", "UNDERGRAD_COURSE_GROUP",
     ]
     record_cols = [c for c in record_cols if c in obs.columns]
 
@@ -279,11 +279,11 @@ def save(results):
             f.write("*No Mann-Whitney results available (requires exactly two PLE status groups).*\n\n")
         f.write("\n---\n\n")
 
-        # --- 4. PLE pass rate by PercentileBin ---
-        f.write("## 4. PLE Pass Rate by Percentile Bin\n\n")
+        # --- 4. PLE linkage rate by PercentileBin ---
+        f.write("## 4. PLE Linkage Rate by Percentile Bin\n\n")
         f.write("Within each percentile bin, the number of observable best records, "
-                "confirmed PLE passers, and the pass rate (%).\n\n")
-        write_dataframe(f, results["bin_pass_rate"],
+                "confirmed PLE passers, and the linkage rate (%).\n\n")
+        write_dataframe(f, results["bin_linkage_rate"],
                         "Figure 21. PLE confirmed share by percentile bin")
         f.write("\n---\n\n")
 
@@ -325,7 +325,7 @@ def save(results):
                         "Table 29. Confirmed PLE alignment by course group")
         f.write("\n---\n\n")
 
-        # --- 9. PLE alignment by UNI_TYPE ---
+        # --- 9. PLE alignment by UNDERGRAD_UNI_TYPE ---
         f.write("## 9. Confirmed PLE Alignment by University Type\n\n")
         f.write("Public, Private, and Foreign university types in the observable best-record cohort.\n\n")
         write_dataframe(f, results["align_uni"],

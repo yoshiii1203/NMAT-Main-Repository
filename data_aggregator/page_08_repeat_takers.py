@@ -20,12 +20,26 @@ from helpers import load_data, write_header, write_dataframe
 
 def run():
     """Execute all analyses and return a dict of results DataFrames."""
-    _, subsets = load_data()
+    dfall, subsets = load_data()
 
     # Full trend cohort for repeat-taker analysis (matches dashboard tab8)
     df = subsets["trend"].copy()
 
     results = {}
+
+    # ----------------------------------------------------------------
+    # 6. NMA_AppNo Deterministic Match Histories (P8-03)
+    # Attempt histories exclusively for records matched deterministically via
+    # application number, rather than exact name — dashboard.py tab8.
+    # ----------------------------------------------------------------
+    appno_matches = dfall[
+        dfall["PLE_MATCH_METHOD"].isin(["MANUAL_APPNO_MATCH", "DETERMINISTIC_APPNO"])
+    ].copy()
+    appno_cols = ["PERSON_KEY", "APPNO_CLEAN", "Year", "TotalRawScoreTRUE", "NMS_PER_num", "PLE_STATUS_LABEL"]
+    appno_cols = [c for c in appno_cols if c in appno_matches.columns]
+    if not appno_matches.empty:
+        appno_matches = appno_matches[appno_cols].sort_values(["PERSON_KEY", "Year"]).reset_index(drop=True)
+    results["appno_match_histories"] = appno_matches
 
     # ----------------------------------------------------------------
     # 1. Attempt count distribution
@@ -187,7 +201,7 @@ def run():
     detail_cols = [
         "PERSON_KEY", "APPNO_CLEAN", "Year", "TotalRawScoreTRUE",
         "NMS_PER_num", "NMS_GPS", "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
-        "PercentileBin", "PLE_STATUS_LABEL", "UNI_TYPE", "CourseGroup",
+        "PercentileBin", "PLE_STATUS_LABEL", "UNDERGRAD_UNI_TYPE", "UNDERGRAD_COURSE_GROUP",
     ]
     detail_cols = [c for c in detail_cols if c in df.columns]
 
@@ -242,8 +256,19 @@ def save(results):
             fl_display = results["first_last"][fl_cols].sort_values(
                 ["pct_improvement", "raw_improvement"], ascending=False
             )
-            write_dataframe(f, fl_display,
-                            "Per-person first vs last attempt comparison")
+            # P8-01: this used to dump all ~33.7k person-rows inline (8.7 MB file).
+            # Cap the inline preview and offload the full table to CSV, mirroring the
+            # pattern Section 5 already uses below.
+            fl_preview = fl_display.head(100)
+            f.write(f"**Preview: first 100 of {len(fl_display):,} rows "
+                    f"(population: repeat takers with score data on both first and "
+                    f"last attempt, n={len(fl_display):,})**\n\n")
+            f.write(fl_preview.to_markdown(index=False, tablefmt="pipe", numalign="right"))
+            f.write("\n\n")
+            fl_csv_path = RESULTS_DIR / "08_first_last_detail.csv"
+            fl_display.to_csv(fl_csv_path, index=False)
+            f.write(f"> Full detail: [{fl_csv_path.name}]({fl_csv_path.name}) "
+                    f"({len(fl_display):,} rows, {len(fl_display.columns)} cols)\n\n")
         else:
             f.write("*No repeat-taker data available for first-last comparison.*\n")
         f.write("\n---\n\n")
@@ -270,6 +295,26 @@ def save(results):
                     f"({len(results['repeat_detail']):,} rows, {len(results['repeat_detail'].columns)} cols)\n\n")
         else:
             f.write("*No repeat-taker records found.*\n")
+        f.write("\n---\n\n")
+
+        # --- 6. NMA_AppNo deterministic match histories (P8-03) ---
+        f.write("## 6. NMA_AppNo Deterministic Match Histories\n\n")
+        f.write("Attempt histories exclusively for records matched deterministically via "
+                "application number (PLE_MATCH_METHOD in MANUAL_APPNO_MATCH, "
+                "DETERMINISTIC_APPNO), rather than by exact name.\n\n")
+        appno_df = results["appno_match_histories"]
+        if not appno_df.empty:
+            f.write(f"**population: all NMAT rows | n={len(appno_df):,}**\n\n")
+            appno_preview = appno_df.head(100)
+            f.write(appno_preview.to_markdown(index=False, tablefmt="pipe", numalign="right"))
+            f.write("\n\n")
+            if len(appno_df) > 100:
+                appno_csv_path = RESULTS_DIR / "08_appno_match_histories.csv"
+                appno_df.to_csv(appno_csv_path, index=False)
+                f.write(f"> Full detail: [{appno_csv_path.name}]({appno_csv_path.name}) "
+                        f"({len(appno_df):,} rows)\n\n")
+        else:
+            f.write("*No records matched exclusively via NMA_AppNo.*\n\n")
 
     print(f"[page_08] Written {path}")
     return path

@@ -2,7 +2,9 @@
 """
 Extract ALL data from dashboard.py Page 4 (Score Bins + Citizenship).
 Replicates: tab4 (Bin Distribution by Year and Examinee Background)
-  + Citizenship section (ALL records, not just no-PLE-match)
+  + Citizenship section (uniobservable, no-PLE-match records with valid citizenship —
+    P4-01 fix: previously used ALL 178,927 rows, reporting a different population)
+  + Comparative analysis: foreigners vs Filipino students (P4-04)
 Output: page_results/04_score_bins.md
 """
 import sys
@@ -14,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from helpers import load_data, pct_table, chi_square_table
-from config import BIN_ORDER
+from config import BIN_ORDER, RESULTS_DIR
 
 
 def fmt_df(df, caption=None):
@@ -34,6 +36,7 @@ def run():
     df_all, F = load_data()
     df = F["besttrend"]       # main bin data (besttrend)
     dfuni = F["uni"]           # university subset (besttrend & Public/Private/Foreign)
+    uniobservable = F["uniobservable"]   # dashboard's `_uniobs_pc` base
 
     lines = []
 
@@ -44,7 +47,7 @@ def run():
     lines.append("")
     lines.append("**Data source:** NMAT_Exodus.parquet (Pipeline 4)")
     lines.append("")
-    lines.append("**Data subset:** `besttrend`/`uni` for bins; ALL records for citizenship")
+    lines.append("**Data subset:** `besttrend`/`uni` for bins; `uniobservable` (no-PLE-match, citizenship notna) for citizenship")
     lines.append("")
     lines.append("**Filters:** None (full unfiltered dataset)")
     lines.append("")
@@ -97,7 +100,7 @@ def run():
     lines.append("")
 
     # ========================================================================
-    # SUB-TAB 2: UNIVERSITY TYPE
+    # SUB-TAB 2: UNDERGRAD_UNIVERSITY TYPE
     # ========================================================================
     lines.append("---")
     lines.append("## Sub-tab 2: University Type")
@@ -107,24 +110,24 @@ def run():
     )
     lines.append("")
 
-    _, uni_pct = pct_table(dfuni, "UNI_TYPE", "PercentileBin", BIN_ORDER)
-    uni_pct.index.name = "UNI_TYPE"
+    _, uni_pct = pct_table(dfuni, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
+    uni_pct.index.name = "UNDERGRAD_UNI_TYPE"
 
     # -- Bin distribution percentages --
     uni_pct_out = uni_pct.reset_index()
     lines.append(fmt_df(uni_pct_out, "Figure 8: Percentile-bin distribution by university type (row %)"))
     lines.append("")
 
-    # -- Top bin share (B8-B10) by UNI_TYPE --
+    # -- Top bin share (B8-B10) by UNDERGRAD_UNI_TYPE --
     top_uni = uni_pct[["B8", "B9", "B10"]].sum(axis=1).reset_index()
-    top_uni.columns = ["UNI_TYPE", "Top_B8_B10_pct"]
+    top_uni.columns = ["UNDERGRAD_UNI_TYPE", "Top_B8_B10_pct"]
     lines.append(fmt_df(top_uni, "Figure 9: Share of examinees in B8-B10 by university type"))
     lines.append("")
 
-    # -- Chi-square test: UNI_TYPE x PercentileBin --
+    # -- Chi-square test: UNDERGRAD_UNI_TYPE x PercentileBin --
     chi_uni = chi_square_table(
-        dfuni.dropna(subset=["UNI_TYPE", "PercentileBin"]),
-        "UNI_TYPE",
+        dfuni.dropna(subset=["UNDERGRAD_UNI_TYPE", "PercentileBin"]),
+        "UNDERGRAD_UNI_TYPE",
         "PercentileBin",
     )
     chi_summary_uni = pd.DataFrame([{
@@ -134,17 +137,17 @@ def run():
         "n_observations": chi_uni["n"],
         "cramers_v": chi_uni["cramer_v"],
     }])
-    lines.append(fmt_df(chi_summary_uni, "Table 11: Chi-square test — UNI_TYPE x PercentileBin"))
+    lines.append(fmt_df(chi_summary_uni, "Table 11: Chi-square test — UNDERGRAD_UNI_TYPE x PercentileBin"))
     lines.append("")
 
     # Observed contingency table
     obs_uni = chi_uni["observed"].reset_index()
-    lines.append(fmt_df(obs_uni, "Observed contingency: UNI_TYPE x PercentileBin"))
+    lines.append(fmt_df(obs_uni, "Observed contingency: UNDERGRAD_UNI_TYPE x PercentileBin"))
     lines.append("")
 
     # Expected frequencies
     exp_uni = chi_uni["expected"].reset_index()
-    lines.append(fmt_df(exp_uni, "Expected frequencies: UNI_TYPE x PercentileBin"))
+    lines.append(fmt_df(exp_uni, "Expected frequencies: UNDERGRAD_UNI_TYPE x PercentileBin"))
     lines.append("")
 
     # ========================================================================
@@ -156,24 +159,24 @@ def run():
     lines.append("Insight: Compare bin profiles across pre-med backgrounds.")
     lines.append("")
 
-    _, course_pct = pct_table(df, "CourseGroup", "PercentileBin", BIN_ORDER)
-    course_pct.index.name = "CourseGroup"
+    _, course_pct = pct_table(df, "UNDERGRAD_COURSE_GROUP", "PercentileBin", BIN_ORDER)
+    course_pct.index.name = "UNDERGRAD_COURSE_GROUP"
 
     # -- Bin distribution percentages --
     course_pct_out = course_pct.reset_index()
     lines.append(fmt_df(course_pct_out, "Figure 10: Percentile-bin distribution by Course Group (row %)"))
     lines.append("")
 
-    # -- Top bin share (B8-B10) by CourseGroup --
+    # -- Top bin share (B8-B10) by UNDERGRAD_COURSE_GROUP --
     top_course = course_pct[["B8", "B9", "B10"]].sum(axis=1).reset_index()
-    top_course.columns = ["CourseGroup", "Top_B8_B10_pct"]
+    top_course.columns = ["UNDERGRAD_COURSE_GROUP", "Top_B8_B10_pct"]
     lines.append(fmt_df(top_course, "Figure 11: Share of examinees in B8-B10 by Course Group"))
     lines.append("")
 
-    # -- Chi-square test: CourseGroup x PercentileBin --
+    # -- Chi-square test: UNDERGRAD_COURSE_GROUP x PercentileBin --
     chi_course = chi_square_table(
-        df.dropna(subset=["CourseGroup", "PercentileBin"]),
-        "CourseGroup",
+        df.dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"]),
+        "UNDERGRAD_COURSE_GROUP",
         "PercentileBin",
     )
     chi_summary_course = pd.DataFrame([{
@@ -183,22 +186,22 @@ def run():
         "n_observations": chi_course["n"],
         "cramers_v": chi_course["cramer_v"],
     }])
-    lines.append(fmt_df(chi_summary_course, "Chi-square test — CourseGroup x PercentileBin"))
+    lines.append(fmt_df(chi_summary_course, "Chi-square test — UNDERGRAD_COURSE_GROUP x PercentileBin"))
     lines.append("")
 
     # Observed contingency table
     obs_course = chi_course["observed"].reset_index()
-    lines.append(fmt_df(obs_course, "Observed contingency: CourseGroup x PercentileBin"))
+    lines.append(fmt_df(obs_course, "Observed contingency: UNDERGRAD_COURSE_GROUP x PercentileBin"))
     lines.append("")
 
     # Expected frequencies
     exp_course = chi_course["expected"].reset_index()
-    lines.append(fmt_df(exp_course, "Expected frequencies: CourseGroup x PercentileBin"))
+    lines.append(fmt_df(exp_course, "Expected frequencies: UNDERGRAD_COURSE_GROUP x PercentileBin"))
     lines.append("")
 
-    # -- Percentile summary by CourseGroup --
+    # -- Percentile summary by UNDERGRAD_COURSE_GROUP --
     course_desc = (
-        df.groupby("CourseGroup", observed=True)["NMS_PER_num"]
+        df.groupby("UNDERGRAD_COURSE_GROUP", observed=True)["NMS_PER_num"]
         .agg(n="count", median="median", q25=lambda x: x.quantile(0.25),
              q75=lambda x: x.quantile(0.75))
         .round(2)
@@ -211,7 +214,7 @@ def run():
     # CITIZENSHIP SECTION (ALL records, not just no-PLE-match)
     # ========================================================================
     lines.append("---")
-    lines.append("## Citizenship Section (ALL records)")
+    lines.append("## Citizenship Section (No-PLE-Match, Observable University Cohort)")
     lines.append("")
     lines.append(
         "Citizenship labels (CITIZENSHIP_FINAL, FOREIGNER_STATUS) are baked into "
@@ -220,13 +223,25 @@ def run():
     )
     lines.append("")
     lines.append(
-        "**NOTE:** Unlike the dashboard (which filters to no-PLE-match records only), "
-        "this section uses ALL records with a valid CITIZENSHIP_FINAL."
+        "**P4-01 fix:** this section previously computed over ALL 178,927 rows, reporting "
+        "32,501 verified foreigners against the dashboard's own filtered figure. It now "
+        "reproduces the dashboard's exact filter chain: `uniobservable` "
+        "(IS_BEST_OBSERVABLE_RECORD, UNDERGRAD_UNI_TYPE in [Public, Private, Foreign]) "
+        "AND PLE_STATUS_LABEL == 'No confirmed PLE match' AND CITIZENSHIP_FINAL notna."
     )
     lines.append("")
 
-    # Base: ALL records with CITIZENSHIP_FINAL not null
-    _pc_base = df_all[df_all["CITIZENSHIP_FINAL"].notna()].copy()
+    # Base: dashboard's `_pc_base` — uniobservable, no-PLE-match, valid citizenship.
+    _pc_base = uniobservable[
+        (uniobservable["PLE_STATUS_LABEL"] == "No confirmed PLE match")
+        & (uniobservable["CITIZENSHIP_FINAL"].notna())
+    ].copy()
+    lines.append(
+        f"**population:** uniobservable ∩ no-confirmed-PLE-match ∩ citizenship notna "
+        f"| **n:** {len(_pc_base):,} | **denominator:** rows in `uniobservable` "
+        f"(n={len(uniobservable):,})"
+    )
+    lines.append("")
 
     if _pc_base.empty:
         lines.append("*No CITIZENSHIP_FINAL data found in the dataset.*")
@@ -425,13 +440,13 @@ def run():
         lines.append(fmt_df(_pc_summary, "Summary statistics by citizenship"))
         lines.append("")
 
-        # -- By citizenship and UNI_TYPE --
+        # -- By citizenship and UNDERGRAD_UNI_TYPE --
         lines.append("### Summary by Citizenship and University Type")
         lines.append("")
-        if "UNI_TYPE" in _pc_base.columns:
+        if "UNDERGRAD_UNI_TYPE" in _pc_base.columns:
             _pc_uni_sum = (
                 _pc_base
-                .groupby(["CITIZENSHIP_FINAL", "UNI_TYPE"], observed=True)
+                .groupby(["CITIZENSHIP_FINAL", "UNDERGRAD_UNI_TYPE"], observed=True)
                 .agg(
                     n=("APPNO_CLEAN", "count"),
                     median_percentile_rank=("NMS_PER_num", "median"),
@@ -443,13 +458,13 @@ def run():
             lines.append(fmt_df(_pc_uni_sum, "By citizenship and university type"))
             lines.append("")
 
-        # -- By citizenship and CourseGroup --
+        # -- By citizenship and UNDERGRAD_COURSE_GROUP --
         lines.append("### Summary by Citizenship and Course Group")
         lines.append("")
-        if "CourseGroup" in _pc_base.columns:
+        if "UNDERGRAD_COURSE_GROUP" in _pc_base.columns:
             _pc_course_sum = (
                 _pc_base
-                .groupby(["CITIZENSHIP_FINAL", "CourseGroup"], observed=True)
+                .groupby(["CITIZENSHIP_FINAL", "UNDERGRAD_COURSE_GROUP"], observed=True)
                 .agg(
                     n=("APPNO_CLEAN", "count"),
                     median_percentile_rank=("NMS_PER_num", "median"),
@@ -476,11 +491,144 @@ def run():
             lines.append(fmt_df(_pc_year_tbl_out, "Year distribution by citizenship (counts)"))
             lines.append("")
 
+        # ====================================================================
+        # COMPARATIVE ANALYSIS: FOREIGNERS VS FILIPINO STUDENTS (P4-04)
+        # dashboard.py:1571-1732
+        # ====================================================================
+        lines.append("---")
+        lines.append("## Comparative Analysis: Foreigners vs Filipino Students")
+        lines.append("")
+        lines.append(
+            "Compares (1) actual foreigners (non-Filipino, identified via the profiling CSV), "
+            "(2) Filipinos whose undergraduate degree was from a foreign/international school, "
+            "(3) all students whose undergraduate degree was from a public school, and "
+            "(4) all students whose undergraduate degree was from a private school. "
+            "Groups 1 and 2 come from the profiling-matched observable university subset "
+            "(`uniobservable`, no PLE-status filter). Groups 3 and 4 use all observable "
+            "best-record examinees at those institution types (`bestobservable`). "
+            "**UNDERGRAD_UNI_TYPE / UNDERGRAD_UNIVERSITY record the examinee's undergraduate "
+            "(pre-NMAT) school, not the medical school they later attended between the NMAT and "
+            "the licensure exam** -- no medical-school identifier exists in this dataset, so the "
+            "linkage-rate differences below cannot be attributed to medical-school quality."
+        )
+        lines.append("")
+
+        bestobservable = F["bestobservable"]
+        _cmp_parts = []
+
+        _g_for = uniobservable[uniobservable["FOREIGNER_STATUS"] == "Verified Foreigner"].copy()
+        if not _g_for.empty:
+            _g_for["_cmp_group"] = "Foreigners (non-Filipino)"
+            _cmp_parts.append(_g_for)
+
+        _g_fil_for = uniobservable[
+            (uniobservable["CITIZENSHIP_FINAL"] == "Filipino")
+            & (uniobservable["UNDERGRAD_UNI_TYPE"] == "Foreign")
+        ].copy()
+        if not _g_fil_for.empty:
+            _g_fil_for["_cmp_group"] = "Filipinos (foreign undergrad)"
+            _cmp_parts.append(_g_fil_for)
+
+        _g_pub = bestobservable[bestobservable["UNDERGRAD_UNI_TYPE"] == "Public"].copy()
+        if not _g_pub.empty:
+            _g_pub["_cmp_group"] = "Filipinos (public undergrad)"
+            _cmp_parts.append(_g_pub)
+
+        _g_prv = bestobservable[bestobservable["UNDERGRAD_UNI_TYPE"] == "Private"].copy()
+        if not _g_prv.empty:
+            _g_prv["_cmp_group"] = "Filipinos (private undergrad)"
+            _cmp_parts.append(_g_prv)
+
+        if not _cmp_parts:
+            lines.append("*No comparative data available.*")
+            lines.append("")
+        else:
+            _cmp_score_cols = [
+                "_cmp_group", "NMS_PER_num", "TotalRawScoreTRUE",
+                "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
+                "PercentileBin", "HAS_CONFIRMED_PLE",
+            ]
+            _cmp_df = pd.concat(
+                [p[[c for c in _cmp_score_cols if c in p.columns]] for p in _cmp_parts],
+                ignore_index=True,
+            )
+            lines.append(f"**population:** union of the four comparison groups | "
+                         f"**n:** {len(_cmp_df):,}")
+            lines.append("")
+
+            # -- Summary table: key score indicators + PLE linkage rate --
+            lines.append(
+                "\"PLE linkage rate %\" is the share of each group found in the PLE passer "
+                "source list (IS_PLE_PASSER) -- it is a LINKAGE rate, not a licensure pass "
+                "rate, since the source contains passers only and absence does not mean "
+                "failure."
+            )
+            lines.append("")
+            _cmp_agg = (
+                _cmp_df.groupby("_cmp_group", observed=True)
+                .agg(
+                    n=("NMS_PER_num", "count"),
+                    median_percentile_rank=("NMS_PER_num", "median"),
+                    q25_pct=("NMS_PER_num", lambda x: x.quantile(0.25)),
+                    q75_pct=("NMS_PER_num", lambda x: x.quantile(0.75)),
+                    median_raw_score=("TotalRawScoreTRUE", "median"),
+                )
+                .round(2)
+                .reset_index()
+                .rename(columns={"_cmp_group": "Group"})
+            )
+            if "HAS_CONFIRMED_PLE" in _cmp_df.columns:
+                _cmp_df["_ple_num"] = (_cmp_df["HAS_CONFIRMED_PLE"] == True).astype(float)
+                _ple_rates = (
+                    _cmp_df.groupby("_cmp_group", observed=True)["_ple_num"]
+                    .mean().mul(100).round(2).reset_index()
+                    .rename(columns={"_cmp_group": "Group", "_ple_num": "PLE linkage rate %"})
+                )
+                _cmp_agg = _cmp_agg.merge(_ple_rates, on="Group", how="left")
+            lines.append(fmt_df(_cmp_agg, "Summary: key score indicators by comparison group"))
+            lines.append("")
+
+            # -- Boxplot data: five-number summary + n (export contract Rule 1) --
+            def _five_num(series_by_group, value_label):
+                rows = []
+                for g, s in series_by_group:
+                    s = s.dropna()
+                    if s.empty:
+                        continue
+                    q1, q3 = s.quantile(0.25), s.quantile(0.75)
+                    iqr = q3 - q1
+                    lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+                    rows.append({
+                        "Group": g, "min": round(s.min(), 2), "q1": round(q1, 2),
+                        "median": round(s.median(), 2), "q3": round(q3, 2),
+                        "max": round(s.max(), 2), "n": len(s),
+                        "outliers": int(((s < lo) | (s > hi)).sum()),
+                    })
+                return pd.DataFrame(rows)
+
+            pct_boxdata = _five_num(_cmp_df.groupby("_cmp_group")["NMS_PER_num"], "NMS_PER_num")
+            lines.append(fmt_df(pct_boxdata, "Percentile rank distribution by group (five-number summary; underlies the dashboard boxplot)"))
+            lines.append("")
+            raw_boxdata = _five_num(_cmp_df.groupby("_cmp_group")["TotalRawScoreTRUE"], "TotalRawScoreTRUE")
+            lines.append(fmt_df(raw_boxdata, "TRUE raw score distribution by group (five-number summary; underlies the dashboard boxplot)"))
+            lines.append("")
+
+            # -- Full bin heatmap: row % by group (all bins B1-B10) --
+            if "PercentileBin" in _cmp_df.columns:
+                _cmp_bin_cnt, _cmp_bin_pct = pct_table(
+                    _cmp_df.dropna(subset=["_cmp_group", "PercentileBin"]),
+                    "_cmp_group", "PercentileBin", BIN_ORDER,
+                )
+                _cmp_bin_pct.index.name = "Group"
+                lines.append(fmt_df(_cmp_bin_pct.reset_index(),
+                                    "Bin distribution by comparison group (row %, B1-B10; underlies the dashboard heatmap and stacked bar)"))
+                lines.append("")
+
     return "\n".join(lines)
 
 
 def save(md):
-    out_dir = Path("page_results")
+    out_dir = RESULTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "04_score_bins.md"
     out_path.write_text(md, encoding="utf-8")

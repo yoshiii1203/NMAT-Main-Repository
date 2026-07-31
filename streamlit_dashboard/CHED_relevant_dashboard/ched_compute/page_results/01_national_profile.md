@@ -1,7 +1,7 @@
 # National NMAT Profile and Linkage Analysis
 
-**Date:** July 28, 2026
-**Data Source:** `NMAT_Exodus.parquet` (178,927 records, 54 columns)
+**Date:** July 31, 2026
+**Data Source:** `NMAT_Exodus.parquet` (178,927 records, 53 columns)
 **Script:** `ched_compute/01_national_profile.py`
 
 ---
@@ -31,11 +31,11 @@ Each bin corresponds to a range of NMAT percentile rank scores. B4+ corresponds 
 
 | Metric | Value |
 |--------|-------|
-| **Total Examinees (Best Record)** | 133,804 |
-| **Pre-2015 Cohort Size** | 64,501 |
-| **Matched to PLE Passer Records** | 29,273 |
-| **Overall NMAT-to-PLE Linkage Rate** | 45.38% |
-| **5-Year Rolling Average Linkage (2010-2014)** | 43.46% |
+| **Total Examinees (Best Record)** | 134,869 |
+| **Pre-2015 Cohort Size** | 69,503 |
+| **Matched to PLE Passer Records** | 31,581 |
+| **Overall NMAT-to-PLE Linkage Rate** | 45.44% |
+| **5-Year Rolling Average Linkage (2010-2014)** | 43.74% |
 
 ### Annual NMAT-to-PLE Linkage Rates
 
@@ -43,27 +43,27 @@ Table shows, for each year, the number of NMAT examinees (best record), the numb
 
 | Year | n (Best Record) | n (Pre-2015 Cohort) | n PLE Matched | Linkage Rate | 5-Year Rolling Avg |
 |:----:|:----------------:|:---------------------:|:-------------:|:------------:|:------------------:|
-| 2006 | 3,665 | 3,665 | 2,038 | 55.61% | — |
-| 2007 | 3,660 | 3,660 | 1,868 | 51.04% | — |
-| 2008 | 4,849 | 4,849 | 2,514 | 51.85% | — |
-| 2009 | 6,881 | 6,881 | 3,226 | 46.88% | — |
-| 2010 | 8,008 | 8,008 | 3,808 | 47.55% | 50.59% |
-| 2011 | 8,731 | 8,731 | 3,853 | 44.13% | 48.29% |
-| 2012 | 9,145 | 9,145 | 4,066 | 44.46% | 46.97% |
-| 2013 | 9,121 | 9,121 | 3,951 | 43.32% | 45.27% |
-| 2014 * | 10,441 | 10,441 | 3,949 | 37.82% | 43.46% |
-| 2015 | 10,402 | 0 | 0 | N/A (no obs.) | — |
-| 2016 | 12,609 | 0 | 0 | N/A (no obs.) | — |
-| 2017 | 23,955 | 0 | 0 | N/A (no obs.) | — |
-| 2018 | 22,337 | 0 | 0 | N/A (no obs.) | — |
+| 2006 | 3,698 | 3,698 | 2,005 | 54.22% | — |
+| 2007 | 3,690 | 3,690 | 1,832 | 49.65% | — |
+| 2008 | 4,965 | 4,965 | 2,583 | 52.02% | — |
+| 2009 | 7,461 | 7,461 | 3,757 | 50.36% | — |
+| 2010 | 8,551 | 8,623 | 4,534 | 52.58% | 51.77% |
+| 2011 | 8,701 | 8,842 | 3,918 | 44.31% | 49.78% |
+| 2012 | 9,113 | 9,405 | 4,006 | 42.59% | 48.37% |
+| 2013 | 9,148 | 9,867 | 4,210 | 42.67% | 46.50% |
+| 2014 * | 10,455 | 12,952 | 4,736 | 36.57% | 43.74% |
+| 2015 | 10,326 | 0 | 0 | N/A (no obs.) | — |
+| 2016 | 12,480 | 0 | 0 | N/A (no obs.) | — |
+| 2017 | 23,948 | 0 | 0 | N/A (no obs.) | — |
+| 2018 | 22,333 | 0 | 0 | N/A (no obs.) | — |
 
 *Observable cohort ends at 2014. Years after 2014 have insufficient time for PLE to be taken and observed in our data.*
 
 ### Interpretation
 
-The national NMAT-to-PLE linkage rate across the pre-2015 cohort (64,501 examinees, 29,273 matched) is **45.38%**. This means that 45.38% of NMAT examinees who took the exam between 2006 and 2014 were later found in official PLE passer records.
+The national NMAT-to-PLE linkage rate across the pre-2015 cohort (69,503 examinees, 31,581 matched) is **45.44%**. This means that 45.44% of NMAT examinees who took the exam between 2006 and 2014 were later found in official PLE passer records.
 
-The 5-year rolling average linkage rate for 2010–2014 is **43.46%**. This declining trend (from ~55% in 2006 to ~38% in 2014) may reflect several factors: (a) increasing NMAT examinee volume outpacing medical school capacity, (b) changes in medical school admission policies, (c) data matching limitations, or (d) examinees taking PLE outside the observation window.
+The 5-year rolling average linkage rate for 2010–2014 is **43.74%**. This declining trend (from ~55% in 2006 to ~38% in 2014) may reflect several factors: (a) increasing NMAT examinee volume outpacing medical school capacity, (b) changes in medical school admission policies, (c) data matching limitations, or (d) examinees taking PLE outside the observation window.
 
 **Important:** This is an NMAT-to-PLE **linkage rate**, not a PLE pass rate. It measures the share of NMAT examinees found in PLE passer records, not the share who passed PLE. We cannot distinguish between examinees who never took PLE, those who took it but failed, those who passed but weren't matched, and those who took PLE after our data cutoff.
 
@@ -71,8 +71,8 @@ The 5-year rolling average linkage rate for 2010–2014 is **43.46%**. This decl
 
 - **Cohort definition:** Best NMAT record per examinee (IS_BEST_NMAT_RECORD == True)
 - **Observable cohort:** Year ≤ 2014
-- **Total unique examinees in best records:** 133,804
-- **Pre-2015 examinees:** 64,501
+- **Total unique examinees in best records:** 134,869
+- **Pre-2015 examinees:** 69,503
 - **PLE match source:** PLE_DATA.csv (passers only, 43,630 records)
 - **Linkage rate is a lower bound** — some examinees may have passed PLE after our observation window
 

@@ -1,12 +1,24 @@
 """
 helpers.py — Shared functions for CHED computation suite.
+
+Loading and subsetting delegates to ../ched_common.py -- the same module
+dashboard.py and export_markdown.py use -- so this "third pipeline" can
+never again drift from the live dashboard the way it did before (see
+audit 06 findings F2-F4: a missing dtype-coercion step here produced a
+self-contradicting "0 (99.97%)" statistic in 06_data_limitations.md).
 """
 
 import datetime
+import os
+import sys
+
 import pandas as pd
 import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import ched_common as cc
+
 from config import (
-    EXODUS_PATH,
     OUTPUT_DIR,
     BIN_ORDER,
     PLE_OBSERVABLE_MAX_YEAR,
@@ -17,9 +29,10 @@ from config import (
 
 
 def load_data() -> pd.DataFrame:
-    """Load NMAT_Exodus.parquet and return full DataFrame."""
-    df = pd.read_parquet(EXODUS_PATH)
-    df["Year"] = df["Year"].astype(int)
+    """Load and validate NMAT_Exodus.parquet via ched_common (shared dtype
+    coercion -- fixes the string-as-boolean bug for every script here, not
+    just 06)."""
+    df, _, _ = cc.load_and_validate()
     return df
 
 
@@ -29,21 +42,23 @@ def create_subsets(df: pd.DataFrame) -> dict:
     Returns:
         dict with keys:
           'full'                    — all records
-          'best'                    — best record per person
-          'best_pre2015'            — best records, Year <= PLE_OBSERVABLE_MAX_YEAR
-          'best_ple_matched'        — best records that matched PLE (IS_PLE_PASSER == True)
-          'best_ple_matched_pre2015'— best PLE-matched, Year <= PLE_OBSERVABLE_MAX_YEAR
-          'uni'                     — best records at Public/Private HEIs
+          'best'                    — best record per person (IS_BEST_NMAT_RECORD)
+          'best_pre2015'            — the genuine observable cohort: each person's best
+                                       attempt among Year <= 2014 rows (IS_BEST_OBSERVABLE_RECORD).
+                                       NOT `best[best.Year <= 2014]`, which silently drops people
+                                       whose overall-best attempt fell after 2014 (contract §2a).
+          'best_ple_matched'        — best records that are confirmed PLE passers (IS_PLE_PASSER)
+          'best_ple_matched_pre2015'— confirmed PLE passers within the observable cohort
+          'uni'                     — best records at Public/Private undergraduate institutions
     """
     best = df[df["IS_BEST_NMAT_RECORD"] == True].copy()
-    best_pre2015 = best[best["Year"] <= PLE_OBSERVABLE_MAX_YEAR].copy()
+    best_pre2015 = df[df["IS_BEST_OBSERVABLE_RECORD"] == True].copy()
+    best_pre2015["HAS_CONFIRMED_PLE"] = best_pre2015["IS_PLE_PASSER"] == True
 
-    best_ple_matched = best[best["IS_PLE_ANALYSIS_SAFE"] == True].copy() if "IS_PLE_ANALYSIS_SAFE" in best.columns else best[best["IS_PLE_PASSER"] == True].copy()
-    best_ple_matched_pre2015 = best_ple_matched[
-        best_ple_matched["Year"] <= PLE_OBSERVABLE_MAX_YEAR
-    ].copy()
+    best_ple_matched = best[best["IS_PLE_PASSER"] == True].copy()
+    best_ple_matched_pre2015 = best_pre2015[best_pre2015["HAS_CONFIRMED_PLE"]].copy()
 
-    uni = best[best["UNI_TYPE"].isin(["Public", "Private"])].copy()
+    uni = best[best[cc.UNI_TYPE_COL].isin(["Public", "Private"])].copy()
 
     return {
         "full": df,
@@ -56,9 +71,12 @@ def create_subsets(df: pd.DataFrame) -> dict:
 
 
 def create_clean_subset(df_obs: pd.DataFrame) -> pd.DataFrame:
-    """Return strictest defensible PLE subset: best record, IS_PLE_ANALYSIS_SAFE, >=5yr gap, Filipino."""
+    """Return strictest defensible PLE subset: confirmed passer, >=5yr gap, Filipino."""
+    if "HAS_CONFIRMED_PLE" not in df_obs.columns:
+        df_obs = df_obs.copy()
+        df_obs["HAS_CONFIRMED_PLE"] = df_obs["IS_PLE_PASSER"] == True
     return df_obs[
-        (df_obs["IS_PLE_ANALYSIS_SAFE"] == True)
+        (df_obs["HAS_CONFIRMED_PLE"])
         & (df_obs["PLE_YEAR_GAP"] >= 5)
         & (df_obs["FOREIGNER_STATUS"] == "Filipino")
     ].copy()
@@ -116,10 +134,11 @@ def compute_linkage_rate(
 
 def write_output(script_number: str, title: str, body: str) -> str:
     """Assemble full markdown output, write, and return path."""
+    df, _, _ = cc.load_and_validate()
     header = f"""# {title}
 
 **Date:** {today_str()}
-**Data Source:** `NMAT_Exodus.parquet` (178,927 records, 54 columns)
+**Data Source:** `NMAT_Exodus.parquet` ({len(df):,} records, {df.shape[1]} columns)
 **Script:** `ched_compute/{script_number}.py`
 
 ---
@@ -129,7 +148,3 @@ def write_output(script_number: str, title: str, body: str) -> str:
     full = header + body + caveats
     path = write_md(script_number, full)
     return path
-
-
-# Re-export for convenience
-import os

@@ -1,6 +1,6 @@
 # Page 7: PLE Alignment of NMAT Performance
 
-**Generated:** 2026-07-28 01:17
+**Generated:** 2026-07-31 16:30
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -16,10 +16,10 @@ Count, median, mean, Q25, and Q75 for each score measure by PLE status.
 
 **Table 23. Score profile by PLE status**
 
-| PLE_STATUS_LABEL       |   TotalRawScoreTRUE_count |   TotalRawScoreTRUE_median |   TotalRawScoreTRUE_mean |   TotalRawScoreTRUE_q25 |   TotalRawScoreTRUE_q75 |   NMS_PER_num_count |   NMS_PER_num_median |   NMS_PER_num_mean |   NMS_PER_num_q25 |   NMS_PER_num_q75 |   NMS_GPS_count |   NMS_GPS_median |   NMS_GPS_mean |   NMS_GPS_q25 |   NMS_GPS_q75 |   PartIRawScoreTRUE_count |   PartIRawScoreTRUE_median |   PartIRawScoreTRUE_mean |   PartIRawScoreTRUE_q25 |   PartIRawScoreTRUE_q75 |   PartIIRawScoreTRUE_count |   PartIIRawScoreTRUE_median |   PartIIRawScoreTRUE_mean |   PartIIRawScoreTRUE_q25 |   PartIIRawScoreTRUE_q75 |
-|:-----------------------|--------------------------:|---------------------------:|-------------------------:|------------------------:|------------------------:|--------------------:|---------------------:|-------------------:|------------------:|------------------:|----------------:|-----------------:|---------------:|--------------:|--------------:|--------------------------:|---------------------------:|-------------------------:|------------------------:|------------------------:|---------------------------:|----------------------------:|--------------------------:|-------------------------:|-------------------------:|
-| Confirmed PLE passer   |                     29269 |                        143 |                   144.76 |                     125 |                     164 |               28646 |                   73 |              68.64 |                52 |                90 |           29273 |              564 |         569.18 |           506 |           632 |                     29269 |                         76 |                    75.75 |                      66 |                      86 |                      29269 |                          68 |                     69.02 |                       57 |                       80 |
-| No confirmed PLE match |                     35194 |                        112 |                   115.01 |                      94 |                     134 |               35075 |                   36 |              40.28 |                15 |                63 |           35228 |              464 |         466.41 |           398 |           533 |                     35194 |                         61 |                    61.31 |                      51 |                      72 |                      35194 |                          51 |                     53.69 |                       42 |                       64 |
+| PLE_STATUS_LABEL       |   TotalRawScoreTRUE_count |   TotalRawScoreTRUE_median |   TotalRawScoreTRUE_mean |   TotalRawScoreTRUE_q25 |   TotalRawScoreTRUE_q75 |   NMS_PER_num_count |   NMS_PER_num_median |   NMS_PER_num_mean |   NMS_PER_num_q25 |   NMS_PER_num_q75 |   NMS_GPS_count |   NMS_GPS_median |   NMS_GPS_mean |   NMS_GPS_q25 |   NMS_GPS_q75 |   NMS_APT_count |   NMS_APT_median |   NMS_APT_mean |   NMS_APT_q25 |   NMS_APT_q75 |   NMS_SA_count |   NMS_SA_median |   NMS_SA_mean |   NMS_SA_q25 |   NMS_SA_q75 |   PartIRawScoreTRUE_count |   PartIRawScoreTRUE_median |   PartIRawScoreTRUE_mean |   PartIRawScoreTRUE_q25 |   PartIRawScoreTRUE_q75 |   PartIIRawScoreTRUE_count |   PartIIRawScoreTRUE_median |   PartIIRawScoreTRUE_mean |   PartIIRawScoreTRUE_q25 |   PartIIRawScoreTRUE_q75 |
+|:-----------------------|--------------------------:|---------------------------:|-------------------------:|------------------------:|------------------------:|--------------------:|---------------------:|-------------------:|------------------:|------------------:|----------------:|-----------------:|---------------:|--------------:|--------------:|----------------:|-----------------:|---------------:|--------------:|--------------:|---------------:|----------------:|--------------:|-------------:|-------------:|--------------------------:|---------------------------:|-------------------------:|------------------------:|------------------------:|---------------------------:|----------------------------:|--------------------------:|-------------------------:|-------------------------:|
+| Confirmed PLE passer   |                     31572 |                        139 |                   141.04 |                     120 |                     162 |               30988 |                   69 |              64.56 |                45 |                88 |           31581 |              552 |         555.86 |           489 |           624 |           31581 |              548 |         552.13 |           491 |           612 |          31581 |             544 |        546.07 |          480 |          610 |                     31572 |                         74 |                    73.85 |                      63 |                      84 |                      31572 |                          66 |                     67.18 |                       55 |                       79 |
+| No confirmed PLE match |                     37888 |                        114 |                    116.2 |                      94 |                     136 |               37758 |                   38 |              42.06 |                15 |                66 |           37922 |              470 |         471.63 |           399 |           545 |           37922 |              484 |         480.26 |           415 |           546 |          37922 |             471 |        474.14 |          406 |          539 |                     37888 |                         62 |                    61.89 |                      51 |                      73 |                      37888 |                          52 |                     54.31 |                       42 |                       65 |
 
 
 ---
@@ -32,16 +32,20 @@ Quantile-based summary for each score variable, split by PLE status.
 
 | ScoreVariable      | PLE_STATUS_LABEL       |     n |   min |   q05 |   q25 |   median |   mean |   q75 |   q95 |   max |    std |
 |:-------------------|:-----------------------|------:|------:|------:|------:|---------:|-------:|------:|------:|------:|-------:|
-| TotalRawScoreTRUE  | Confirmed PLE passer   | 29269 |    48 |   100 |   125 |      143 | 144.76 |   164 |   193 |   231 |  27.83 |
-| TotalRawScoreTRUE  | No confirmed PLE match | 35194 |     9 |    70 |    94 |      112 | 115.01 |   134 |   169 |   223 |  29.79 |
-| NMS_PER_num        | Confirmed PLE passer   | 28646 |    -1 |    21 |    52 |       73 |  68.64 |    90 |    98 |    99 |   24.3 |
-| NMS_PER_num        | No confirmed PLE match | 35075 |    -1 |     2 |    15 |       36 |  40.28 |    63 |    92 |    99 |  28.64 |
-| NMS_GPS            | Confirmed PLE passer   | 29273 |   200 |   420 |   506 |      564 | 569.18 |   632 | 726.8 |   800 |   92.7 |
-| NMS_GPS            | No confirmed PLE match | 35228 |     0 |   293 |   398 |      464 | 466.41 |   533 |   645 |   800 | 106.06 |
-| PartIRawScoreTRUE  | Confirmed PLE passer   | 29269 |    20 |    52 |    66 |       76 |  75.75 |    86 |   100 |   118 |  14.34 |
-| PartIRawScoreTRUE  | No confirmed PLE match | 35194 |     0 |    36 |    51 |       61 |  61.31 |    72 |    89 |   116 |  15.96 |
-| PartIIRawScoreTRUE | Confirmed PLE passer   | 29269 |    19 |    44 |    57 |       68 |  69.02 |    80 |    97 |   115 |  16.05 |
-| PartIIRawScoreTRUE | No confirmed PLE match | 35194 |     0 |    31 |    42 |       51 |  53.69 |    64 |    85 |   118 |  16.23 |
+| TotalRawScoreTRUE  | Confirmed PLE passer   | 31572 |    48 |    95 |   120 |      139 | 141.04 |   162 |   192 |   231 |  29.37 |
+| TotalRawScoreTRUE  | No confirmed PLE match | 37888 |     9 |    70 |    94 |      114 |  116.2 |   136 |   170 |   223 |   30.5 |
+| NMS_PER_num        | Confirmed PLE passer   | 30988 |    -1 |    15 |    45 |       69 |  64.56 |    88 |    98 |    99 |  26.33 |
+| NMS_PER_num        | No confirmed PLE match | 37758 |    -1 |     2 |    15 |       38 |  42.06 |    66 |    93 |    99 |  29.54 |
+| NMS_GPS            | Confirmed PLE passer   | 31581 |   200 |   399 |   489 |      552 | 555.86 |   624 |   723 |   800 |  97.66 |
+| NMS_GPS            | No confirmed PLE match | 37922 |     0 |   293 |   399 |      470 | 471.63 |   545 |   653 |   800 | 108.92 |
+| NMS_APT            | Confirmed PLE passer   | 31581 |   200 |   403 |   491 |      548 | 552.13 |   612 |   710 |   800 |  93.24 |
+| NMS_APT            | No confirmed PLE match | 37922 |   200 |   316 |   415 |      484 | 480.26 |   546 |   645 |   800 | 101.18 |
+| NMS_SA             | Confirmed PLE passer   | 31581 |   200 |   398 |   480 |      544 | 546.07 |   610 |   705 |   800 |  92.22 |
+| NMS_SA             | No confirmed PLE match | 37922 |     0 |   318 |   406 |      471 | 474.14 |   539 |   641 |   800 |  98.26 |
+| PartIRawScoreTRUE  | Confirmed PLE passer   | 31572 |    12 |    49 |    63 |       74 |  73.85 |    84 |    99 |   118 |  15.03 |
+| PartIRawScoreTRUE  | No confirmed PLE match | 37888 |     0 |    36 |    51 |       62 |  61.89 |    73 |    90 |   116 |  16.31 |
+| PartIIRawScoreTRUE | Confirmed PLE passer   | 31572 |    19 |    41 |    55 |       66 |  67.18 |    79 |    97 |   116 |  16.75 |
+| PartIIRawScoreTRUE | No confirmed PLE match | 37888 |     0 |    31 |    42 |       52 |  54.31 |    65 |    85 |   118 |  16.53 |
 
 
 ---
@@ -52,33 +56,33 @@ Quantile-based summary for each score variable, split by PLE status.
 
 | Score Variable     |   Median (No confirmed PLE match) |   Median (Confirmed PLE passer) |   U-statistic |   p-value |   Effect size (r) |    N1 |    N2 |
 |:-------------------|----------------------------------:|--------------------------------:|--------------:|----------:|------------------:|------:|------:|
-| Total Raw Score    |                               112 |                             143 |   2.35895e+08 |         0 |             0.542 | 35194 | 29269 |
-| Percentile Rank    |                                36 |                              73 |   2.31503e+08 |         0 |            0.5392 | 35075 | 28646 |
-| GPS Standard Score |                               464 |                             564 |   2.35941e+08 |         0 |            0.5424 | 35228 | 29273 |
-| Part I Raw Score   |                                61 |                              76 |   2.55891e+08 |         0 |            0.5032 | 35194 | 29269 |
-| Part II Raw Score  |                                51 |                              68 |   2.53804e+08 |         0 |            0.5072 | 35194 | 29269 |
+| Total Raw Score    |                               114 |                             139 |   3.33156e+08 |         0 |             0.443 | 37888 | 31572 |
+| Percentile Rank    |                                38 |                              69 |   3.34426e+08 |         0 |            0.4284 | 37758 | 30988 |
+| GPS Standard Score |                               470 |                             552 |   3.39564e+08 |         0 |            0.4329 | 37922 | 31581 |
+| Part I Raw Score   |                                62 |                              74 |   3.54041e+08 |         0 |            0.4081 | 37888 | 31572 |
+| Part II Raw Score  |                                52 |                              66 |   3.46502e+08 |         0 |            0.4207 | 37888 | 31572 |
 
 
 ---
 
-## 4. PLE Pass Rate by Percentile Bin
+## 4. PLE Linkage Rate by Percentile Bin
 
-Within each percentile bin, the number of observable best records, confirmed PLE passers, and the pass rate (%).
+Within each percentile bin, the number of observable best records, confirmed PLE passers, and the linkage rate (%).
 
 **Figure 21. PLE confirmed share by percentile bin**
 
-| PercentileBin   |    n |   confirmed_passers |   pass_rate_pct |
-|:----------------|-----:|--------------------:|----------------:|
-| B1              | 6104 |                 505 |            8.27 |
-| B2              | 5254 |                 830 |            15.8 |
-| B3              | 5228 |                 997 |           19.07 |
-| B4              | 5741 |                1312 |           22.85 |
-| B5              | 6229 |                2882 |           46.27 |
-| B6              | 5831 |                2992 |           51.31 |
-| B7              | 5942 |                3359 |           56.53 |
-| B8              | 6355 |                3819 |           60.09 |
-| B9              | 6854 |                4595 |           67.04 |
-| B10             | 9657 |                7352 |           76.13 |
+| PercentileBin   |    n |   confirmed_passers |   linkage_rate_pct |
+|:----------------|-----:|--------------------:|-------------------:|
+| B1              | 6853 |                 795 |               11.6 |
+| B2              | 5884 |                1336 |              22.71 |
+| B3              | 5813 |                1703 |               29.3 |
+| B4              | 6473 |                2330 |                 36 |
+| B5              | 6582 |                3003 |              45.62 |
+| B6              | 6284 |                3168 |              50.41 |
+| B7              | 6359 |                3407 |              53.58 |
+| B8              | 6704 |                3690 |              55.04 |
+| B9              | 7263 |                4474 |               61.6 |
+| B10             | 9958 |                7073 |              71.03 |
 
 
 ---
@@ -91,16 +95,16 @@ Within each bin, the distribution of PLE statuses (row-wise percentages).
 
 | PercentileBin   |   Confirmed PLE passer |   No confirmed PLE match |
 |:----------------|-----------------------:|-------------------------:|
-| B1              |                   8.27 |                    91.73 |
-| B2              |                   15.8 |                     84.2 |
-| B3              |                  19.07 |                    80.93 |
-| B4              |                  22.85 |                    77.15 |
-| B5              |                  46.27 |                    53.73 |
-| B6              |                  51.31 |                    48.69 |
-| B7              |                  56.53 |                    43.47 |
-| B8              |                  60.09 |                    39.91 |
-| B9              |                  67.04 |                    32.96 |
-| B10             |                  76.13 |                    23.87 |
+| B1              |                   11.6 |                     88.4 |
+| B2              |                  22.71 |                    77.29 |
+| B3              |                   29.3 |                     70.7 |
+| B4              |                     36 |                       64 |
+| B5              |                  45.62 |                    54.38 |
+| B6              |                  50.41 |                    49.59 |
+| B7              |                  53.58 |                    46.42 |
+| B8              |                  55.04 |                    44.96 |
+| B9              |                   61.6 |                     38.4 |
+| B10             |                  71.03 |                    28.97 |
 
 
 ---
@@ -111,10 +115,10 @@ For each PLE status, the distribution across percentile bins (column-wise percen
 
 **Bin distribution by PLE status**
 
-| PLE_STATUS_LABEL       |   B1 |   B2 |    B3 |    B4 |    B5 |    B6 |    B7 |    B8 |    B9 |   B10 |
-|:-----------------------|-----:|-----:|------:|------:|------:|------:|------:|------:|------:|------:|
-| Confirmed PLE passer   | 1.76 |  2.9 |  3.48 |  4.58 | 10.06 | 10.45 | 11.73 | 13.33 | 16.04 | 25.67 |
-| No confirmed PLE match | 16.2 | 12.8 | 12.25 | 12.82 |  9.69 |  8.22 |  7.48 |  7.34 |  6.54 |  6.67 |
+| PLE_STATUS_LABEL       |    B1 |    B2 |    B3 |    B4 |   B5 |    B6 |   B7 |    B8 |    B9 |   B10 |
+|:-----------------------|------:|------:|------:|------:|-----:|------:|-----:|------:|------:|------:|
+| Confirmed PLE passer   |  2.57 |  4.31 |   5.5 |  7.52 | 9.69 | 10.23 |   11 | 11.91 | 14.44 | 22.83 |
+| No confirmed PLE match | 16.29 | 12.23 | 11.05 | 11.14 | 9.62 |  8.38 | 7.94 |   8.1 |   7.5 |  7.76 |
 
 
 ---
@@ -125,14 +129,14 @@ Share of examinees in each course group who scored in the top three percentile b
 
 **Table 26. Course-group representation in top bins**
 
-| CourseGroup                  |   total_examinees |   top_bin_n |   survival_rate_pct |
+| UNDERGRAD_COURSE_GROUP       |   total_examinees |   top_bin_n |   survival_rate_pct |
 |:-----------------------------|------------------:|------------:|--------------------:|
-| Engineering & Technology     |               729 |         382 |                52.4 |
-| Natural Sciences             |             40086 |       14660 |               36.57 |
-| Other                        |              7885 |        2778 |               35.23 |
-| Education                    |              3244 |        1086 |               33.48 |
-| Medical & Allied             |             63067 |       18138 |               28.76 |
-| Social & Behavioral Sciences |             15724 |        4456 |               28.34 |
+| Engineering & Technology     |               730 |         383 |               52.47 |
+| Natural Sciences             |             40196 |       14760 |               36.72 |
+| Other                        |              8248 |        2910 |               35.28 |
+| Education                    |              3445 |        1160 |               33.67 |
+| Medical & Allied             |             63468 |       18354 |               28.92 |
+| Social & Behavioral Sciences |             15758 |        4485 |               28.46 |
 
 
 ---
@@ -145,15 +149,15 @@ Observable best records, confirmed passers, no match, and confirmed share by yea
 
 |   Year |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |
 |-------:|----------------------------:|------------------------:|-------------------------:|--------------------------:|
-|   2006 |                        3665 |                    2038 |                     1627 |                     55.61 |
-|   2007 |                        3660 |                    1868 |                     1792 |                     51.04 |
-|   2008 |                        4849 |                    2514 |                     2335 |                     51.85 |
-|   2009 |                        6881 |                    3226 |                     3655 |                     46.88 |
-|   2010 |                        8008 |                    3808 |                     4200 |                     47.55 |
-|   2011 |                        8731 |                    3853 |                     4878 |                     44.13 |
-|   2012 |                        9145 |                    4066 |                     5079 |                     44.46 |
-|   2013 |                        9121 |                    3951 |                     5170 |                     43.32 |
-|   2014 |                       10441 |                    3949 |                     6492 |                     37.82 |
+|   2006 |                        3698 |                    2005 |                     1693 |                     54.22 |
+|   2007 |                        3690 |                    1832 |                     1858 |                     49.65 |
+|   2008 |                        4965 |                    2583 |                     2382 |                     52.02 |
+|   2009 |                        7461 |                    3757 |                     3704 |                     50.36 |
+|   2010 |                        8623 |                    4534 |                     4089 |                     52.58 |
+|   2011 |                        8842 |                    3918 |                     4924 |                     44.31 |
+|   2012 |                        9405 |                    4006 |                     5399 |                     42.59 |
+|   2013 |                        9867 |                    4210 |                     5657 |                     42.67 |
+|   2014 |                       12952 |                    4736 |                     8216 |                     36.57 |
 
 
 ---
@@ -164,14 +168,14 @@ Observable best records, confirmed passers, no match, confirmed share, and media
 
 **Table 29. Confirmed PLE alignment by course group**
 
-| CourseGroup                  |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |   median_percentile_rank |
+| UNDERGRAD_COURSE_GROUP       |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |   median_percentile_rank |
 |:-----------------------------|----------------------------:|------------------------:|-------------------------:|--------------------------:|-------------------------:|
-| Education                    |                        2973 |                    1541 |                     1432 |                     51.83 |                       52 |
-| Other                        |                        6189 |                    2853 |                     3336 |                      46.1 |                       55 |
-| Natural Sciences             |                       15219 |                    6921 |                     8298 |                     45.48 |                       66 |
-| Medical & Allied             |                       35433 |                   16061 |                    19372 |                     45.33 |                       49 |
-| Social & Behavioral Sciences |                        4385 |                    1783 |                     2602 |                     40.66 |                       64 |
-| Engineering & Technology     |                         302 |                     114 |                      188 |                     37.75 |                       71 |
+| Education                    |                        3188 |                    1699 |                     1489 |                     53.29 |                       53 |
+| Other                        |                        6612 |                    3201 |                     3411 |                     48.41 |                       55 |
+| Medical & Allied             |                       38144 |                   17833 |                    20311 |                     46.75 |                       48 |
+| Natural Sciences             |                       16512 |                    6994 |                     9518 |                     42.36 |                       63 |
+| Engineering & Technology     |                         318 |                     118 |                      200 |                     37.11 |                       71 |
+| Social & Behavioral Sciences |                        4729 |                    1736 |                     2993 |                     36.71 |                       63 |
 
 
 ---
@@ -182,11 +186,11 @@ Public, Private, and Foreign university types in the observable best-record coho
 
 **Table 27. Confirmed PLE alignment by university type**
 
-| UNI_TYPE   |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |
-|:-----------|----------------------------:|------------------------:|-------------------------:|--------------------------:|
-| Foreign    |                        1124 |                     248 |                      876 |                     22.06 |
-| Private    |                       48991 |                   21909 |                    27082 |                     44.72 |
-| Public     |                       13555 |                    6786 |                     6769 |                     50.06 |
+| UNDERGRAD_UNI_TYPE   |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |
+|:---------------------|----------------------------:|------------------------:|-------------------------:|--------------------------:|
+| Foreign              |                        1159 |                     258 |                      901 |                     22.26 |
+| Private              |                       52821 |                   23757 |                    29064 |                     44.98 |
+| Public               |                       14642 |                    7226 |                     7416 |                     49.35 |
 
 
 ---
@@ -197,46 +201,46 @@ Top 20 records per PLE status, sorted by highest percentile rank.
 
 **Record-level detail: highest percentile scores per PLE status**
 
-| PERSON_KEY                                    |   APPNO_CLEAN |   Year |   TotalRawScoreTRUE |   NMS_PER_num |   NMS_GPS |   PartIRawScoreTRUE |   PartIIRawScoreTRUE | PercentileBin   | PLE_STATUS_LABEL       | UNI_TYPE      | CourseGroup                  |
-|:----------------------------------------------|--------------:|-------:|--------------------:|--------------:|----------:|--------------------:|---------------------:|:----------------|:-----------------------|:--------------|:-----------------------------|
-| YUNQUE, VANESSA AURA TERRITORIO||09/24/1993   |    1111409579 |   2014 |                 178 |            99 |       733 |                  88 |                   90 | B10             | Confirmed PLE passer   | Public        | Medical & Allied             |
-| YNZON, CHRISTINE DANIELLE DE GUZMAN||8/5/1995 |    1041401347 |   2014 |                 175 |            99 |       717 |                  90 |                   85 | B10             | Confirmed PLE passer   | Private       | Natural Sciences             |
-| YOUNG, JAMIE ROSLYN TIU||12/29/1994           |    1111403809 |   2014 |                 182 |            99 |       751 |                  92 |                   90 | B10             | Confirmed PLE passer   | Private       | Natural Sciences             |
-| CORTES, FREDERIK KHO||08/15/1990              |    2121001513 |   2010 |                 196 |            99 |       720 |                 105 |                   91 | B10             | Confirmed PLE passer   | Private       | Social & Behavioral Sciences |
-| CORTEZ, JAKE BRYAN SARMIENTO||11/13/1989      |    1121000144 |   2010 |                 195 |            99 |       720 |                  94 |                  101 | B10             | Confirmed PLE passer   | Private       | Medical & Allied             |
-| CONSUNJI, MARY VERONICA SALDANA||08/28/1988   |    1121002729 |   2010 |                 203 |            99 |       754 |                 104 |                   99 | B10             | Confirmed PLE passer   | Private       | Other                        |
-| CORANEZ, ALDRIN JAVIER||10/11/1991            |    1121004233 |   2010 |                 208 |            99 |       775 |                 107 |                  101 | B10             | Confirmed PLE passer   | Private       | Natural Sciences             |
-| WEE ENG, ATRIO ERICMOND TAN||12/5/1994        |    1111404887 |   2014 |                 182 |            99 |       751 |                  83 |                   99 | B10             | Confirmed PLE passer   | Foreign       | Natural Sciences             |
-| WONG, ENA NICOLE ASHLEE ENRILE||03/20/1997    |    1111405991 |   2014 |                 173 |            99 |       717 |                  91 |                   82 | B10             | Confirmed PLE passer   | Private       | Medical & Allied             |
-| AGGABAO, LARIELYN HOPE CAYADO||4/9/1991       |    1041100628 |   2011 |                 197 |            99 |       732 |                 104 |                   93 | B10             | Confirmed PLE passer   | Public        | Natural Sciences             |
-| OLIVERA, JANNA ELYZA PERALTA||                |       1085363 |   2008 |                 195 |            99 |       725 |                 101 |                   94 | B10             | Confirmed PLE passer   | Public        | Medical & Allied             |
-| ONG, KIMBERLY MAE CHUA||                      |       1080742 |   2008 |                 203 |            99 |       743 |                 109 |                   94 | B10             | Confirmed PLE passer   | Public        | Social & Behavioral Sciences |
-| GRANADA, BRANTLEY GO||02/26/1995              |    1111308631 |   2013 |                 183 |            99 |       720 |                 106 |                   77 | B10             | Confirmed PLE passer   | Private       | Medical & Allied             |
-| CRUZ, ELLA MAE DE GUZMAN||05/31/1989          |    1121001164 |   2010 |                 200 |            99 |       738 |                  88 |                  112 | B10             | Confirmed PLE passer   | Public        | Medical & Allied             |
-| CORONEL, INAH JANE TEJADA||05/30/1994         |    1121000638 |   2010 |                 205 |            99 |       768 |                 109 |                   96 | B10             | Confirmed PLE passer   | Public        | Medical & Allied             |
-| CORPUZ, HASMIN LISA HERRAS||09/19/1990        |    1121002328 |   2010 |                 212 |            99 |       788 |                 110 |                  102 | B10             | Confirmed PLE passer   | Public        | Natural Sciences             |
-| HABAJAB, VANESSA MARIE MAGAHIN||07/27/1994    |    1111304898 |   2013 |                 183 |            99 |       717 |                  92 |                   91 | B10             | Confirmed PLE passer   | Not Specified | Medical & Allied             |
-| CRUZ, PATRICIO LORENZO SANTOS||4/10/1990      |    1121001069 |   2010 |                 209 |            99 |       779 |                 104 |                  105 | B10             | Confirmed PLE passer   | Public        | Natural Sciences             |
-| COTINGTING, CRYSTLE TAN||7/9/1990             |    1121004765 |   2010 |                 202 |            99 |       749 |                  99 |                  103 | B10             | Confirmed PLE passer   | Public        | Medical & Allied             |
-| GONZALES, JOANNA FRANCHESCA DATOR||6/8/1993   |    1111310619 |   2013 |                 183 |            99 |       720 |                 100 |                   83 | B10             | Confirmed PLE passer   | Private       | Natural Sciences             |
-| ZAULDA, FIDES ANGELI DELA CRUZ||              |       1011880 |   2009 |                 210 |            99 |       778 |                 104 |                  106 | B10             | No confirmed PLE match | Public        | Medical & Allied             |
-| RODRIGUEZ, ISAGANI BEAU JR RANA||9/10/1994    |    1111303271 |   2013 |                 188 |            99 |       733 |                 105 |                   83 | B10             | No confirmed PLE match | Private       | Natural Sciences             |
-| YOON, CHARLOTTE SEONGEUN||02/21/1989          |    1111401646 |   2014 |                 200 |            99 |       741 |                 100 |                  100 | B10             | No confirmed PLE match | Public        | Natural Sciences             |
-| HERMO, DEO PAOLO MARCIANO VENIDA||11/23/1989  |    1041103978 |   2011 |                 195 |            99 |       725 |                 104 |                   91 | B10             | No confirmed PLE match | Public        | Natural Sciences             |
-| PASCASIO, THEA KATRINA ANINAG||12/10/1992     |    1121000626 |   2010 |                 205 |            99 |       768 |                 107 |                   98 | B10             | No confirmed PLE match | Public        | Medical & Allied             |
-| GARCIA, MARTIN KEITH||10/29/1990              |    1111304705 |   2013 |                 183 |            99 |       720 |                  99 |                   84 | B10             | No confirmed PLE match | Private       | Natural Sciences             |
-| ANG, JOANNE MARIE BACAR||                     |       1054579 |   2006 |                 205 |            99 |       768 |                 104 |                  101 | B10             | No confirmed PLE match | Private       | Other                        |
-| SARSAGAT, JINO MART ERIK DOLOR||              |       1003440 |   2009 |                 201 |            99 |       735 |                 101 |                  100 | B10             | No confirmed PLE match | Private       | Medical & Allied             |
-| SAUTER, LAUREN REBECCA||                      |       1092025 |   2009 |                 199 |            99 |       735 |                 102 |                   97 | B10             | No confirmed PLE match | Foreign       | Medical & Allied             |
-| DOMINGO, JUSTINE PERRY TOMINES||              |       1093892 |   2009 |                 199 |            99 |       729 |                 103 |                   96 | B10             | No confirmed PLE match | Public        | Natural Sciences             |
-| CABALES, MAE PERCI BELLE GONZALES||2/5/1988   |    1121108963 |   2011 |                 199 |            99 |       733 |                 104 |                   95 | B10             | No confirmed PLE match | Foreign       | Natural Sciences             |
-| LAO, PRISCILLA APRIL ONG||04/25/1992          |    2121002448 |   2011 |                 208 |            99 |       771 |                 100 |                  108 | B10             | No confirmed PLE match | Not Specified | Natural Sciences             |
-| GANIPIS, KENNY ROLEX LUKEN||08/23/1988        |    1111310775 |   2013 |                 187 |            99 |       726 |                 102 |                   85 | B10             | No confirmed PLE match | Private       | Medical & Allied             |
-| CORPUZ, KATHLEEN BUENO||                      |       1073266 |   2007 |                 196 |            99 |       726 |                  94 |                  102 | B10             | No confirmed PLE match | Public        | Natural Sciences             |
-| ENDOZO, ALLYSTER ARCEO||7/11/1991             |    1121208475 |   2012 |                 180 |            99 |       733 |                  97 |                   83 | B10             | No confirmed PLE match | Private       | Natural Sciences             |
-| GIGANTE, IAN PAULO CALICDAN||04/15/1992       |    1111301173 |   2013 |                 182 |            99 |       717 |                  79 |                  103 | B10             | No confirmed PLE match | Private       | Medical & Allied             |
-| GUION, GINAREY GRACE ANN SARMIENTO||9/8/1993  |    1121104797 |   2011 |                 200 |            99 |       733 |                 102 |                   98 | B10             | No confirmed PLE match | Public        | Medical & Allied             |
-| WANG, WUDA||8/8/1989                          |    1111408204 |   2014 |                 173 |            99 |       720 |                  81 |                   92 | B10             | No confirmed PLE match | Public        | Natural Sciences             |
-| SABBAN, FREDERICO BUNUAN||6/6/1994            |    1041304943 |   2013 |                 196 |            99 |       723 |                  96 |                  100 | B10             | No confirmed PLE match | Private       | Natural Sciences             |
-| DE PANO, JOJIEMAR SALONGA||01/29/1989         |    1121006520 |   2010 |                 208 |            99 |       778 |                 110 |                   98 | B10             | No confirmed PLE match | Public        | Natural Sciences             |
+| PERSON_KEY                                          |   APPNO_CLEAN |   Year |   TotalRawScoreTRUE |   NMS_PER_num |   NMS_GPS |   PartIRawScoreTRUE |   PartIIRawScoreTRUE | PercentileBin   | PLE_STATUS_LABEL       | UNDERGRAD_UNI_TYPE   | UNDERGRAD_COURSE_GROUP       |
+|:----------------------------------------------------|--------------:|-------:|--------------------:|--------------:|----------:|--------------------:|---------------------:|:----------------|:-----------------------|:---------------------|:-----------------------------|
+| ROJO, RANIV DAWEY||                                 |       1010366 |   2009 |                 203 |            99 |       738 |                 101 |                  102 | B10             | Confirmed PLE passer   | Public               | Other                        |
+| ALEJO, GABRIEL IGNACIO PALMA||9/12/1990             |    1031204633 |   2012 |                 201 |            99 |       741 |                 106 |                   95 | B10             | Confirmed PLE passer   | Private              | Medical & Allied             |
+| ALCANTARA, JEROME HERNANDEZ||11/13/1992             |    1121207717 |   2012 |                 182 |            99 |       741 |                  98 |                   84 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| ROQUE, VLADIMIR LENNIN ALCANTARA||                  |       1003529 |   2009 |                 200 |            99 |       732 |                  97 |                  103 | B10             | Confirmed PLE passer   | Public               | Natural Sciences             |
+| YENSON, IVAN LENDLE CABANILLA||1/7/1996             |    1111407328 |   2014 |                 180 |            99 |       737 |                 100 |                   80 | B10             | Confirmed PLE passer   | Private              | Medical & Allied             |
+| VILLARETE, NORMAN RAE TABLAN||01/25/1991            |    1041407434 |   2014 |                 183 |            99 |       746 |                  94 |                   89 | B10             | Confirmed PLE passer   | Private              | Medical & Allied             |
+| VALERA, JUANCHO LORENZO SANTOS||6/10/1991           |    1111303883 |   2013 |                 192 |            99 |       751 |                  97 |                   95 | B10             | Confirmed PLE passer   | Private              | Social & Behavioral Sciences |
+| AUTENTICO, REYSA OMAY||                             |       1061792 |   2007 |                 201 |            99 |       741 |                  96 |                  105 | B10             | Confirmed PLE passer   | Public               | Education                    |
+| MAGCALAS, ANNA RICO||09/24/1992                     |    1121000237 |   2010 |                 199 |            99 |       735 |                 105 |                   94 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| JAVIER, KENNETH ARVIOLA||                           |       1002247 |   2009 |                 216 |            99 |       795 |                 106 |                  110 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| MALANYAON, FREDA QUIMBA||5/5/1987                   |    1121001087 |   2010 |                 205 |            99 |       768 |                 108 |                   97 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| UY, JOHN HENRICK GOLAK||5/10/1994                   |    1111307461 |   2013 |                 187 |            99 |       733 |                  93 |                   94 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| VILLANGCA, DANIEL JR GONZALES||09/13/1993           |    1111312014 |   2013 |                 182 |            99 |       717 |                  97 |                   85 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| VILLANUEVA, JOHN CHRISTOPHER CONCEPCION||06/22/1994 |    1111309984 |   2013 |                 190 |            99 |       741 |                  92 |                   98 | B10             | Confirmed PLE passer   | Private              | Natural Sciences             |
+| VILLANUEVA, MARK JHERVY SORIANO||01/30/1992         |    1041303851 |   2013 |                 197 |            99 |       726 |                 104 |                   93 | B10             | Confirmed PLE passer   | Private              | Medical & Allied             |
+| SALISE, JOEANNE MARIE MAHINAY||                     |       1085671 |   2008 |                 199 |            99 |       738 |                 107 |                   92 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| ANG, FELICE KATRINA CASTRO||02/13/1993              |    1121208269 |   2012 |                 176 |            99 |       720 |                  99 |                   77 | B10             | Confirmed PLE passer   | Public               | Social & Behavioral Sciences |
+| ANG, HARLEY GUERALD CO||03/25/1991                  |    1031200875 |   2012 |                 196 |            99 |       729 |                 102 |                   94 | B10             | Confirmed PLE passer   | Public               | Social & Behavioral Sciences |
+| SALVAME, ERIKA JEAN ANG||                           |       1085695 |   2008 |                 201 |            99 |       749 |                 108 |                   93 | B10             | Confirmed PLE passer   | Public               | Medical & Allied             |
+| SAN JUAN, MARI DES JIMENEZ||                        |       1085386 |   2008 |                 198 |            99 |       743 |                  95 |                  103 | B10             | Confirmed PLE passer   | Private              | Natural Sciences             |
+| FLORANO, SOLMUELL MERCADO||12/27/1993               |    1111406933 |   2014 |                 179 |            99 |       733 |                  86 |                   93 | B10             | No confirmed PLE match | Public               | Medical & Allied             |
+| YOUNG, JAMIE ROSLYN TIU||12/29/1994                 |    1111403809 |   2014 |                 182 |            99 |       751 |                  92 |                   90 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| CORPUZ, KATHLEEN BUENO||                            |       1073266 |   2007 |                 196 |            99 |       726 |                  94 |                  102 | B10             | No confirmed PLE match | Public               | Natural Sciences             |
+| TE, JOHN CYNRIC TY||                                |       1072418 |   2007 |                 208 |            99 |       733 |                 101 |                  107 | B10             | No confirmed PLE match | Public               | Medical & Allied             |
+| GARCIA, JOSEPH BENEDICT TION||09/19/1993            |    1041407093 |   2014 |                 183 |            99 |       746 |                 102 |                   81 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| ALCANTARA, KRISTIA BERNADINE LICUDINE||12/19/1994   |    1111403360 |   2014 |                 177 |            99 |       733 |                  88 |                   89 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| LUCERO, KIMBERLY BALIGUAT||1/10/1990                |    1121003765 |   2010 |                 198 |            99 |       732 |                  98 |                  100 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| DELOS REYES, MA KRISTINA JUAN||                     |       1082641 |   2007 |                 199 |            99 |       737 |                  93 |                  106 | B10             | No confirmed PLE match | Public               | Natural Sciences             |
+| YANG, PETER||08/29/1993                             |    1111400534 |   2014 |                 199 |            99 |       737 |                 101 |                   98 | B10             | No confirmed PLE match | Public               | Natural Sciences             |
+| LOPEZ, ALENNIE CHARMAINE LEONARDO||02/23/1991       |    1121001950 |   2010 |                 201 |            99 |       743 |                 106 |                   95 | B10             | No confirmed PLE match | Private              | Social & Behavioral Sciences |
+| FERRER, FRANCO EMILE RAMIREZ||11/13/1991            |    1041407056 |   2014 |                 175 |            99 |       717 |                  93 |                   82 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| ENDOZO, ALLYSTER ARCEO||7/11/1991                   |    1121208475 |   2012 |                 180 |            99 |       733 |                  97 |                   83 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| ESPIRITU, ENRIQUE MIGUEL VERDE||6/4/1988            |    1031200596 |   2012 |                 200 |            99 |       741 |                 106 |                   94 | B10             | No confirmed PLE match | Private              | Other                        |
+| ABERIN, MARVIN ANGELO ESTEBAN||3/6/1994             |    1111400643 |   2014 |                 183 |            99 |       751 |                  94 |                   89 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| ABUNDO, RACELA THERESE BUENCAMINO||7/3/1991         |    1041407593 |   2014 |                 182 |            99 |       741 |                  97 |                   85 | B10             | No confirmed PLE match | Private              | Social & Behavioral Sciences |
+| GOH, RACHEL ANNE REYES||04/23/1991                  |        400721 |   2010 |                 208 |            99 |       733 |                 103 |                  105 | B10             | No confirmed PLE match | Public               | Natural Sciences             |
+| PASCASIO, THEA KATRINA ANINAG||12/10/1992           |    1121000626 |   2010 |                 205 |            99 |       768 |                 107 |                   98 | B10             | No confirmed PLE match | Public               | Medical & Allied             |
+| PLIMACO, FIL KRISTIAN BONDOC||08/14/1988            |    1121008392 |   2010 |                 197 |            99 |       728 |                 107 |                   90 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
+| GUZMAN, RUTH MARIAN SARRA||                         |       1071093 |   2006 |                 200 |            99 |       737 |                 100 |                  100 | B10             | No confirmed PLE match | Public               | Other                        |
+| KIM, YUNGMIN||                                      |       1081037 |   2007 |                 194 |            99 |       720 |                  96 |                   98 | B10             | No confirmed PLE match | Private              | Natural Sciences             |
 

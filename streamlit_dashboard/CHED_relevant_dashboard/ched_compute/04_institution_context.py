@@ -2,7 +2,7 @@
 04_foreign_analysis.py — Foreign examinee analysis.
 
 Computes:
-  - Foreign examinee counts by UNI_TYPE, Year, nationality
+  - Foreign examinee counts by UNDERGRAD_UNI_TYPE, Year, nationality
   - Foreign count per SUC per year
   - Nationality distribution (top 20)
   - NMAT performance by nationality (median score)
@@ -94,21 +94,21 @@ def compute():
     lines.append(make_metric_table(metrics))
     lines.append("")
 
-    # ── By UNI_TYPE ─────────────────────────────────────────────────────
+    # ── By UNDERGRAD_UNI_TYPE ─────────────────────────────────────────────────────
     lines.append("### Foreign Examinees by University Type\n")
     lines.append(
         "Distribution of foreign examinees across university types "
         "(best-record basis).\n"
     )
 
-    ut_header = "| UNI_TYPE | Foreign n (Best Record) | % of Foreign | % of UNI_TYPE Total |"
+    ut_header = "| UNDERGRAD_UNI_TYPE | Foreign n (Best Record) | % of Foreign | % of UNDERGRAD_UNI_TYPE Total |"
     ut_sep = "|:---------|:-----------------------:|:------------:|:-------------------:|"
     lines.append(ut_header)
     lines.append(ut_sep)
 
     for ut in UNI_TYPE_ORDER:
-        foreign_ut = int((foreign["UNI_TYPE"] == ut).sum())
-        total_ut = int((best["UNI_TYPE"] == ut).sum())
+        foreign_ut = int((foreign["UNDERGRAD_UNI_TYPE"] == ut).sum())
+        total_ut = int((best["UNDERGRAD_UNI_TYPE"] == ut).sum())
         if foreign_ut == 0:
             continue
         lines.append(
@@ -144,9 +144,9 @@ def compute():
         "may differ.\n"
     )
 
-    suc_foreign = foreign[foreign["UNI_TYPE"] == "Public"]
+    suc_foreign = foreign[foreign["UNDERGRAD_UNI_TYPE"] == "Public"]
     suc_years = sorted(suc_foreign["Year"].unique())
-    suc_totals = suc_foreign.groupby("NMA_College").size().sort_values(ascending=False)
+    suc_totals = suc_foreign.groupby("UNDERGRAD_UNIVERSITY").size().sort_values(ascending=False)
 
     suc_header = "| SUC | " + " | ".join(str(y) for y in suc_years) + " | Total |"
     suc_sep = "|------|" + "|".join([":---:"] * (len(suc_years) + 1)) + "|"
@@ -157,7 +157,7 @@ def compute():
         row_vals = []
         total_suc = 0
         for y in suc_years:
-            mask = (suc_foreign["NMA_College"] == suc) & (suc_foreign["Year"] == y)
+            mask = (suc_foreign["UNDERGRAD_UNIVERSITY"] == suc) & (suc_foreign["Year"] == y)
             cnt = int(mask.sum())
             row_vals.append(str(cnt))
             total_suc += cnt

@@ -3,7 +3,7 @@
 
 Computes:
   - Count and proportion of examinees at B4+ vs B5+
-  - By UNI_TYPE (Public, Private, Foreign)
+  - By UNDERGRAD_UNI_TYPE (Public, Private, Foreign)
   - By Year
   - PLE linkage rate at each threshold level
   - Clean PLE subset yearly breakdown
@@ -99,20 +99,20 @@ def compute():
     lines.append(make_metric_table(metrics))
     lines.append("")
 
-    # ── By UNI_TYPE ─────────────────────────────────────────────────────
+    # ── By UNDERGRAD_UNI_TYPE ─────────────────────────────────────────────────────
     lines.append("### Threshold Impact by University Type\n")
     lines.append(
         "Table shows the number and percent of examinees qualifying at each "
         "threshold, by university type.\n"
     )
 
-    header = "| UNI_TYPE | n (Best) | B4+ (Bin 4+) | % B4+ | B5+ (Bin 5+) | % B5+ | B4 Only (Bin 4) |"
+    header = "| UNDERGRAD_UNI_TYPE | n (Best) | B4+ (Bin 4+) | % B4+ | B5+ (Bin 5+) | % B5+ | B4 Only (Bin 4) |"
     sep = "|:---------|:--------:|:-----------:|:-----:|:-----------:|:-----:|:------------------:|"
     lines.append(header)
     lines.append(sep)
 
     for ut in UNI_TYPE_ORDER:
-        sub = best[best["UNI_TYPE"] == ut]
+        sub = best[best["UNDERGRAD_UNI_TYPE"] == ut]
         n = len(sub)
         if n == 0:
             continue
@@ -148,20 +148,20 @@ def compute():
 
     lines.append("")
 
-    # ── PLE linkage at each cut-off by UNI_TYPE ──────────────────────────
+    # ── PLE linkage at each cut-off by UNDERGRAD_UNI_TYPE ──────────────────────────
     lines.append("### PLE Linkage Rate by Threshold and University Type\n")
     lines.append(
         "For each university type and threshold, the NMAT-to-PLE linkage rate "
         "among the pre-2015 cohort.\n"
     )
 
-    header3 = "| UNI_TYPE | B4+ Linkage | B5+ Linkage | Gap (pp) |"
+    header3 = "| UNDERGRAD_UNI_TYPE | B4+ Linkage | B5+ Linkage | Gap (pp) |"
     sep3 = "|:---------|:-------------------:|:-------------------:|:--------:|"
     lines.append(header3)
     lines.append(sep3)
 
     for ut in UNI_TYPE_ORDER:
-        sub_denom = best_pre2015[best_pre2015["UNI_TYPE"] == ut]
+        sub_denom = best_pre2015[best_pre2015["UNDERGRAD_UNI_TYPE"] == ut]
         if len(sub_denom) == 0:
             continue
         b4_mask = sub_denom["PercentileBin"].apply(is_b4_plus)

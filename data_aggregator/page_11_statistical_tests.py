@@ -4,10 +4,10 @@ Replicates ALL computations from dashboard.py tab11 (lines 2560-2802).
 Extracts unfiltered data and saves to page_results/11_statistical_tests.md.
 
 Produces complete raw output:
-- Kruskal-Wallis tests (Year x scores, UNI_TYPE/CourseGroup/UNI_LOCATION x NMS_PER_num)
+- Kruskal-Wallis tests (Year x scores, UNDERGRAD_UNI_TYPE/UNDERGRAD_COURSE_GROUP/UNDERGRAD_UNI_LOCATION x NMS_PER_num)
 - Mann-Whitney U tests (PLE_STATUS_LABEL x scores, SEX_CLEAN x NMS_PER_num)
-- Chi-square tests (UNI_TYPE x PercentileBin, CourseGroup x PercentileBin)
-- Dunn post-hoc pairwise comparisons (UNI_TYPE, CourseGroup)
+- Chi-square tests (UNDERGRAD_UNI_TYPE x PercentileBin, UNDERGRAD_COURSE_GROUP x PercentileBin)
+- Dunn post-hoc pairwise comparisons (UNDERGRAD_UNI_TYPE, UNDERGRAD_COURSE_GROUP)
 """
 
 import sys, os
@@ -239,58 +239,58 @@ def run() -> str:
         lines.append("Not enough year-group data for Kruskal-Wallis tests.")
         lines.append("")
 
-    # --- 1b. UNI_TYPE x NMS_PER_num ---
+    # --- 1b. UNDERGRAD_UNI_TYPE x NMS_PER_num ---
     lines.append("### 1b. University Type × Percentile Rank")
     lines.append("")
     lines.append("Testing whether percentile rank distributions differ by university type (Public, Private, Foreign).")
     lines.append("")
 
-    kw_uni = kruskal_table_full(uni, "UNI_TYPE", {"Percentile Rank": "NMS_PER_num"})
+    kw_uni = kruskal_table_full(uni, "UNDERGRAD_UNI_TYPE", {"Percentile Rank": "NMS_PER_num"})
     if not kw_uni.empty:
-        lines.append("**Kruskal-Wallis: UNI_TYPE × NMS_PER_num**")
+        lines.append("**Kruskal-Wallis: UNDERGRAD_UNI_TYPE × NMS_PER_num**")
         lines.append("")
         kw_uni_disp = kw_uni.copy()
         kw_uni_disp["Sig."] = kw_uni_disp["p-value"].apply(sig_stars)
         lines.append(kw_uni_disp.to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
     else:
-        lines.append("Not enough UNI_TYPE groups for Kruskal-Wallis.")
+        lines.append("Not enough UNDERGRAD_UNI_TYPE groups for Kruskal-Wallis.")
         lines.append("")
 
-    # --- 1c. CourseGroup x NMS_PER_num ---
+    # --- 1c. UNDERGRAD_COURSE_GROUP x NMS_PER_num ---
     lines.append("### 1c. Course Group × Percentile Rank")
     lines.append("")
-    lines.append("Testing whether percentile rank distributions differ by CourseGroup.")
+    lines.append("Testing whether percentile rank distributions differ by UNDERGRAD_COURSE_GROUP.")
     lines.append("")
 
-    kw_course = kruskal_table_full(besttrend, "CourseGroup", {"Percentile Rank": "NMS_PER_num"})
+    kw_course = kruskal_table_full(besttrend, "UNDERGRAD_COURSE_GROUP", {"Percentile Rank": "NMS_PER_num"})
     if not kw_course.empty:
-        lines.append("**Kruskal-Wallis: CourseGroup × NMS_PER_num**")
+        lines.append("**Kruskal-Wallis: UNDERGRAD_COURSE_GROUP × NMS_PER_num**")
         lines.append("")
         kw_course_disp = kw_course.copy()
         kw_course_disp["Sig."] = kw_course_disp["p-value"].apply(sig_stars)
         lines.append(kw_course_disp.to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
     else:
-        lines.append("Not enough CourseGroup data for Kruskal-Wallis.")
+        lines.append("Not enough UNDERGRAD_COURSE_GROUP data for Kruskal-Wallis.")
         lines.append("")
 
-    # --- 1d. UNI_LOCATION x NMS_PER_num ---
+    # --- 1d. UNDERGRAD_UNI_LOCATION x NMS_PER_num ---
     lines.append("### 1d. University Location × Percentile Rank")
     lines.append("")
     lines.append("Testing whether percentile rank distributions differ by university location (NCR vs Provincial).")
     lines.append("")
 
-    kw_loc = kruskal_table_full(besttrend, "UNI_LOCATION", {"Percentile Rank": "NMS_PER_num"})
+    kw_loc = kruskal_table_full(besttrend, "UNDERGRAD_UNI_LOCATION", {"Percentile Rank": "NMS_PER_num"})
     if not kw_loc.empty:
-        lines.append("**Kruskal-Wallis: UNI_LOCATION × NMS_PER_num**")
+        lines.append("**Kruskal-Wallis: UNDERGRAD_UNI_LOCATION × NMS_PER_num**")
         lines.append("")
         kw_loc_disp = kw_loc.copy()
         kw_loc_disp["Sig."] = kw_loc_disp["p-value"].apply(sig_stars)
         lines.append(kw_loc_disp.to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
     else:
-        lines.append("Not enough UNI_LOCATION groups for Kruskal-Wallis.")
+        lines.append("Not enough UNDERGRAD_UNI_LOCATION groups for Kruskal-Wallis.")
         lines.append("")
 
     # ================================================================
@@ -368,14 +368,14 @@ def run() -> str:
     lines.append("---")
     lines.append("")
 
-    # --- 3a. UNI_TYPE x PercentileBin ---
+    # --- 3a. UNDERGRAD_UNI_TYPE x PercentileBin ---
     lines.append("### 3a. University Type × Percentile Bin")
     lines.append("")
-    lines.append("Testing independence between university type and percentile bin classification. H0: UNI_TYPE and PercentileBin are independent.")
+    lines.append("Testing independence between university type and percentile bin classification. H0: UNDERGRAD_UNI_TYPE and PercentileBin are independent.")
     lines.append("")
 
     if not uni.empty and "PercentileBin" in uni.columns:
-        chi_uni_obs, chi_uni_exp, chi_uni_summary = chi_square_table_full(uni, "UNI_TYPE", "PercentileBin")
+        chi_uni_obs, chi_uni_exp, chi_uni_summary = chi_square_table_full(uni, "UNDERGRAD_UNI_TYPE", "PercentileBin")
 
         lines.append("**Table 45. Observed counts — University type × Percentile bin**")
         lines.append("")
@@ -404,35 +404,35 @@ def run() -> str:
         lines.append("No university-type records or PercentileBin column available for chi-square testing.")
         lines.append("")
 
-    # --- 3b. CourseGroup x PercentileBin ---
+    # --- 3b. UNDERGRAD_COURSE_GROUP x PercentileBin ---
     lines.append("### 3b. Course Group × Percentile Bin")
     lines.append("")
     lines.append("Testing independence between course group and percentile bin classification.")
     lines.append("")
 
     if "PercentileBin" in besttrend.columns:
-        chi_course_obs, chi_course_exp, chi_course_summary = chi_square_table_full(besttrend, "CourseGroup", "PercentileBin")
+        chi_course_obs, chi_course_exp, chi_course_summary = chi_square_table_full(besttrend, "UNDERGRAD_COURSE_GROUP", "PercentileBin")
 
-        lines.append("**Observed counts — CourseGroup × Percentile bin**")
+        lines.append("**Observed counts — UNDERGRAD_COURSE_GROUP × Percentile bin**")
         lines.append("")
         lines.append(chi_course_obs.to_markdown(tablefmt="pipe", numalign="right"))
         lines.append("")
 
-        lines.append("**Chi-square summary — CourseGroup × Percentile bin**")
+        lines.append("**Chi-square summary — UNDERGRAD_COURSE_GROUP × Percentile bin**")
         lines.append("")
         chi_cs_df = pd.DataFrame([chi_course_summary])
         chi_cs_df["Sig."] = chi_cs_df["p_value"].apply(sig_stars)
         lines.append(chi_cs_df.to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
 
-        lines.append("**Expected counts (under independence) — CourseGroup × Percentile bin**")
+        lines.append("**Expected counts (under independence) — UNDERGRAD_COURSE_GROUP × Percentile bin**")
         lines.append("")
         lines.append(chi_course_exp.to_markdown(tablefmt="pipe", numalign="right"))
         lines.append("")
 
         # Row percentages
         row_pct_cg = chi_course_obs.div(chi_course_obs.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
-        lines.append("**Row percentages (CourseGroup × bin)**")
+        lines.append("**Row percentages (UNDERGRAD_COURSE_GROUP × bin)**")
         lines.append("")
         lines.append(row_pct_cg.to_markdown(tablefmt="pipe", numalign="right"))
         lines.append("")
@@ -455,22 +455,22 @@ def run() -> str:
         lines.append("*scikit-posthocs is not installed. Dunn post-hoc output requires `pip install scikit-posthocs`.*")
         lines.append("")
     else:
-        # --- 4a. UNI_TYPE pairwise ---
+        # --- 4a. UNDERGRAD_UNI_TYPE pairwise ---
         lines.append("### 4a. University Type — Pairwise (Dunn + Bonferroni)")
         lines.append("")
         lines.append("Pairwise comparisons of percentile rank across university types.")
         lines.append("")
 
-        ph_uni = uni.dropna(subset=["UNI_TYPE", "NMS_PER_num"]).copy()
-        if ph_uni["UNI_TYPE"].nunique() >= 3:
+        ph_uni = uni.dropna(subset=["UNDERGRAD_UNI_TYPE", "NMS_PER_num"]).copy()
+        if ph_uni["UNDERGRAD_UNI_TYPE"].nunique() >= 3:
             dunn_uni = sp.posthoc_dunn(
-                ph_uni, val_col="NMS_PER_num", group_col="UNI_TYPE",
+                ph_uni, val_col="NMS_PER_num", group_col="UNDERGRAD_UNI_TYPE",
                 p_adjust="bonferroni",
             )
             dunn_uni.index = dunn_uni.index.astype(str)
             dunn_uni.columns = dunn_uni.columns.astype(str)
 
-            lines.append("**Dunn post-hoc adjusted p-value matrix (Bonferroni) — UNI_TYPE × NMS_PER_num**")
+            lines.append("**Dunn post-hoc adjusted p-value matrix (Bonferroni) — UNDERGRAD_UNI_TYPE × NMS_PER_num**")
             lines.append("")
             lines.append(dunn_uni.to_markdown(tablefmt="pipe", numalign="right"))
             lines.append("")
@@ -492,30 +492,30 @@ def run() -> str:
                         })
             if pairs_uni:
                 pairs_uni_df = pd.DataFrame(pairs_uni)
-                lines.append("**Table 48. Dunn post-hoc pairwise summary — UNI_TYPE**")
+                lines.append("**Table 48. Dunn post-hoc pairwise summary — UNDERGRAD_UNI_TYPE**")
                 lines.append("")
                 lines.append(pairs_uni_df.to_markdown(index=False, tablefmt="pipe", numalign="right"))
                 lines.append("")
         else:
-            lines.append("Insufficient UNI_TYPE groups for post-hoc testing.")
+            lines.append("Insufficient UNDERGRAD_UNI_TYPE groups for post-hoc testing.")
             lines.append("")
 
-        # --- 4b. CourseGroup pairwise ---
+        # --- 4b. UNDERGRAD_COURSE_GROUP pairwise ---
         lines.append("### 4b. Course Group — Pairwise (Dunn + Bonferroni)")
         lines.append("")
         lines.append("Pairwise comparisons of percentile rank across course groups.")
         lines.append("")
 
-        ph_course = besttrend.dropna(subset=["CourseGroup", "NMS_PER_num"]).copy()
-        if ph_course["CourseGroup"].nunique() >= 3:
+        ph_course = besttrend.dropna(subset=["UNDERGRAD_COURSE_GROUP", "NMS_PER_num"]).copy()
+        if ph_course["UNDERGRAD_COURSE_GROUP"].nunique() >= 3:
             dunn_course = sp.posthoc_dunn(
-                ph_course, val_col="NMS_PER_num", group_col="CourseGroup",
+                ph_course, val_col="NMS_PER_num", group_col="UNDERGRAD_COURSE_GROUP",
                 p_adjust="bonferroni",
             )
             dunn_course.index = dunn_course.index.astype(str)
             dunn_course.columns = dunn_course.columns.astype(str)
 
-            lines.append("**Dunn post-hoc adjusted p-value matrix (Bonferroni) — CourseGroup × NMS_PER_num**")
+            lines.append("**Dunn post-hoc adjusted p-value matrix (Bonferroni) — UNDERGRAD_COURSE_GROUP × NMS_PER_num**")
             lines.append("")
             lines.append(dunn_course.to_markdown(tablefmt="pipe", numalign="right"))
             lines.append("")
@@ -537,12 +537,12 @@ def run() -> str:
                         })
             if pairs_cg:
                 pairs_cg_df = pd.DataFrame(pairs_cg)
-                lines.append("**Dunn post-hoc pairwise summary — CourseGroup**")
+                lines.append("**Dunn post-hoc pairwise summary — UNDERGRAD_COURSE_GROUP**")
                 lines.append("")
                 lines.append(pairs_cg_df.to_markdown(index=False, tablefmt="pipe", numalign="right"))
                 lines.append("")
         else:
-            lines.append("Insufficient CourseGroup groups for post-hoc testing.")
+            lines.append("Insufficient UNDERGRAD_COURSE_GROUP groups for post-hoc testing.")
             lines.append("")
 
         # --- 4c. Year pairwise (original dashboard behavior) ---

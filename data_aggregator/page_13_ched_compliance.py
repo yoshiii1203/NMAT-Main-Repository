@@ -6,7 +6,7 @@ Extracts unfiltered data and saves to page_results/13_ched_compliance.md.
 Produces:
 - Section A: National PLE benchmark (annual rates, 5-year rolling avg, latest benchmark)
 - Section B: Per-HEI PLE performance (each HEI with >=5 records, rate vs benchmark, above/below)
-- Section C: Cut-off scenarios (30th B4+ vs 40th B5+ by UNI_TYPE)
+- Section C: Cut-off scenarios (30th B4+ vs 40th B5+ by UNDERGRAD_UNI_TYPE)
 - Section D: Foreign student SUC slot analysis (foreign count per SUC per year, over_cap flag)
 - Section E: Per-HEI score distribution (NMS_PER_num stats, PercentileBin distribution)
 """
@@ -65,7 +65,7 @@ def run() -> str:
     # ================================================================
     lines.append("## Section A: National PLE Benchmark")
     lines.append("")
-    lines.append("Annual national PLE passing rates and 5-year rolling average. The CHED amendment uses the 5-year rolling average as the benchmark: PHEIs above this benchmark may set cut-off at 30th percentile; those below must maintain 40th percentile.")
+    lines.append("Annual national PLE linkage rate and 5-year rolling average. The CHED amendment uses the 5-year rolling average as the benchmark: PHEIs above this benchmark may set cut-off at 30th percentile; those below must maintain 40th percentile.")
     lines.append("")
 
     if df_obs.empty:
@@ -75,15 +75,15 @@ def run() -> str:
         _annual = (
             df_obs.groupby("Year", observed=True)
             .agg(
-                n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
-                n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
+                n_examinees=("IS_PLE_PASSER", "size"),
+                n_confirmed_ple=("IS_PLE_PASSER", "sum"),
             )
             .reset_index()
         )
-        _annual["ple_rate_pct"] = (_annual["n_confirmed_ple"] / _annual["n_examinees"] * 100).round(2)
-        _annual["5yr_rolling_avg_pct"] = _annual["ple_rate_pct"].rolling(window=5, min_periods=3).mean().round(2)
+        _annual["ple_linkage_rate_pct"] = (_annual["n_confirmed_ple"] / _annual["n_examinees"] * 100).round(2)
+        _annual["5yr_rolling_avg_pct"] = _annual["ple_linkage_rate_pct"].rolling(window=5, min_periods=3).mean().round(2)
 
-        lines.append("**Table A1. Annual national PLE passing rates with 5-year rolling average**")
+        lines.append("**Table A1. Annual national PLE linkage rate with 5-year rolling average**")
         lines.append("")
         lines.append(_annual.to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
@@ -110,7 +110,7 @@ def run() -> str:
     lines.append("---")
     lines.append("## Section B: Per-HEI PLE Performance vs National Benchmark")
     lines.append("")
-    lines.append("Each HEI's PLE passing rate compared to the national 5-year rolling average. Only HEIs with at least 5 observable best-record examinees are shown. Green = above benchmark (30th percentile eligible), Red = below benchmark (40th percentile required).")
+    lines.append("Each HEI's PLE linkage rate compared to the national 5-year rolling average. Only HEIs with at least 5 observable best-record examinees are shown. Green = above benchmark (30th percentile eligible), Red = below benchmark (40th percentile required).")
     lines.append("")
 
     if df_obs.empty or _benchmark_val is None:
@@ -118,19 +118,19 @@ def run() -> str:
         lines.append("")
     else:
         _hei_ple = (
-            df_obs.groupby(["UNIVERSITY", "UNI_TYPE"], observed=True)
+            df_obs.groupby(["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE"], observed=True)
             .agg(
-                n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
-                n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
+                n_examinees=("IS_PLE_PASSER", "size"),
+                n_confirmed_ple=("IS_PLE_PASSER", "sum"),
                 median_percentile=("NMS_PER_num", "median"),
             )
             .reset_index()
         )
-        _hei_ple["ple_rate_pct"] = (_hei_ple["n_confirmed_ple"] / _hei_ple["n_examinees"] * 100).round(2)
+        _hei_ple["ple_linkage_rate_pct"] = (_hei_ple["n_confirmed_ple"] / _hei_ple["n_examinees"] * 100).round(2)
         _hei_ple = _hei_ple[_hei_ple["n_examinees"] >= 5].copy()
-        _hei_ple["above_benchmark"] = _hei_ple["ple_rate_pct"] > _benchmark_val
+        _hei_ple["above_benchmark"] = _hei_ple["ple_linkage_rate_pct"] > _benchmark_val
 
-        _hei_display = _hei_ple.sort_values("ple_rate_pct", ascending=False).reset_index(drop=True)
+        _hei_display = _hei_ple.sort_values("ple_linkage_rate_pct", ascending=False).reset_index(drop=True)
         _hei_display["status"] = np.where(
             _hei_display["above_benchmark"],
             "Above benchmark (30th eligible)",
@@ -150,11 +150,11 @@ def run() -> str:
         lines.append("")
 
         lines.append("**Table B1. Per-HEI PLE performance vs benchmark**")
-        lines.append(f"*(Minimum examinees: 5, sorted by PLE rate descending)*")
+        lines.append(f"*(Minimum examinees: 5, sorted by PLE linkage rate descending)*")
         lines.append("")
         lines.append(_hei_display[[
-            "UNIVERSITY", "UNI_TYPE", "n_examinees", "median_percentile",
-            "ple_rate_pct", "status",
+            "UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE", "n_examinees", "median_percentile",
+            "ple_linkage_rate_pct", "status",
         ]].to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
 
@@ -173,8 +173,8 @@ def run() -> str:
     else:
         _scenario_rows = []
         for _uni_type in ["All", "Public", "Private", "Foreign"]:
-            _sub = df_trend if _uni_type == "All" else df_trend[df_trend["UNI_TYPE"] == _uni_type]
-            _sub_obs = df_obs if _uni_type == "All" else df_obs[df_obs["UNI_TYPE"] == _uni_type]
+            _sub = df_trend if _uni_type == "All" else df_trend[df_trend["UNDERGRAD_UNI_TYPE"] == _uni_type]
+            _sub_obs = df_obs if _uni_type == "All" else df_obs[df_obs["UNDERGRAD_UNI_TYPE"] == _uni_type]
 
             for _label, _bin in [("30th percentile (B4+)", "B4"), ("40th percentile (B5+)", "B5")]:
                 _admitted = _sub[_sub["PercentileBin"].apply(lambda x: bin_at_or_above(x, _bin))]
@@ -183,8 +183,8 @@ def run() -> str:
                     "University Type": _uni_type,
                     "Cut-off": _label,
                     "Admitted (best records)": len(_admitted),
-                    "PLE passers (observable)": int(_ple_cohort["IS_PLE_ANALYSIS_SAFE"].sum()) if len(_ple_cohort) > 0 else 0,
-                    "PLE pass rate (%)": round(_ple_cohort["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 2) if len(_ple_cohort) > 0 else 0,
+                    "PLE passers (observable)": int(_ple_cohort["IS_PLE_PASSER"].sum()) if len(_ple_cohort) > 0 else 0,
+                    "PLE linkage rate (%)": round(_ple_cohort["IS_PLE_PASSER"].mean() * 100, 2) if len(_ple_cohort) > 0 else 0,
                     "Median percentile": round(_admitted["NMS_PER_num"].median(), 1) if len(_admitted) > 0 else 0,
                 })
 
@@ -206,14 +206,14 @@ def run() -> str:
 
     if "CITIZENSHIP_FINAL" in df_trend.columns:
         _suc_foreign = df_trend[
-            (df_trend["UNI_TYPE"] == "Public")
+            (df_trend["UNDERGRAD_UNI_TYPE"] == "Public")
             & (df_trend["FOREIGNER_STATUS"] != "Filipino")
             & (df_trend["IS_BEST_NMAT_RECORD"] == True)
         ]
 
         if not _suc_foreign.empty:
             _suc_yr = (
-                _suc_foreign.groupby(["UNIVERSITY", "Year"], observed=True)
+                _suc_foreign.groupby(["UNDERGRAD_UNIVERSITY", "Year"], observed=True)
                 .size()
                 .reset_index(name="foreign_count")
             )
@@ -231,7 +231,7 @@ def run() -> str:
 
             # Per-SUC summary (top 20 by max foreign)
             _suc_summary = (
-                _suc_yr.groupby("UNIVERSITY")
+                _suc_yr.groupby("UNDERGRAD_UNIVERSITY")
                 .agg(
                     max_foreign=("foreign_count", "max"),
                     total_foreign=("foreign_count", "sum"),
@@ -276,15 +276,15 @@ def run() -> str:
         lines.append("*No trend data available.*")
         lines.append("")
     else:
-        _hei_list = sorted(df_trend["UNIVERSITY"].dropna().unique())
+        _hei_list = sorted(df_trend["UNDERGRAD_UNIVERSITY"].dropna().unique())
         lines.append(f"**Total institutions with data: {len(_hei_list):,}**")
         lines.append("")
 
         # Compute per-HEI stats for all HEIs
         hei_stats_rows = []
         for hei in _hei_list:
-            hei_data = df_trend[df_trend["UNIVERSITY"] == hei]
-            hei_obs = df_obs[df_obs["UNIVERSITY"] == hei] if not df_obs.empty else pd.DataFrame()
+            hei_data = df_trend[df_trend["UNDERGRAD_UNIVERSITY"] == hei]
+            hei_obs = df_obs[df_obs["UNDERGRAD_UNIVERSITY"] == hei] if not df_obs.empty else pd.DataFrame()
 
             if len(hei_data) < 5:
                 continue
@@ -292,17 +292,19 @@ def run() -> str:
             bin_dist = hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).fillna(0)
             total = bin_dist.sum()
             hei_stats_rows.append({
-                "UNIVERSITY": hei,
-                "UNI_TYPE": hei_data["UNI_TYPE"].mode().iloc[0] if not hei_data["UNI_TYPE"].mode().empty else "Unknown",
+                "UNDERGRAD_UNIVERSITY": hei,
+                "UNDERGRAD_UNI_TYPE": hei_data["UNDERGRAD_UNI_TYPE"].mode().iloc[0] if not hei_data["UNDERGRAD_UNI_TYPE"].mode().empty else "Unknown",
                 "Total Examinees": len(hei_data),
                 "Median %ile": round(hei_data["NMS_PER_num"].median(), 1),
                 "Mean %ile": round(hei_data["NMS_PER_num"].mean(), 1),
                 "Q25 %ile": round(hei_data["NMS_PER_num"].quantile(0.25), 1),
                 "Q75 %ile": round(hei_data["NMS_PER_num"].quantile(0.75), 1),
+                "Median TRUE raw score": round(hei_data["TotalRawScoreTRUE"].median(), 1) if hei_data["TotalRawScoreTRUE"].notna().any() else None,
                 "B4+ %": round(bin_dist.loc[bin_dist.index.isin(["B4","B5","B6","B7","B8","B9","B10"])].sum() / total * 100, 1) if total > 0 else 0,
                 "B5+ %": round(bin_dist.loc[bin_dist.index.isin(["B5","B6","B7","B8","B9","B10"])].sum() / total * 100, 1) if total > 0 else 0,
-                "Health Sci %": round(hei_data["CourseGroup"].value_counts().get("Medical & Allied", 0) / len(hei_data) * 100, 1) if len(hei_data) > 0 else 0,
-                "PLE pass rate %": round(hei_obs["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 1) if not hei_obs.empty else None,
+                "Health Sci %": round(hei_data["UNDERGRAD_COURSE_GROUP"].value_counts().get("Medical & Allied", 0) / len(hei_data) * 100, 1) if len(hei_data) > 0 else 0,
+                # PLE source contains passers only — this is a linkage rate, not a linkage rate.
+                "PLE linkage rate %": round(hei_obs["IS_PLE_PASSER"].mean() * 100, 1) if not hei_obs.empty else None,
             })
 
         hei_stats_df = pd.DataFrame(hei_stats_rows)
@@ -322,14 +324,14 @@ def run() -> str:
             # Build a multi-HEI bin distribution table
             bin_hei_rows = []
             for hei in _hei_list:
-                hei_data = df_trend[df_trend["UNIVERSITY"] == hei]
+                hei_data = df_trend[df_trend["UNDERGRAD_UNIVERSITY"] == hei]
                 if len(hei_data) < 5:
                     continue
                 bin_dist = hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).fillna(0).astype(int)
-                hei_type = hei_data["UNI_TYPE"].mode().iloc[0] if not hei_data["UNI_TYPE"].mode().empty else "Unknown"
+                hei_type = hei_data["UNDERGRAD_UNI_TYPE"].mode().iloc[0] if not hei_data["UNDERGRAD_UNI_TYPE"].mode().empty else "Unknown"
                 bin_hei_rows.append(pd.Series(
                     data=[hei, hei_type, len(hei_data)] + [bin_dist[b] for b in BIN_ORDER],
-                    index=["UNIVERSITY", "UNI_TYPE", "N"] + BIN_ORDER
+                    index=["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE", "N"] + BIN_ORDER
                 ))
             if bin_hei_rows:
                 bin_hei_df = pd.DataFrame(bin_hei_rows).sort_values("N", ascending=False).reset_index(drop=True)

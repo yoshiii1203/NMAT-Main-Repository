@@ -5,9 +5,9 @@ Extracts unfiltered data and saves to page_results/12_policy_tables.md.
 
 Produces:
 - PLE alignment by year (observable cohort)
-- PLE alignment by CourseGroup (+ median_percentile_rank)
-- PLE alignment by UNI_TYPE (+ median_percentile_rank)
-- Survival to top bins (B8-B10) by CourseGroup
+- PLE alignment by UNDERGRAD_COURSE_GROUP (+ median_percentile_rank)
+- PLE alignment by UNDERGRAD_UNI_TYPE (+ median_percentile_rank)
+- Survival to top bins (B8-B10) by UNDERGRAD_COURSE_GROUP
 """
 
 import sys, os
@@ -51,7 +51,7 @@ def run() -> str:
     # Ensure PLE_STATUS_LABEL exists
     if "PLE_STATUS_LABEL" not in bestobservable.columns:
         bestobservable["PLE_STATUS_LABEL"] = np.where(
-            bestobservable["IS_PLE_ANALYSIS_SAFE"] == True,
+            bestobservable["IS_PLE_PASSER"] == True,
             "Confirmed PLE passer",
             "No confirmed PLE match"
         )
@@ -83,7 +83,7 @@ def run() -> str:
     lines.append("")
 
     # ================================================================
-    # 2. PLE Alignment by CourseGroup
+    # 2. PLE Alignment by UNDERGRAD_COURSE_GROUP
     # ================================================================
     lines.append("---")
     lines.append("## 2. PLE Alignment by Course Group")
@@ -93,7 +93,7 @@ def run() -> str:
 
     t_course = (
         bestobservable
-        .groupby("CourseGroup", observed=True)
+        .groupby("UNDERGRAD_COURSE_GROUP", observed=True)
         .apply(lambda x: pd.Series({
             "n_observable_best_records": len(x),
             "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -105,13 +105,13 @@ def run() -> str:
         .sort_values("confirmed_ple_share_pct", ascending=False)
     )
 
-    lines.append("**Table: PLE alignment by CourseGroup**")
+    lines.append("**Table: PLE alignment by UNDERGRAD_COURSE_GROUP**")
     lines.append("")
     lines.append(t_course.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
 
     # ================================================================
-    # 3. PLE Alignment by UNI_TYPE
+    # 3. PLE Alignment by UNDERGRAD_UNI_TYPE
     # ================================================================
     lines.append("---")
     lines.append("## 3. PLE Alignment by University Type")
@@ -120,8 +120,8 @@ def run() -> str:
     lines.append("")
 
     t_uni = (
-        bestobservable[bestobservable["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-        .groupby("UNI_TYPE", observed=True)
+        bestobservable[bestobservable["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+        .groupby("UNDERGRAD_UNI_TYPE", observed=True)
         .apply(lambda x: pd.Series({
             "n_observable_best_records": len(x),
             "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -132,13 +132,13 @@ def run() -> str:
         .reset_index()
     )
 
-    lines.append("**Table: PLE alignment by UNI_TYPE**")
+    lines.append("**Table: PLE alignment by UNDERGRAD_UNI_TYPE**")
     lines.append("")
     lines.append(t_uni.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
 
     # ================================================================
-    # 4. Survival to Top Bins (B8-B10) by CourseGroup
+    # 4. Survival to Top Bins (B8-B10) by UNDERGRAD_COURSE_GROUP
     # ================================================================
     lines.append("---")
     lines.append("## 4. Survival to Top Decile Bins (B8-B10) by Course Group")
@@ -148,14 +148,14 @@ def run() -> str:
 
     survival_base = (
         besttrend
-        .dropna(subset=["CourseGroup", "PercentileBin"])
+        .dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"])
         .copy()
     )
     survival_base["IS_TOP_BIN"] = survival_base["PercentileBin"].isin(["B8", "B9", "B10"])
 
     survival = (
         survival_base
-        .groupby("CourseGroup", observed=True)
+        .groupby("UNDERGRAD_COURSE_GROUP", observed=True)
         .agg(
             total_examinees=("IS_TOP_BIN", "size"),
             top_decile_n=("IS_TOP_BIN", "sum"),
@@ -171,7 +171,7 @@ def run() -> str:
         ascending=[False, False],
     ).reset_index(drop=True)
 
-    lines.append("**Table: Survival to top bins (B8-B10) by CourseGroup**")
+    lines.append("**Table: Survival to top bins (B8-B10) by UNDERGRAD_COURSE_GROUP**")
     lines.append("")
     lines.append(survival.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")

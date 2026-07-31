@@ -73,17 +73,17 @@ def run() -> str:
     # ========== COURSE GROUP DISTRIBUTION ==========
     lines.append("## Course Group Composition")
     lines.append("")
-    course_dist = base["CourseGroup"].value_counts().rename_axis("CourseGroup").reset_index(name="Count")
+    course_dist = base["UNDERGRAD_COURSE_GROUP"].value_counts().rename_axis("UNDERGRAD_COURSE_GROUP").reset_index(name="Count")
     course_dist["Share (%)"] = (course_dist["Count"] / course_dist["Count"].sum() * 100).round(2)
     lines.append("**Figure 2 data — Course-group pie chart (best-record examinees)**")
     lines.append("")
     lines.append(course_dist.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
 
-    # ========== UNIVERSITY TYPE COMPOSITION ==========
+    # ========== UNDERGRAD_UNIVERSITY TYPE COMPOSITION ==========
     lines.append("## University Type Composition")
     lines.append("")
-    uni_dist = base["UNI_TYPE"].value_counts().rename_axis("UNI_TYPE").reset_index(name="Count")
+    uni_dist = base["UNDERGRAD_UNI_TYPE"].value_counts().rename_axis("UNDERGRAD_UNI_TYPE").reset_index(name="Count")
     uni_dist["Share (%)"] = (uni_dist["Count"] / uni_dist["Count"].sum() * 100).round(2)
     lines.append("**Figure 3 data — University-type pie chart (best-record examinees)**")
     lines.append("")
@@ -232,7 +232,7 @@ def run() -> str:
     lines.append("### Score Summary by University Type (besttrend)")
     lines.append("")
     uni_score_summary = (
-        base.groupby("UNI_TYPE", observed=True)[
+        base.groupby("UNDERGRAD_UNI_TYPE", observed=True)[
             ["TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
              "NMS_PER_num", "NMS_GPS", "NMS_APT", "NMS_SA"]
         ]
@@ -246,7 +246,7 @@ def run() -> str:
     lines.append("### Score Summary by Course Group (besttrend)")
     lines.append("")
     course_score_summary = (
-        base.groupby("CourseGroup", observed=True)[
+        base.groupby("UNDERGRAD_COURSE_GROUP", observed=True)[
             ["TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
              "NMS_PER_num", "NMS_GPS", "NMS_APT", "NMS_SA"]
         ]

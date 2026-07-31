@@ -4,26 +4,27 @@ Page 09 — Subtest Profiles
 Output: page_results/09_subtests.md
 
 Analyses:
-  1. Subtest standard score means by UNI_TYPE
-  2. Subtest standard score means by CourseGroup
-  3. Subtest raw score means by UNI_TYPE
-  4. Subtest raw score means by CourseGroup
+  1. Subtest standard score means by UNDERGRAD_UNI_TYPE
+  2. Subtest standard score means by UNDERGRAD_COURSE_GROUP
+  3. Subtest raw score means by UNDERGRAD_UNI_TYPE
+  4. Subtest raw score means by UNDERGRAD_COURSE_GROUP
   5. Radar profile data (standard scores centered for comparison)
   6. Full descriptive statistics table (n, mean, median, std, min, max for each subtest)
 
-Data subset: "uni" for UNI_TYPE analyses, "besttrend" for CourseGroup and descriptive stats
+Data subset: "uni" for UNDERGRAD_UNI_TYPE analyses, "besttrend" for UNDERGRAD_COURSE_GROUP and descriptive stats
 Filters: None (full unfiltered dataset)
 """
 import sys
+import os
 sys.path.append("data_aggregator")
 
 import numpy as np
 import pandas as pd
 
-from config import SUBTEST_STD, SUBTEST_RAW
+from config import SUBTEST_STD, SUBTEST_RAW, EXODUS_PARQUET, RESULTS_DIR
 from helpers import write_header, write_dataframe
 
-MD_PATH = "page_results/09_subtests.md"
+MD_PATH = RESULTS_DIR / "09_subtests.md"
 
 # ── Column lists ──────────────────────────────────────────────────────────
 STD_ORDER = [
@@ -36,7 +37,7 @@ RAW_ORDER = STD_ORDER  # same ordering
 def load_besttrend():
     """Load besttrend subset (best NMAT record, Year 2006-2018)."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus.parquet")
+    table = pq.read_table(EXODUS_PARQUET)
     df = table.to_pandas()
     del table
 
@@ -52,11 +53,11 @@ def load_besttrend():
 
 
 def load_uni_subset():
-    """Load uni subset (besttrend with UNI_TYPE in Public/Private/Foreign)."""
+    """Load uni subset (besttrend with UNDERGRAD_UNI_TYPE in Public/Private/Foreign)."""
     besttrend = load_besttrend()
-    mask = besttrend["UNI_TYPE"].isin(["Public", "Private", "Foreign"])
+    mask = besttrend["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])
     uni = besttrend.loc[mask].copy()
-    # Keep besttrend for CourseGroup and descriptive analyses
+    # Keep besttrend for UNDERGRAD_COURSE_GROUP and descriptive analyses
     return uni, besttrend
 
 
@@ -113,9 +114,9 @@ def descriptive_stats_table(df):
 
 
 def write_section_std_uni(f, uni_df):
-    """1. Subtest standard score means by UNI_TYPE."""
-    f.write("## 1. Subtest Standard Score Means by UNI_TYPE\n\n")
-    tbl = subtest_mean_table(uni_df, "UNI_TYPE", std=True)
+    """1. Subtest standard score means by UNDERGRAD_UNI_TYPE."""
+    f.write("## 1. Subtest Standard Score Means by UNDERGRAD_UNI_TYPE\n\n")
+    tbl = subtest_mean_table(uni_df, "UNDERGRAD_UNI_TYPE", std=True)
     if tbl.empty:
         f.write("*No standard score data available.*\n\n")
         return
@@ -128,9 +129,9 @@ def write_section_std_uni(f, uni_df):
 
 
 def write_section_raw_uni(f, uni_df):
-    """3. Subtest raw score means by UNI_TYPE."""
-    f.write("## 2. Subtest Raw Score Means by UNI_TYPE\n\n")
-    tbl = subtest_mean_table(uni_df, "UNI_TYPE", std=False)
+    """3. Subtest raw score means by UNDERGRAD_UNI_TYPE."""
+    f.write("## 2. Subtest Raw Score Means by UNDERGRAD_UNI_TYPE\n\n")
+    tbl = subtest_mean_table(uni_df, "UNDERGRAD_UNI_TYPE", std=False)
     if tbl.empty:
         f.write("*No raw score data available.*\n\n")
         return
@@ -142,9 +143,9 @@ def write_section_raw_uni(f, uni_df):
 
 
 def write_section_std_course(f, df):
-    """2. Subtest standard score means by CourseGroup."""
-    f.write("## 3. Subtest Standard Score Means by CourseGroup\n\n")
-    tbl = subtest_mean_table(df, "CourseGroup", std=True)
+    """2. Subtest standard score means by UNDERGRAD_COURSE_GROUP."""
+    f.write("## 3. Subtest Standard Score Means by UNDERGRAD_COURSE_GROUP\n\n")
+    tbl = subtest_mean_table(df, "UNDERGRAD_COURSE_GROUP", std=True)
     if tbl.empty:
         f.write("*No standard score data available.*\n\n")
         return
@@ -160,9 +161,9 @@ def write_section_std_course(f, df):
 
 
 def write_section_raw_course(f, df):
-    """4. Subtest raw score means by CourseGroup."""
-    f.write("## 4. Subtest Raw Score Means by CourseGroup\n\n")
-    tbl = subtest_mean_table(df, "CourseGroup", std=False)
+    """4. Subtest raw score means by UNDERGRAD_COURSE_GROUP."""
+    f.write("## 4. Subtest Raw Score Means by UNDERGRAD_COURSE_GROUP\n\n")
+    tbl = subtest_mean_table(df, "UNDERGRAD_COURSE_GROUP", std=False)
     if tbl.empty:
         f.write("*No raw score data available.*\n\n")
         return
@@ -178,27 +179,41 @@ def write_section_raw_course(f, df):
 
 
 def write_section_radar(f, uni_df, df):
-    """5. Radar profile data (standard scores centered for comparison)."""
-    f.write("## 5. Radar Profile Data (Standard Scores Centered for Comparison)\n\n")
+    """5. Radar profile data — the per-axis series behind the dashboard's radar chart.
 
-    # ── By UNI_TYPE ──
+    P9-01 fix: dashboard.py's radar_for_group() (dashboard.py:651-660) plots
+    subtest_mean_table(df, group_col, std=True) directly — the SAME raw, uncentered
+    standardized means as Table 34/36 — with no mean-centering. This script previously
+    mean-centered the values under the same "Table 38/39" label (e.g. Public/Verbal
+    495.13 in the dashboard vs 9.02 here), which silently gave one label two different
+    numbers. Table 38/39 below are therefore identical in value to Table 34/36; they are
+    kept as separate tables only because they are the literal radar-chart export
+    (Export Format Contract Rule 1: every chart's underlying data must be exported).
+    """
+    f.write("## 5. Radar Profile Data (Raw Standardized Subtest Means)\n\n")
+    f.write("*These are the exact values plotted on the dashboard's radar chart "
+            "(dashboard.py radar_for_group()) — raw standardized subtest means, "
+            "NOT mean-centered. Numerically identical to Table 34 (by university type) "
+            "and Table 36 (by course group); reproduced here as the radar chart's "
+            "per-axis series data per the export format contract.*\n\n")
+
+    # ── By UNDERGRAD_UNI_TYPE ──
     f.write("### 5.1 By University Type\n\n")
-    std_uni = subtest_mean_table(uni_df, "UNI_TYPE", std=True)
+    std_uni = subtest_mean_table(uni_df, "UNDERGRAD_UNI_TYPE", std=True)
     if std_uni.empty:
         f.write("*No data available.*\n\n")
     else:
         row_order = [u for u in ["Public", "Private", "Foreign"] if u in std_uni.index]
         if row_order:
             std_uni = std_uni.reindex(row_order)
-        centered_uni = radar_centered_table(std_uni)
-        f.write("**Table 38. Radar-profile values (centered standard scores) by university type**\n\n")
-        f.write("*Values are mean-centered within each subtest (overall mean subtracted). Negative values indicate below-average performance for that group on that subtest, positive values above-average.*\n\n")
-        write_dataframe(f, centered_uni.reset_index(), None)
+        f.write(f"**Table 38. Radar-profile values (raw standardized subtest means) by "
+                f"university type — population: uni subset, n={len(uni_df):,}**\n\n")
+        write_dataframe(f, std_uni.reset_index(), None)
     f.write("\n")
 
-    # ── By CourseGroup ──
+    # ── By UNDERGRAD_COURSE_GROUP ──
     f.write("### 5.2 By Course Group\n\n")
-    std_course = subtest_mean_table(df, "CourseGroup", std=True)
+    std_course = subtest_mean_table(df, "UNDERGRAD_COURSE_GROUP", std=True)
     if std_course.empty:
         f.write("*No data available.*\n\n")
     else:
@@ -209,10 +224,24 @@ def write_section_radar(f, uni_df, df):
         course_order = [c for c in course_order if c in std_course.index]
         if course_order:
             std_course = std_course.reindex(course_order)
+        f.write(f"**Table 39. Radar-profile values (raw standardized subtest means) by "
+                f"course group — population: besttrend subset, n={len(df):,}**\n\n")
+        write_dataframe(f, std_course.reset_index(), None)
+    f.write("\n")
+
+    # ── Mean-centered view, clearly relabeled as a distinct derived table ──
+    f.write("### 5.3 Mean-Centered View (aggregator-only, NOT in the dashboard)\n\n")
+    f.write("*Subtracts the overall per-subtest mean so groups can be compared on a "
+            "relative scale. This is a derived view with no dashboard counterpart and "
+            "no table-number collision with Table 38/39 above.*\n\n")
+    if not std_uni.empty:
+        centered_uni = radar_centered_table(std_uni)
+        write_dataframe(f, centered_uni.reset_index(),
+                        "Table 38c. Mean-centered standardized subtest scores by university type")
+    if not std_course.empty:
         centered_course = radar_centered_table(std_course)
-        f.write("**Table 39. Radar-profile values (centered standard scores) by course group**\n\n")
-        f.write("*Values are mean-centered within each subtest (overall mean subtracted). Negative values indicate below-average performance for that group on that subtest, positive values above-average.*\n\n")
-        write_dataframe(f, centered_course.reset_index(), None)
+        write_dataframe(f, centered_course.reset_index(),
+                        "Table 39c. Mean-centered standardized subtest scores by course group")
     f.write("---\n\n")
 
 
@@ -235,8 +264,9 @@ def run():
     print(f"  besttrend subset: {len(besttrend_df):,} records")
 
     print("[Page 09] Computing analyses...")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     with open(MD_PATH, "w", encoding="utf-8") as f:
-        write_header(f, "Page 09: Subtest Profiles", "uni (UNI_TYPE) / besttrend (CourseGroup, desc)", 9)
+        write_header(f, "Page 09: Subtest Profiles", "uni (UNDERGRAD_UNI_TYPE) / besttrend (UNDERGRAD_COURSE_GROUP, desc)", 9)
 
         write_section_std_uni(f, uni_df)
         write_section_raw_uni(f, uni_df)

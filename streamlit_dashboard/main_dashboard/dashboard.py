@@ -83,18 +83,21 @@ NUMERIC_COLS = [
     "PLE_YEAR_PASSED","PLE_YEAR_GAP","PLE_MATCH_CONFIDENCE"
 ]
 BOOL_COLS = [
-    "IS_PLE_PASSER","IS_PLE_ANALYSIS_SAFE","IS_BEST_NMAT_RECORD",
-    "HasCEMMatch","HasTRUErawScores","AllRawComponentsPresent",
+    "IS_PLE_PASSER","IS_BEST_NMAT_RECORD",
+    "HasTRUErawScores","StoredVsDerivedMismatch",
+    "IS_OBSERVABLE_COHORT","IS_BEST_OBSERVABLE_RECORD","PERSON_KEY_AMBIGUOUS",
 ]
 
 REQUIRED_PIPELINE_COLS = [
     "APPNO_CLEAN",
     "PERSON_KEY",
-    "UNI_TYPE",
-    "UNI_LOCATION",
-    "CourseGroup",
+    "UNDERGRAD_UNI_TYPE",
+    "UNDERGRAD_UNI_LOCATION",
+    "UNDERGRAD_COURSE_GROUP",
     "IS_BEST_NMAT_RECORD",
-    "IS_PLE_ANALYSIS_SAFE",
+    "IS_PLE_PASSER",
+    "IS_OBSERVABLE_COHORT",
+    "IS_BEST_OBSERVABLE_RECORD",
     "HasTRUErawScores",
     "PLE_MATCH_METHOD",
 ]
@@ -155,12 +158,6 @@ def classify_course(text: str) -> str:
     if any(k in text for k in edu):
         return "Education"
     return "Other"
-
-
-def derive_ple_status(row: pd.Series) -> str:
-    if row.get("IS_PLE_ANALYSIS_SAFE") == True:
-        return "Confirmed PLE passer"
-    return "No confirmed PLE match"
 
 
 def count_true_flags(series: pd.Series) -> int:
@@ -228,9 +225,9 @@ def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
             + ", ".join(missing_required)
         )
 
-    df["UNI_TYPE"] = df["UNI_TYPE"].fillna("Not Specified").astype(str).replace({"nan": "Not Specified"})
-    df["UNI_LOCATION"] = df["UNI_LOCATION"].fillna("Unknown")
-    df["CourseGroup"] = df["CourseGroup"].fillna("Unknown")
+    df["UNDERGRAD_UNI_TYPE"] = df["UNDERGRAD_UNI_TYPE"].fillna("Not Specified").astype(str).replace({"nan": "Not Specified"})
+    df["UNDERGRAD_UNI_LOCATION"] = df["UNDERGRAD_UNI_LOCATION"].fillna("Unknown")
+    df["UNDERGRAD_COURSE_GROUP"] = df["UNDERGRAD_COURSE_GROUP"].fillna("Unknown")
 
     if "SEX_CLEAN" not in df.columns:
         sex_source = None
@@ -245,21 +242,34 @@ def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
             df["SEX_CLEAN"] = s
         else:
             df["SEX_CLEAN"] = np.nan
+    # Same treatment as UNDERGRAD_UNI_TYPE/UNDERGRAD_COURSE_GROUP above: a missing/unmapped value
+    # must be its own visible category, not a silent NaN. Left as NaN, rows with no SEX drop out
+    # of every sidebar-filtered subset by construction (isin() never matches NaN), with no on-screen
+    # indication -- that previously undercounted every headline KPI by the null-SEX row count.
+    df["SEX_CLEAN"] = df["SEX_CLEAN"].fillna("(not specified)")
 
-    if "IS_BOARD_OBSERVABLE_COHORT" not in df.columns:
+    # IS_BOARD_OBSERVABLE_COHORT is an internal alias for the pipeline's IS_OBSERVABLE_COHORT
+    # (Year <= 2014). Kept as a separate name only so downstream code reads intent, not the
+    # raw column, at each call site.
+    if "IS_OBSERVABLE_COHORT" in df.columns:
+        df["IS_BOARD_OBSERVABLE_COHORT"] = df["IS_OBSERVABLE_COHORT"]
+    elif "IS_BOARD_OBSERVABLE_COHORT" not in df.columns:
         df["IS_BOARD_OBSERVABLE_COHORT"] = df["Year"].le(2014).fillna(False)
 
-    if "HAS_CONFIRMED_PLE" not in df.columns:
-        if "IS_PLE_ANALYSIS_SAFE" in df.columns:
-            df["HAS_CONFIRMED_PLE"] = (df["IS_PLE_ANALYSIS_SAFE"] == True).astype("boolean")
-        else:
-            df["HAS_CONFIRMED_PLE"] = pd.Series(pd.NA, index=df.index, dtype="boolean")
+    # HAS_CONFIRMED_PLE / PLE_STATUS_LABEL describe "found in the PLE passer source list",
+    # not "passed vs failed" -- the PLE source contains passers only, so the complement
+    # ("No confirmed PLE match") means "not linked to a passer record", never "failed".
+    # Any rate built from these two is a LINKAGE rate, not a pass rate (see IS_PLE_PASSER
+    # note in the "Read this first" panel).
+    if "IS_PLE_PASSER" in df.columns:
+        df["HAS_CONFIRMED_PLE"] = (df["IS_PLE_PASSER"] == True).astype("boolean")
+    else:
+        df["HAS_CONFIRMED_PLE"] = pd.Series(pd.NA, index=df.index, dtype="boolean")
 
-    if "PLE_STATUS_LABEL" not in df.columns:
-        if "IS_PLE_ANALYSIS_SAFE" in df.columns:
-            df["PLE_STATUS_LABEL"] = np.where(df["IS_PLE_ANALYSIS_SAFE"] == True, "Confirmed PLE passer", "No confirmed PLE match")
-        else:
-            df["PLE_STATUS_LABEL"] = "No confirmed PLE match"
+    if "IS_PLE_PASSER" in df.columns:
+        df["PLE_STATUS_LABEL"] = np.where(df["IS_PLE_PASSER"] == True, "Confirmed PLE passer", "No confirmed PLE match")
+    else:
+        df["PLE_STATUS_LABEL"] = "No confirmed PLE match"
     df["PLE_STATUS_LABEL"] = pd.Categorical(df["PLE_STATUS_LABEL"], categories=PLE_ORDER, ordered=True)
 
     return df
@@ -276,11 +286,23 @@ def load_data_and_subsets():
     dfbest = df[df["IS_BEST_NMAT_RECORD"] == True] if "IS_BEST_NMAT_RECORD" in df.columns else df
     dftrend = dfall[dfall["Year"].between(2006, 2018, inclusive="both")]
     dfbesttrend = dfbest[dfbest["Year"].between(2006, 2018, inclusive="both")]
-    dfbestobservable = dfbesttrend[dfbesttrend["IS_BOARD_OBSERVABLE_COHORT"] == True]
-    dfuni = dfbesttrend[dfbesttrend["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-    dfuniobservable = dfbestobservable[dfbestobservable["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-    dfplesafe = df[df["IS_PLE_ANALYSIS_SAFE"] == True] if "IS_PLE_ANALYSIS_SAFE" in df.columns else df.iloc[0:0]
-    dfplebest = dfplesafe[dfplesafe["IS_BEST_NMAT_RECORD"] == True] if not dfplesafe.empty else df.iloc[0:0]
+    # IMPORTANT: the observable cohort is NOT "best-record & Year<=2014" (dfbesttrend filtered
+    # by year). A person's single global-best NMAT attempt (IS_BEST_NMAT_RECORD) can fall in a
+    # later, non-observable year even if they also sat (and could have been linked) within the
+    # observable window -- that naive filter silently drops thousands of people and inflates
+    # the linkage rate. IS_BEST_OBSERVABLE_RECORD is the person's best attempt *within* Year<=2014
+    # and is the only correct cohort for person-level PLE-linked analysis.
+    if "IS_BEST_OBSERVABLE_RECORD" in df.columns:
+        dfbestobservable = df[df["IS_BEST_OBSERVABLE_RECORD"] == True]
+    else:
+        dfbestobservable = dfbesttrend[dfbesttrend["IS_BOARD_OBSERVABLE_COHORT"] == True]
+    dfuni = dfbesttrend[dfbesttrend["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+    dfuniobservable = dfbestobservable[dfbestobservable["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+    # "PLE passer" rows/persons -- IS_PLE_PASSER is the sole authoritative passer flag.
+    # Renamed from the old plesafe/plebest subsets, which were built from the now-removed passer
+    # flag that was a byte-identical duplicate of IS_PLE_PASSER.
+    dfplepasser = df[df["IS_PLE_PASSER"] == True] if "IS_PLE_PASSER" in df.columns else df.iloc[0:0]
+    dfplepasserbest = dfplepasser[dfplepasser["IS_BEST_NMAT_RECORD"] == True] if not dfplepasser.empty else df.iloc[0:0]
 
     subsets = {
         "all": dfall,
@@ -290,8 +312,8 @@ def load_data_and_subsets():
         "bestobservable": dfbestobservable,
         "uni": dfuni,
         "uniobservable": dfuniobservable,
-        "plesafe": dfplesafe,
-        "plebest": dfplebest,
+        "plepasser": dfplepasser,
+        "plepasserbest": dfplepasserbest,
     }
     return df, subsets, str(path)
 
@@ -307,10 +329,10 @@ def filter_df(
     mask = np.ones(len(df), dtype=bool)
     if years is not None and len(years) > 0 and "Year" in df.columns:
         mask &= df["Year"].isin(years).to_numpy()
-    if unitypes is not None and len(unitypes) > 0 and "UNI_TYPE" in df.columns:
-        mask &= df["UNI_TYPE"].isin(unitypes).to_numpy()
-    if courses is not None and len(courses) > 0 and "CourseGroup" in df.columns:
-        mask &= df["CourseGroup"].isin(courses).to_numpy()
+    if unitypes is not None and len(unitypes) > 0 and "UNDERGRAD_UNI_TYPE" in df.columns:
+        mask &= df["UNDERGRAD_UNI_TYPE"].isin(unitypes).to_numpy()
+    if courses is not None and len(courses) > 0 and "UNDERGRAD_COURSE_GROUP" in df.columns:
+        mask &= df["UNDERGRAD_COURSE_GROUP"].isin(courses).to_numpy()
     if sexes is not None and len(sexes) > 0 and "SEX_CLEAN" in df.columns:
         mask &= df["SEX_CLEAN"].isin(sexes).to_numpy()
     if ple_status is not None and len(ple_status) > 0 and "PLE_STATUS_LABEL" in df.columns:
@@ -513,7 +535,7 @@ def mann_whitney_ple(df: pd.DataFrame, cols: dict):
 
 
 def chi_square_unitype_bin(df: pd.DataFrame):
-    tmp = pd.crosstab(df["UNI_TYPE"], df["PercentileBin"]).reindex(columns=BIN_ORDER, fill_value=0)
+    tmp = pd.crosstab(df["UNDERGRAD_UNI_TYPE"], df["PercentileBin"]).reindex(columns=BIN_ORDER, fill_value=0)
     chi2, p, dof, expected = stats.chi2_contingency(tmp.values)
     n = tmp.values.sum()
     r, c = tmp.shape
@@ -553,7 +575,7 @@ def get_yearly_summary(df: pd.DataFrame):
     return out.round(2)
 
 
-def make_trends_figure(summary: pd.DataFrame):
+def make_trends_figure(summary: pd.DataFrame, sittings_by_year: pd.Series = None):
     fig = make_subplots(
         rows=2,
         cols=2,
@@ -561,7 +583,7 @@ def make_trends_figure(summary: pd.DataFrame):
             "Median TRUE Raw Score (with IQR)",
             "Median Part I vs Part II Raw Score",
             "Median Percentile Rank (with IQR)",
-            "Examinee Count by Year",
+            "Examinees (best-record) vs. Total Sittings by Year",
         ),
     )
 
@@ -576,7 +598,13 @@ def make_trends_figure(summary: pd.DataFrame):
     fig.add_trace(go.Scatter(x=summary["Year"], y=summary["per_q25"], mode="lines", fill="tonexty", fillcolor="rgba(255,127,14,0.22)", line=dict(color="lightsalmon"), name="Percentile IQR"), 2, 1)
     fig.add_trace(go.Scatter(x=summary["Year"], y=summary["per_median"], mode="lines+markers", name="Median percentile", line=dict(color="#d62728", width=3)), 2, 1)
 
-    fig.add_trace(go.Bar(x=summary["Year"], y=summary["n"], name="Examinees"), 2, 2)
+    fig.add_trace(go.Bar(x=summary["Year"], y=summary["n"], name="Examinees (best-record)"), 2, 2)
+    if sittings_by_year is not None:
+        fig.add_trace(
+            go.Bar(x=sittings_by_year.index, y=sittings_by_year.values, name="Total sittings (all attempts)"),
+            2, 2,
+        )
+        fig.update_layout(barmode="group")
 
     fig.update_layout(height=760, hovermode="x unified")
     fig.update_xaxes(title_text="Year")
@@ -654,6 +682,18 @@ def radar_for_group(df: pd.DataFrame, group_col: str):
 # -----------------------------------------------------------------------------
 df_raw, subsets, data_path = load_data_and_subsets()
 
+# Schema-drift sanity check: the pipeline regenerates this parquet in place, so a silent shape
+# change (upstream bug, wrong file picked up, partial write) would otherwise show up only as
+# subtly wrong numbers deep in a tab. Make it loud instead.
+EXPECTED_ROWS = 178_927
+EXPECTED_COLS = 53
+if len(df_raw) != EXPECTED_ROWS or len(df_raw.columns) != EXPECTED_COLS:
+    st.warning(
+        f"Schema drift detected: loaded {len(df_raw):,} rows x {len(df_raw.columns)} columns from "
+        f"`{data_path}`, expected {EXPECTED_ROWS:,} rows x {EXPECTED_COLS} columns. Figures on this "
+        "page may not match prior documentation until this is investigated."
+    )
+
 dfbesttrend = subsets["besttrend"]
 dfbestobservable = subsets["bestobservable"]
 
@@ -667,8 +707,8 @@ _PC_LOOKUP_AVAILABLE = True
 st.sidebar.subheader("Global filters")
 
 year_options = sorted([int(x) for x in dfbesttrend["Year"].dropna().unique()])
-unitype_options = sorted(dfbesttrend["UNI_TYPE"].dropna().astype(str).unique().tolist())
-course_options = sorted(dfbesttrend["CourseGroup"].dropna().astype(str).unique().tolist())
+unitype_options = sorted(dfbesttrend["UNDERGRAD_UNI_TYPE"].dropna().astype(str).unique().tolist())
+course_options = sorted(dfbesttrend["UNDERGRAD_COURSE_GROUP"].dropna().astype(str).unique().tolist())
 sex_options = sorted([x for x in dfbesttrend["SEX_CLEAN"].dropna().astype(str).unique().tolist() if x])
 
 selected_years = st.sidebar.multiselect("Year", year_options, default=year_options)
@@ -711,15 +751,38 @@ _uniobs_pc = F["uniobservable"].copy()
 # HEADER
 # -----------------------------------------------------------------------------
 st.title("NMAT Performance Dashboard, 2006-2018")
-st.caption("Descriptive, trend-based, and policy-oriented summaries based on the cleaned NMAT_Exodus pipeline (enriched by Pipeline 4). Person-level views use the best NMAT record per examinee where appropriate, while PLE-linked pages use the observable cohort only.")
+st.caption("Descriptive, trend-based, and policy-oriented summaries based on the cleaned NMAT_Exodus pipeline. Person-level views use one best NMAT record per examinee; PLE-linked person-level pages use the observable cohort (Year <= 2014).")
 
-with st.expander("Read this first: how to interpret the dashboard", expanded=False):
+with st.expander("Read this first: how to interpret the dashboard", expanded=True):
     st.markdown(
         """
-- Best-record pages show one NMAT record per examinee.
-- Trend pages cover NMAT years 2006-2018.
-- PLE-linked pages use the observable cohort only.
-- Confirmed PLE outcomes refer to IS_PLE_ANALYSIS_SAFE == True.
+**People vs. sittings.** Every applicant can sit the NMAT more than once (25% do). "Best-record" pages
+collapse this to one row per person (`IS_BEST_NMAT_RECORD`, the person's highest-percentile / latest-year /
+lowest-appno-tiebreak attempt) — use these for "how many examinees" questions. Pages that instead need every
+attempt (e.g. Repeat Takers) use the full, non-deduplicated rows — this is stated in each page's caption.
+
+**The observable cohort.** The PLE source list can only contain people who have *already* passed by the time
+the data was collected. Examinees from Year > 2014 have not had enough time to plausibly appear in it, so
+comparing them to earlier years as if they "failed" is a recency artifact, not a real outcome. `IS_OBSERVABLE_COHORT`
+(Year <= 2014) restricts a page to years old enough to be fairly judged. For **person-level** PLE-linked pages
+the correct cohort is `IS_BEST_OBSERVABLE_RECORD` — a person's best attempt *within* that window — which is
+**not** the same as "this person's overall best attempt happens to fall before 2015" (that narrower, incorrect
+filter silently drops people whose single best sitting came later even though they also sat, and could have
+linked, within the observable window).
+
+**Linkage rate, not pass rate.** The PLE source used to build `IS_PLE_PASSER` contains **passers only** — there
+is no fail list anywhere in this pipeline. So "No confirmed PLE match" means *not found in the passer list*,
+which can mean they failed, haven't sat the boards yet, sat after this data's coverage window, or were missed
+by the deterministic matcher — never only "failed." Every percentage built from `IS_PLE_PASSER` in this
+dashboard is therefore a **linkage rate**, not a licensure pass rate, and is labeled that way throughout.
+
+**Percentile bins.** `B1` is the **lowest** decile (percentile 0-9); `B10` is the **highest** (90-99). Bins are
+always ordered B1 -> B10 on every chart and table in this app.
+
+**Undergraduate institution, not medical school.** `UNDERGRAD_UNIVERSITY` / `UNDERGRAD_UNI_TYPE` /
+`UNDERGRAD_UNI_LOCATION` record where the examinee earned their **bachelor's degree**, sat *before* the NMAT.
+No column in this dataset identifies the medical school the examinee later attended, so nothing here can be
+read as a statement about any medical school's teaching quality or licensure-exam performance.
         """
     )
 
@@ -752,22 +815,26 @@ with tab1:
     st.subheader("Executive Summary")
     st.caption("High-level summary of examinee volume, score levels, composition, and observable PLE alignment using the filtered best-record cohort.")
 
+    # Exactly one examinee-count KPI: IS_BEST_NMAT_RECORD is one row per PERSON_KEY system-wide,
+    # so len(base) == base['PERSON_KEY'].nunique() by construction -- do not show both as if they
+    # could disagree (that was the old F10 defect; the old two-KPI framing implied they might not).
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Best-record examinees", f"{len(base):,}", help="Number of best-record rows in the current filtered trend cohort.")
+    col1.metric("Examinees (best-record)", f"{len(base):,}", help="One row per unique PERSON_KEY: the person's single best NMAT attempt under the current filters.")
     col2.metric("Years covered", f"{base['Year'].nunique():,}", help="Distinct NMAT years represented after filters are applied.")
     col3.metric("Median TRUE raw score", f"{base['TotalRawScoreTRUE'].median():.1f}", help="Median of TotalRawScoreTRUE in the filtered best-record trend cohort.")
     col4.metric("Median percentile rank", f"{base['NMS_PER_num'].median():.1f}", help="Median of NMS_PER_num in the filtered best-record trend cohort.")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Unique examinees", f"{base['PERSON_KEY'].nunique():,}", help="Unique PERSON_KEY count in the current filtered trend cohort.")
-    col2.metric("Repeat takers", f"{(F['trend'].groupby('PERSON_KEY')['APPNO_CLEAN'].nunique() > 1).sum():,}", help="Repeat takers come from multiple NMAT applications linked to the same PERSON_KEY.")
-    col3.metric("Observable cohort size", f"{len(observable):,}", help="Best-record rows with Year <= 2014, used for fair PLE-linked descriptive summaries.")
-    col4.metric("Confirmed PLE share in observable cohort", f"{observable['HAS_CONFIRMED_PLE'].mean() * 100:.2f}%", help="Confirmed PLE outcomes are based on the pipeline field IS_PLE_ANALYSIS_SAFE == True.")
+    _repeat_n = (F['trend'].groupby('PERSON_KEY')['APPNO_CLEAN'].nunique() > 1).sum()
+    col1.metric("Repeat takers", f"{_repeat_n:,}", help="People with more than one distinct NMAT application (APPNO_CLEAN) linked to the same PERSON_KEY, counted over all sittings, not the best-record cohort.")
+    col2.metric("Repeat-taker share", f"{_repeat_n / base['PERSON_KEY'].nunique() * 100:.1f}%" if base['PERSON_KEY'].nunique() else "N/A", help="Repeat takers as a share of examinees in this KPI row's cohort.")
+    col3.metric("Observable cohort (IS_BEST_OBSERVABLE_RECORD)", f"{len(observable):,}", help="One row per person: their best attempt among sittings with Year <= 2014. Used for all person-level PLE-linked pages.")
+    col4.metric("PLE linkage rate, observable cohort", f"{observable['HAS_CONFIRMED_PLE'].mean() * 100:.2f}%", help="Share of the observable cohort found in the PLE passer source list (IS_PLE_PASSER). This is a LINKAGE rate, not a pass rate -- see 'Read this first' above.")
 
     st.markdown("""
     📚 **Course Group Distribution**
 
-    Course groups are sourced directly from the cleaned pipeline output (`CourseGroup`):
+    Course groups are sourced directly from the cleaned pipeline output (`UNDERGRAD_COURSE_GROUP`):
 
     - **Medical & Allied**: Medical, Nursing, Pharmacy, Health-related
     - **Natural Sciences**: Biology, Physics, Chemistry, Natural Sciences
@@ -781,23 +848,28 @@ with tab1:
 
     with exec_tab1:
         st.markdown("**Figure 1. Annual NMAT score and volume profile**")
-        st.caption("This figure combines median TRUE raw score, Part I and Part II medians, median percentile rank, and examinee count by year. Use it to see whether performance and testing volume moved together or in opposite directions over time.")
+        st.caption(
+            "Score panels (raw, Part I/II, percentile) use the best-record cohort: one attempt per person. "
+            "The volume panel shows best-record examinees alongside total sittings (all attempts, undeduped) "
+            "because a repeat taker's earlier attempts are otherwise invisible in the year they occurred."
+        )
         summary = get_yearly_summary(base)
-        st.plotly_chart(make_trends_figure(summary), use_container_width=True, key="fig_t1_trends")
+        _sittings_by_year = F["trend"].groupby("Year", observed=True)["APPNO_CLEAN"].count()
+        st.plotly_chart(make_trends_figure(summary, _sittings_by_year), use_container_width=True, key="fig_t1_trends")
 
     with exec_tab2:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**Figure 2. Course-group composition of best-record examinees**")
             st.caption("Values are counts of filtered best-record examinees by category.")
-            course_dist = base["CourseGroup"].value_counts().rename_axis("CourseGroup").reset_index(name="Count")
-            fig = px.pie(course_dist, names="CourseGroup", values="Count")
+            course_dist = base["UNDERGRAD_COURSE_GROUP"].value_counts().rename_axis("UNDERGRAD_COURSE_GROUP").reset_index(name="Count")
+            fig = px.pie(course_dist, names="UNDERGRAD_COURSE_GROUP", values="Count")
             st.plotly_chart(fig, use_container_width=True, key="fig_t1_course_pie")
         with c2:
             st.markdown("**Figure 3. University-type composition of best-record examinees**")
             st.caption("Percent shares refer to the current filtered cohort only.")
-            uni_dist = base["UNI_TYPE"].value_counts().rename_axis("UNI_TYPE").reset_index(name="Count")
-            fig = px.pie(uni_dist, names="UNI_TYPE", values="Count")
+            uni_dist = base["UNDERGRAD_UNI_TYPE"].value_counts().rename_axis("UNDERGRAD_UNI_TYPE").reset_index(name="Count")
+            fig = px.pie(uni_dist, names="UNDERGRAD_UNI_TYPE", values="Count")
             st.plotly_chart(fig, use_container_width=True, key="fig_t1_uni_pie")
 
     with exec_tab3:
@@ -834,138 +906,144 @@ with tab2:
     df = F["all"]
     best_filtered = F["best"]
     best_observable_filtered = F["bestobservable"]
-    plesafe_filtered = F["plesafe"]
-    plebest_filtered = F["plebest"]
+    plepasser_filtered = F["plepasser"]
+    plepasserbest_filtered = F["plepasserbest"]
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("All NMAT rows", f"{len(df):,}", help="All cleaned NMAT_Exodus rows that are loaded into the app.")
     col2.metric("Best-record rows", f"{len(best_filtered):,}", help="Number of best-record rows in the pipeline (one per examinee after best-record flag applied).")
     col3.metric("Rows with TRUE raw scores", f"{int((df['HasTRUErawScores'] == True).sum()):,}", help="Rows where HasTRUErawScores == True.")
-    col4.metric("Observable best-record rows", f"{len(best_observable_filtered):,}", help="Best-record rows with Year <= 2014, used for fair PLE-linked descriptive summaries.")
+    col4.metric("Observable best-record rows (IS_BEST_OBSERVABLE_RECORD)", f"{len(best_observable_filtered):,}", help="One row per person: their best NMAT attempt among sittings with Year <= 2014. This is the only correct person-level PLE-linked cohort -- it is NOT the same as 'best-record & Year<=2014' (see caption below).")
 
     st.subheader("Table 2. Analysis cohorts used in the dashboard")
-    st.caption("Each row defines one analytic subset used in later pages. Counts should be interpreted as rows, not necessarily unique persons, unless explicitly stated otherwise.")
+    st.caption(
+        "Each row defines one analytic subset used in later pages. Counts should be interpreted as rows, "
+        "not necessarily unique persons, unless explicitly stated otherwise. 'Best-record rows in the "
+        "observable PLE window' uses IS_BEST_OBSERVABLE_RECORD (the person's best attempt *within* "
+        "Year<=2014), not the person's overall best attempt filtered to Year<=2014 -- the latter drops "
+        "people whose single best NMAT sitting happened after 2014 even though they also sat, and could "
+        "have been linked, within the observable window."
+    )
     cohort_tbl = pd.DataFrame({
         "Analytic subset": [
             "All cleaned NMAT rows",
             "One best NMAT record per person",
             "Best-record rows within 2006-2018",
             "Best-record rows in the observable PLE window",
-            "Confirmed PLE-matched NMAT rows",
-            "Confirmed PLE-matched best-record persons",
+            "Confirmed PLE-passer NMAT rows",
+            "Confirmed PLE-passer best-record persons",
         ],
         "Row count": [
             len(F["all"]),
             len(F["best"]),
             len(F["besttrend"]),
             len(F["bestobservable"]),
-            len(plesafe_filtered),
-            len(plebest_filtered),
+            len(plepasser_filtered),
+            len(plepasserbest_filtered),
         ],
         "Interpretation": [
-            "All cleaned NMAT rows",
-            "One best NMAT record per person",
-            "Best-record rows within 2006-2018",
-            "Best-record rows in the observable PLE window",
-            "Confirmed PLE-matched NMAT rows",
-            "Confirmed PLE-matched best-record persons",
+            "Every cleaned NMAT sitting, any year, all applicants.",
+            "One row per unique PERSON_KEY -- their single best NMAT attempt (highest percentile, latest year, lowest APPNO_CLEAN tiebreak).",
+            "Best-record rows restricted to NMAT years 2006-2018 (the trend window).",
+            "One row per person: their best attempt among sittings with Year <= 2014 (IS_BEST_OBSERVABLE_RECORD) -- the correct PLE-linked person-level cohort.",
+            "All rows (any year) flagged IS_PLE_PASSER == True -- found in the PLE passer source list. This is a linkage flag, not evidence of failure for the rest.",
+            "Rows above further restricted to IS_BEST_NMAT_RECORD == True (one row per passer).",
         ],
     })
     st.dataframe(cohort_tbl, use_container_width=True)
 
     st.subheader("Table 3. TRUE raw-score validation checks")
-    st.caption("These checks confirm whether TRUE total raw score is internally consistent with its Part I and Part II components, and whether stored or calculated mismatch flags remain zero.")
+    st.caption("These checks confirm whether TRUE total raw score is internally consistent with its Part I and Part II components, and whether the stored-vs-derived mismatch flag remains zero.")
     eq_mask = df[["TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE"]].notna().all(axis=1)
     mismatch = (df.loc[eq_mask, "TotalRawScoreTRUE"] - df.loc[eq_mask, "PartIRawScoreTRUE"] - df.loc[eq_mask, "PartIIRawScoreTRUE"]).round(6) != 0
+    _stored_nonnull = df["StoredRawTotal"].notna() if "StoredRawTotal" in df.columns else pd.Series(dtype=bool)
+    _mismatch_flag_n = count_true_flags(df["StoredVsDerivedMismatch"]) if "StoredVsDerivedMismatch" in df.columns else 0
+    _mismatch_rate_pct = (_mismatch_flag_n / _stored_nonnull.sum() * 100) if _stored_nonnull.sum() > 0 else float("nan")
     raw_tbl = pd.DataFrame({
         "Validation check": [
             "Rows with complete Total + Part I + Part II",
             "Formula mismatches: Total != Part I + Part II",
-            "Stored-vs-derived mismatch flag count",
-            "Calc-vs-derived mismatch flag count",
+            "Rows with a stored raw total (StoredRawTotal notna)",
+            "Stored-vs-derived mismatch flag count (of rows with a stored total)",
         ],
         "Count of rows": [
             int(eq_mask.sum()),
             int(mismatch.sum()),
-            count_true_flags(df["StoredVsDerivedMismatch"]) if "StoredVsDerivedMismatch" in df.columns else 0,
-            count_true_flags(df["CalcVsDerivedMismatch"]) if "CalcVsDerivedMismatch" in df.columns else 0,
+            int(_stored_nonnull.sum()),
+            int(_mismatch_flag_n),
         ],
     })
     st.dataframe(raw_tbl, use_container_width=True)
+    st.metric("Stored-vs-derived mismatch rate (of rows with a stored total)", f"{_mismatch_rate_pct:.2f}%" if pd.notna(_mismatch_rate_pct) else "N/A")
+    st.caption("Reference: 56,065 of the 99,316 rows carrying a stored total disagree with the recalculated TotalRawScoreTRUE (56.45% of that denominator, 31.33% of all rows) in the unfiltered dataset. Never state this as \"42.2%\" -- that figure divided the mismatch count by the wrong (unique-examinee) denominator.")
 
-    st.subheader("Table 4. Post-cleaning UNI_TYPE consistency by source college")
-    st.caption("Each row summarizes how one normalized source college name maps to the cleaned UNI_TYPE field. Any college with more than one mapped type should be reviewed.")
-    if "NMA_College" in df.columns:
-        integrity_base = df[["NMA_College", "UNI_TYPE"]].copy()
-        integrity_base["NMA_College_norm"] = (
-            integrity_base["NMA_College"]
-            .astype("string")
-            .str.strip()
-            .str.upper()
-        )
-
-        college_check = (
-            integrity_base.dropna(subset=["NMA_College_norm"])
-            .groupby("NMA_College_norm", observed=True)
+    st.subheader("Table 4. UNDERGRAD_UNIVERSITY to UNDERGRAD_UNI_TYPE / UNDERGRAD_UNI_LOCATION pairing audit")
+    st.caption("Checks whether each standardized undergraduate-university name maps consistently to one university type and one location in the cleaned pipeline. This describes the examinee's undergraduate (pre-NMAT) institution, not a medical school.")
+    if "UNDERGRAD_UNIVERSITY" in df.columns:
+        university_pairing = (
+            df[["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]]
+            .dropna(subset=["UNDERGRAD_UNIVERSITY"])
+            .groupby("UNDERGRAD_UNIVERSITY", observed=True)
             .agg(
-                records=("UNI_TYPE", "size"),
-                n_types=("UNI_TYPE", "nunique"),
-                mapped_types=("UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
+                records=("UNDERGRAD_UNI_TYPE", "size"),
+                n_uni_types=("UNDERGRAD_UNI_TYPE", "nunique"),
+                n_locations=("UNDERGRAD_UNI_LOCATION", "nunique"),
+                uni_types=("UNDERGRAD_UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x))))),
+                locations=("UNDERGRAD_UNI_LOCATION", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
             )
             .reset_index()
-            .sort_values(["n_types", "records"], ascending=[False, False])
+            .sort_values(["n_uni_types", "n_locations", "records"], ascending=[False, False, False])
         )
-        inconsistent = college_check[college_check["n_types"] > 1]
+        pairing_conflicts = university_pairing[
+            (university_pairing["n_uni_types"] > 1) | (university_pairing["n_locations"] > 1)
+        ]
 
-        if "UNIVERSITY" in df.columns:
-            university_pairing = (
-                df[["UNIVERSITY", "UNI_TYPE", "UNI_LOCATION"]]
-                .dropna(subset=["UNIVERSITY"])
-                .groupby("UNIVERSITY", observed=True)
-                .agg(
-                    records=("UNI_TYPE", "size"),
-                    n_uni_types=("UNI_TYPE", "nunique"),
-                    n_locations=("UNI_LOCATION", "nunique"),
-                    uni_types=("UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x))))),
-                    locations=("UNI_LOCATION", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
-                )
-                .reset_index()
-                .sort_values(["n_uni_types", "n_locations", "records"], ascending=[False, False, False])
-            )
-            pairing_conflicts = university_pairing[
-                (university_pairing["n_uni_types"] > 1) | (university_pairing["n_locations"] > 1)
-            ]
-        else:
-            university_pairing = pd.DataFrame()
-            pairing_conflicts = pd.DataFrame()
-
-        c1, c2 = st.columns(2)
-        c1.metric("Colleges checked", f"{college_check.shape[0]:,}")
-        c2.metric("Colleges with >1 type", f"{inconsistent.shape[0]:,}")
-        st.dataframe(inconsistent.head(100), use_container_width=True)
-
-        if "UNIVERSITY" in df.columns:
-            c3, c4 = st.columns(2)
-            c3.metric("Universities checked", f"{university_pairing.shape[0]:,}")
-            c4.metric("University pairing conflicts", f"{pairing_conflicts.shape[0]:,}")
-            with st.expander("Table 5. UNIVERSITY to UNI_TYPE and UNI_LOCATION pairing audit", expanded=False):
-                st.caption("This table checks whether each standardized university name maps consistently to one university type and one location in the cleaned pipeline.")
-                st.dataframe(pairing_conflicts.head(200), use_container_width=True)
+        c3, c4 = st.columns(2)
+        c3.metric("Universities checked", f"{university_pairing.shape[0]:,}")
+        c4.metric("University pairing conflicts", f"{pairing_conflicts.shape[0]:,}")
+        with st.expander("University-level pairing conflicts (detail)", expanded=False):
+            st.caption("This table checks whether each standardized university name maps consistently to one university type and one location in the cleaned pipeline.")
+            st.dataframe(pairing_conflicts.head(200), use_container_width=True)
     else:
-        st.info("NMACollege is not available in the dataset.")
+        st.info("UNDERGRAD_UNIVERSITY is not available in the dataset.")
 
     st.subheader("Core distributions")
     st.caption("Values are row counts under the current filters.")
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("**Table 6. Distribution of university type in the filtered rows**")
-        st.dataframe(df["UNI_TYPE"].value_counts(dropna=False).rename_axis("UNI_TYPE").reset_index(name="Count"), use_container_width=True)
+        st.dataframe(df["UNDERGRAD_UNI_TYPE"].value_counts(dropna=False).rename_axis("UNDERGRAD_UNI_TYPE").reset_index(name="Count"), use_container_width=True)
     with c2:
         st.markdown("**Table 7. Distribution of course group in the filtered rows**")
-        st.dataframe(df["CourseGroup"].value_counts(dropna=False).rename_axis("CourseGroup").reset_index(name="Count"), use_container_width=True)
+        st.dataframe(df["UNDERGRAD_COURSE_GROUP"].value_counts(dropna=False).rename_axis("UNDERGRAD_COURSE_GROUP").reset_index(name="Count"), use_container_width=True)
     with c3:
-        st.markdown("**Table 8. Distribution of PLE status label in the filtered rows**")
-        st.dataframe(df["PLE_STATUS_LABEL"].value_counts(dropna=False).rename_axis("PLE_STATUS_LABEL").reset_index(name="Count"), use_container_width=True)
+        st.markdown("**Table 8. Distribution of PLE status label, observable cohort only**")
+        st.caption(
+            "Restricted to IS_OBSERVABLE_COHORT (Year <= 2014). Rows from later years are structurally "
+            "too recent to have a confirmed PLE outcome yet, so including them here would inflate the "
+            "apparent 'no match' share as a recency artifact rather than a real linkage gap."
+        )
+        _obs_status = df[df["IS_BOARD_OBSERVABLE_COHORT"] == True]
+        st.dataframe(_obs_status["PLE_STATUS_LABEL"].value_counts(dropna=False).rename_axis("PLE_STATUS_LABEL").reset_index(name="Count"), use_container_width=True)
+        _non_obs_n = int((df["IS_BOARD_OBSERVABLE_COHORT"] == False).sum())
+        _non_obs_pct = (_non_obs_n / len(df) * 100) if len(df) else 0.0
+        st.caption(f"{_non_obs_n:,} of {len(df):,} filtered rows ({_non_obs_pct:.1f}%) are Year > 2014 and excluded from this table for that reason.")
+
+    if "PLE_MATCH_OUTCOME" in df.columns:
+        st.subheader("Table 9. PLE match-outcome breakdown")
+        st.caption(
+            "IS_PLE_PASSER (the sole authoritative passer flag) is True only for PLE_MATCH_OUTCOME == "
+            "'accepted'. This table shows why the rest were not counted, instead of silently collapsing "
+            "them into one 'no match' figure: 'no_match' means no name/appno candidate was found at all; "
+            "'rejected_ambiguous_person' means a candidate was found but the person-key match could not "
+            "be disambiguated with confidence; a small residual 'rejected' bucket covers other rejections."
+        )
+        _outcome_tbl = df["PLE_MATCH_OUTCOME"].value_counts(dropna=False).rename_axis("PLE_MATCH_OUTCOME").reset_index(name="Count")
+        _outcome_tbl["Percent"] = (_outcome_tbl["Count"] / _outcome_tbl["Count"].sum() * 100).round(2)
+        st.dataframe(_outcome_tbl, use_container_width=True, hide_index=True)
+        if "PLE_YEAR_UNCERTAIN" in df.columns:
+            _yr_uncertain_n = count_true_flags(df["PLE_YEAR_UNCERTAIN"])
+            st.caption(f"Additionally, {_yr_uncertain_n:,} confirmed passers have PLE_YEAR_UNCERTAIN == True: they are counted in IS_PLE_PASSER, but the specific year they passed could not be disambiguated (affects PLE_YEAR_GAP-based analyses, not the passer count itself).")
 
 # -----------------------------------------------------------------------------
 # TAB 3
@@ -977,8 +1055,15 @@ with tab3:
     summary = get_yearly_summary(df)
 
     st.markdown("**Figure 4. Annual score trends and examinee volume**")
-    st.caption("Panels show the median TRUE raw score with interquartile range, median Part I and Part II raw scores, median percentile rank with interquartile range, and examinee count by year.")
-    st.plotly_chart(make_trends_figure(summary), use_container_width=True, key="fig_t3_trends")
+    st.caption(
+        "Score panels use the best-record cohort (one attempt per person). The volume panel shows both "
+        "best-record examinees and total sittings (all attempts) side by side, since best-record volume "
+        "alone under-represents mid-decade years (60-69% of true sittings) and over-represents 2017 "
+        "(92.6%) -- a non-uniform pattern that can misread as a volume dip/surge if shown alone. "
+        "The score/boxplot panels below inherit the same best-record-per-year composition caveat."
+    )
+    _sittings_by_year_t3 = F["trend"].groupby("Year", observed=True)["APPNO_CLEAN"].count()
+    st.plotly_chart(make_trends_figure(summary, _sittings_by_year_t3), use_container_width=True, key="fig_t3_trends")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -1059,8 +1144,8 @@ with tab4:
 
     with dec_tab2:
         st.caption("Insight: Compare which university types are overrepresented in higher bins.")
-        _, uni_pct = pct_table(dfuni, "UNI_TYPE", "PercentileBin", BIN_ORDER)
-        uni_pct.index.name = "UNI_TYPE"
+        _, uni_pct = pct_table(dfuni, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
+        uni_pct.index.name = "UNDERGRAD_UNI_TYPE"
         st.markdown("**Figure 8. Percentile-bin distribution by university type**")
         st.caption("Heatmap values are within-type percentages.")
         st.plotly_chart(make_heatmap(uni_pct, "Bin Distribution by University Type", "Bin", "University type"), use_container_width=True, key="fig_t4_heatmap_uni")
@@ -1070,7 +1155,7 @@ with tab4:
         st.caption("The bar chart highlights representation in the top three bins (B8-B10) by university type.")
         st.plotly_chart(make_top_share_bar(top_uni, "Top Bin Share by University Type", "Percent in B8-B10", "University type", PALETTE_UNI), use_container_width=True, key="fig_t4_top_uni")
 
-        contingency, expected, chi_summary = chi_square_unitype_bin(dfuni.dropna(subset=["UNI_TYPE", "PercentileBin"]))
+        contingency, expected, chi_summary = chi_square_unitype_bin(dfuni.dropna(subset=["UNDERGRAD_UNI_TYPE", "PercentileBin"]))
         st.markdown("**Table 11. Chi-square test for association between university type and percentile bin**")
         st.caption("The chi-square table tests whether bin composition differs by university type beyond random variation.")
         st.dataframe(chi_summary, use_container_width=True)
@@ -1084,15 +1169,15 @@ with tab4:
         _yr_uni_dec = _dq_con.execute("""
             SELECT
                 CAST(Year AS INTEGER) AS Year,
-                UNI_TYPE,
+                UNDERGRAD_UNI_TYPE,
                 PercentileBin,
                 COUNT(*) AS n
             FROM _yr_uni_src
-            WHERE UNI_TYPE IN ('Public', 'Private', 'Foreign')
+            WHERE UNDERGRAD_UNI_TYPE IN ('Public', 'Private', 'Foreign')
               AND PercentileBin IS NOT NULL
               AND Year IS NOT NULL
-            GROUP BY Year, UNI_TYPE, PercentileBin
-            ORDER BY Year, UNI_TYPE, PercentileBin
+            GROUP BY Year, UNDERGRAD_UNI_TYPE, PercentileBin
+            ORDER BY Year, UNDERGRAD_UNI_TYPE, PercentileBin
         """).df()
         _dq_con.close()
 
@@ -1102,7 +1187,7 @@ with tab4:
             _yr_uni_dec["PercentileBin"] = pd.Categorical(
                 _yr_uni_dec["PercentileBin"], categories=BIN_ORDER, ordered=True
             )
-            _yr_uni_dec = _yr_uni_dec.sort_values(["Year", "UNI_TYPE", "PercentileBin"])
+            _yr_uni_dec = _yr_uni_dec.sort_values(["Year", "UNDERGRAD_UNI_TYPE", "PercentileBin"])
             _yr_uni_dec["Year"] = _yr_uni_dec["Year"].astype(str)
 
             _fig_yr_uni = px.bar(
@@ -1110,7 +1195,7 @@ with tab4:
                 x="Year",
                 y="n",
                 color="PercentileBin",
-                facet_col="UNI_TYPE",
+                facet_col="UNDERGRAD_UNI_TYPE",
                 barmode="stack",
                 title="Examinees per bin by year and university type",
                 labels={"n": "Examinees", "Year": "Year", "PercentileBin": "Bin"},
@@ -1132,8 +1217,8 @@ with tab4:
         )
         _rec_display_cols = [
             c for c in [
-                "PERSON_KEY", "APPNO_CLEAN", "UNIVERSITY", "UNI_LOCATION",
-                "Year", "CourseGroup", "PercentileBin", "NMS_PER_num", "TotalRawScoreTRUE",
+                "PERSON_KEY", "APPNO_CLEAN", "UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_LOCATION",
+                "Year", "UNDERGRAD_COURSE_GROUP", "PercentileBin", "NMS_PER_num", "TotalRawScoreTRUE",
             ]
             if c in dfuni.columns
         ]
@@ -1150,7 +1235,7 @@ with tab4:
                 _recs = _rec_con.execute(f"""
                     SELECT {_rec_col_sql}
                     FROM _rec_src
-                    WHERE UNI_TYPE = '{_utype}'
+                    WHERE UNDERGRAD_UNI_TYPE = '{_utype}'
                     ORDER BY CAST(Year AS INTEGER) DESC NULLS LAST,
                              NMS_PER_num DESC NULLS LAST
                 """).df()
@@ -1169,9 +1254,10 @@ with tab4:
         st.subheader("No PLE match -- record listings by university type")
         st.caption(
             "Records shown here belong to the observable best-record cohort (Year <= 2014) "
-            "and have **no confirmed PLE match** (IS_PLE_ANALYSIS_SAFE != True). "
-            "The observable cohort is used because examinees from later years cannot yet be "
-            "classified as non-passers."
+            "and have **no confirmed PLE match** (IS_PLE_PASSER != True). "
+            "The observable cohort is used because examinees from later years have not had enough "
+            "time to plausibly appear in the PLE passer source list. Absence from that list is not "
+            "evidence of failure -- it can also mean the exam hasn't been sat, or the match was missed."
         )
 
         _nople_df = F["uniobservable"]
@@ -1181,8 +1267,8 @@ with tab4:
         )
         _nople_display_cols = [
             c for c in [
-                "PERSON_KEY", "APPNO_CLEAN", "UNIVERSITY", "UNI_LOCATION",
-                "Year", "CourseGroup", "PercentileBin", "NMS_PER_num",
+                "PERSON_KEY", "APPNO_CLEAN", "UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_LOCATION",
+                "Year", "UNDERGRAD_COURSE_GROUP", "PercentileBin", "NMS_PER_num",
                 "TotalRawScoreTRUE", "PLE_STATUS_LABEL",
             ]
             if c in _nople_df.columns
@@ -1200,7 +1286,7 @@ with tab4:
                 _nople_recs = _nople_con.execute(f"""
                     SELECT {_nople_col_sql}
                     FROM _nople_src
-                    WHERE UNI_TYPE = '{_utype}'
+                    WHERE UNDERGRAD_UNI_TYPE = '{_utype}'
                       AND PLE_STATUS_LABEL = 'No confirmed PLE match'
                     ORDER BY CAST(Year AS INTEGER) DESC NULLS LAST,
                              NMS_PER_num DESC NULLS LAST
@@ -1453,10 +1539,10 @@ with tab4:
                 _pt1, _pt2 = st.columns(2)
                 with _pt1:
                     st.markdown("**Summary by citizenship and university type**")
-                    if "UNI_TYPE" in _pc_base.columns:
+                    if "UNDERGRAD_UNI_TYPE" in _pc_base.columns:
                         _pc_uni_sum = (
                             _pc_base
-                            .groupby(["CITIZENSHIP_FINAL", "UNI_TYPE"], observed=True)
+                            .groupby(["CITIZENSHIP_FINAL", "UNDERGRAD_UNI_TYPE"], observed=True)
                             .agg(
                                 n=("APPNO_CLEAN", "count"),
                                 median_percentile_rank=("NMS_PER_num", "median"),
@@ -1469,10 +1555,10 @@ with tab4:
 
                 with _pt2:
                     st.markdown("**Summary by citizenship and course group**")
-                    if "CourseGroup" in _pc_base.columns:
+                    if "UNDERGRAD_COURSE_GROUP" in _pc_base.columns:
                         _pc_course_sum = (
                             _pc_base
-                            .groupby(["CITIZENSHIP_FINAL", "CourseGroup"], observed=True)
+                            .groupby(["CITIZENSHIP_FINAL", "UNDERGRAD_COURSE_GROUP"], observed=True)
                             .agg(
                                 n=("APPNO_CLEAN", "count"),
                                 median_percentile_rank=("NMS_PER_num", "median"),
@@ -1496,9 +1582,9 @@ with tab4:
 
                 st.markdown("**Matched no-PLE-match records with citizenship**")
                 _pc_rec_cols = [c for c in [
-                    "CITIZENSHIP_FINAL", "FOREIGNER_STATUS", "name_based_assessment",
-                    "PERSON_KEY", "APPNO_CLEAN", "UNIVERSITY", "UNI_LOCATION", "UNI_TYPE",
-                    "Year", "CourseGroup", "PercentileBin", "NMS_PER_num",
+                    "CITIZENSHIP_FINAL", "FOREIGNER_STATUS",
+                    "PERSON_KEY", "APPNO_CLEAN", "UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_LOCATION", "UNDERGRAD_UNI_TYPE",
+                    "Year", "UNDERGRAD_COURSE_GROUP", "PercentileBin", "NMS_PER_num",
                     "TotalRawScoreTRUE", "PLE_STATUS_LABEL",
                 ] if c in _pc_base.columns]
                 _pc_rec_df = (
@@ -1520,12 +1606,16 @@ with tab4:
                 st.subheader("Comparative analysis: foreigners vs Filipino students")
                 st.caption(
                     "Compares (1) actual foreigners (non-Filipino, identified via the profiling CSV), "
-                    "(2) Filipinos who attended foreign/international schools, "
-                    "(3) all students at public schools, and "
-                    "(4) all students at private schools. "
+                    "(2) Filipinos whose undergraduate degree was from a foreign/international school, "
+                    "(3) all students whose undergraduate degree was from a public school, and "
+                    "(4) all students whose undergraduate degree was from a private school. "
                     "Groups 1 and 2 come from the profiling-matched observable university subset. "
                     "Groups 3 and 4 use all observable best-record examinees at those institution types. "
-                    "All groups reflect the current sidebar filters."
+                    "All groups reflect the current sidebar filters. "
+                    "**UNDERGRAD_UNI_TYPE / UNDERGRAD_UNIVERSITY record the examinee's undergraduate "
+                    "(pre-NMAT) school, not the medical school they later attended between the NMAT and "
+                    "the licensure exam** -- no medical-school identifier exists in this dataset, so the "
+                    "linkage-rate differences below cannot be attributed to medical-school quality."
                 )
 
                 _cmp_parts = []
@@ -1537,20 +1627,20 @@ with tab4:
 
                 _g_fil_for = _uniobs_pc[
                     (_uniobs_pc["CITIZENSHIP_FINAL"] == "Filipino") &
-                    (_uniobs_pc["UNI_TYPE"] == "Foreign")
+                    (_uniobs_pc["UNDERGRAD_UNI_TYPE"] == "Foreign")
                 ].copy()
                 if not _g_fil_for.empty:
-                    _g_fil_for["_cmp_group"] = "Filipinos (foreign schools)"
+                    _g_fil_for["_cmp_group"] = "Filipinos (foreign undergrad)"
                     _cmp_parts.append(_g_fil_for)
 
-                _g_pub = F["bestobservable"][F["bestobservable"]["UNI_TYPE"] == "Public"].copy()
+                _g_pub = F["bestobservable"][F["bestobservable"]["UNDERGRAD_UNI_TYPE"] == "Public"].copy()
                 if not _g_pub.empty:
-                    _g_pub["_cmp_group"] = "Filipinos (public schools)"
+                    _g_pub["_cmp_group"] = "Filipinos (public undergrad)"
                     _cmp_parts.append(_g_pub)
 
-                _g_prv = F["bestobservable"][F["bestobservable"]["UNI_TYPE"] == "Private"].copy()
+                _g_prv = F["bestobservable"][F["bestobservable"]["UNDERGRAD_UNI_TYPE"] == "Private"].copy()
                 if not _g_prv.empty:
-                    _g_prv["_cmp_group"] = "Filipinos (private schools)"
+                    _g_prv["_cmp_group"] = "Filipinos (private undergrad)"
                     _cmp_parts.append(_g_prv)
 
                 if not _cmp_parts:
@@ -1569,9 +1659,11 @@ with tab4:
                     # Summary table -------------------------------------------
                     st.markdown("**Summary: key score indicators by comparison group**")
                     st.caption(
-                        "PLE pass rate uses IS_PLE_ANALYSIS_SAFE. "
-                        "Foreigners typically show 0% or near-0% because foreign nationals rarely "
-                        "sit Philippine licensure exams."
+                        "\"PLE linkage rate %\" is the share of each group found in the PLE passer source "
+                        "list (IS_PLE_PASSER) -- it is a LINKAGE rate, not a licensure pass rate, since the "
+                        "source contains passers only and absence does not mean failure. "
+                        "Verified-foreigner linkage in the observable cohort is low (~2.5%) but not "
+                        "exactly 0%, mainly because foreign nationals rarely sit Philippine licensure exams."
                     )
                     _cmp_agg = (
                         _cmp_df.groupby("_cmp_group", observed=True)
@@ -1594,7 +1686,7 @@ with tab4:
                             .mul(100)
                             .round(2)
                             .reset_index()
-                            .rename(columns={"_cmp_group": "Group", "_ple_num": "PLE pass rate %"})
+                            .rename(columns={"_cmp_group": "Group", "_ple_num": "PLE linkage rate %"})
                         )
                         _cmp_agg = _cmp_agg.merge(_ple_rates, on="Group", how="left")
                     st.dataframe(_cmp_agg, use_container_width=True, hide_index=True)
@@ -1647,14 +1739,15 @@ with tab4:
                         st.caption(
                             "Row percentages show the full distribution of each group across all ten "
                             "percentile bins. Compare rows to see which groups skew high (B8-B10) "
-                            "or low (B1-B3). Green tones indicate higher percentage in that bin."
+                            "or low (B1-B3). This is a magnitude (0-100%), not a value judgment, so a "
+                            "sequential (dark = more) scale is used rather than a red-green diverging one."
                         )
                         _fig_cmp_hm = make_heatmap(
                             _cmp_bin_pct,
                             "Bin distribution by comparison group (row %)",
                             "Percentile bin",
                             "Group",
-                            "RdYlGn",
+                            "YlOrRd",
                         )
                         _fig_cmp_hm.update_layout(height=400)
                         st.plotly_chart(_fig_cmp_hm, use_container_width=True, key="fig_cmp_all_bins_hm")
@@ -1708,8 +1801,8 @@ with tab4:
 
     with dec_tab3:
         st.caption("Insight: Compare bin profiles across pre-med backgrounds.")
-        _, course_pct = pct_table(df, "CourseGroup", "PercentileBin", BIN_ORDER)
-        course_pct.index.name = "CourseGroup"
+        _, course_pct = pct_table(df, "UNDERGRAD_COURSE_GROUP", "PercentileBin", BIN_ORDER)
+        course_pct.index.name = "UNDERGRAD_COURSE_GROUP"
         st.markdown("**Figure 10. Percentile-bin distribution by course group**")
         st.caption("Heatmap values are within-course-group percentages.")
         st.plotly_chart(make_heatmap(course_pct, "Bin Distribution by Course Group", "Bin", "Course group", "OrRd"), use_container_width=True, key="fig_t4_heatmap_course")
@@ -1720,7 +1813,7 @@ with tab4:
         st.plotly_chart(make_top_share_bar(top_course, "Top Bin Share by Course Group", "Percent in B8-B10", "Course group", PALETTE_COURSE), use_container_width=True, key="fig_t4_top_course")
 
         course_desc = (
-            df.groupby("CourseGroup", observed=True)["NMS_PER_num"]
+            df.groupby("UNDERGRAD_COURSE_GROUP", observed=True)["NMS_PER_num"]
             .agg(n="count", median="median", q25=lambda x: x.quantile(0.25), q75=lambda x: x.quantile(0.75))
             .round(2)
             .reset_index()
@@ -1733,40 +1826,45 @@ with tab4:
 # TAB 5
 # -----------------------------------------------------------------------------
 with tab5:
-    st.subheader("Institutional Profile: University Type and Location")
-    st.caption("This page focuses on the institutional comparison subset used in the analysis pipeline: Public, Private, and Foreign university types, with location shown as Local or International where available.")
+    st.subheader("Institutional Profile: Undergraduate University Type and Location")
+    st.caption("This page profiles examinees by their undergraduate (pre-NMAT) institution -- Public, Private, and Foreign university types, with location shown as Local or International where available. No medical-school identifier exists in this dataset; nothing on this page should be read as a statement about medical-school quality.")
 
     base = F["uni"].copy()
-    uni_base = base.dropna(subset=["UNI_TYPE", "UNI_LOCATION", "PercentileBin"]).copy()
+    # Two bases: uni_type_base only requires undergrad type/location (used by elements that don't
+    # touch PercentileBin); uni_base additionally requires a non-null PercentileBin (used only by
+    # bin-dependent charts/tables). Splitting these avoids silently dropping ~2.3% of applicants
+    # from tables (e.g. university listings) that have nothing to do with percentile bins.
+    uni_type_base = base.dropna(subset=["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]).copy()
+    uni_base = uni_type_base.dropna(subset=["PercentileBin"]).copy()
 
-    if uni_base.empty:
+    if uni_type_base.empty:
         st.info("No university-type records are available under the current filters.")
     else:
-        st.caption("Insight: This page follows the institutional comparison subset (Public, Private, Foreign) from the analysis pipeline.")
-        type_loc = uni_base.groupby(["UNI_TYPE", "UNI_LOCATION"], observed=True).size().reset_index(name="Count")
+        st.caption("Insight: This page follows the institutional comparison subset (Public, Private, Foreign) from the analysis pipeline. This describes the examinee's undergraduate (pre-NMAT) institution, not a medical school.")
+        type_loc = uni_type_base.groupby(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"], observed=True).size().reset_index(name="Count")
         type_loc["Percent of total"] = (type_loc["Count"] / type_loc["Count"].sum() * 100).round(2)
         st.markdown("**Table 13. Institution type by location mix**")
-        st.caption("Values show counts and percentages of examinees within each institutional classification.")
-        st.dataframe(type_loc.sort_values(["UNI_TYPE", "UNI_LOCATION"]), use_container_width=True)
+        st.caption(f"Values show counts and percentages of {len(uni_type_base):,} examinees within each institutional classification (does not require a percentile bin).")
+        st.dataframe(type_loc.sort_values(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]), use_container_width=True)
 
         st.markdown("**Table 14. Institution type by location matrix**")
         st.caption("Row percentages describe the location mix within each university type. Column percentages show composition within each location.")
-        inst_count = pd.crosstab(uni_base["UNI_TYPE"], uni_base["UNI_LOCATION"], margins=True)
-        inst_pct_row = (pd.crosstab(uni_base["UNI_TYPE"], uni_base["UNI_LOCATION"], normalize="index") * 100).round(2)
-        inst_pct_col = (pd.crosstab(uni_base["UNI_TYPE"], uni_base["UNI_LOCATION"], normalize="columns") * 100).round(2)
+        inst_count = pd.crosstab(uni_type_base["UNDERGRAD_UNI_TYPE"], uni_type_base["UNDERGRAD_UNI_LOCATION"], margins=True)
+        inst_pct_row = (pd.crosstab(uni_type_base["UNDERGRAD_UNI_TYPE"], uni_type_base["UNDERGRAD_UNI_LOCATION"], normalize="index") * 100).round(2)
+        inst_pct_col = (pd.crosstab(uni_type_base["UNDERGRAD_UNI_TYPE"], uni_type_base["UNDERGRAD_UNI_LOCATION"], normalize="columns") * 100).round(2)
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**Counts (with totals)**")
             st.dataframe(inst_count, use_container_width=True)
-            st.markdown("**Row percentages: within UNI_TYPE**")
+            st.markdown("**Row percentages: within UNDERGRAD_UNI_TYPE**")
             st.dataframe(inst_pct_row, use_container_width=True)
         with c2:
-            st.markdown("**Column percentages: within UNI_LOCATION**")
+            st.markdown("**Column percentages: within UNDERGRAD_UNI_LOCATION**")
             st.dataframe(inst_pct_col, use_container_width=True)
 
         inst_decile = (
-            uni_base.dropna(subset=["UNI_TYPE", "UNI_LOCATION", "PercentileBin"])
-            .groupby(["UNI_TYPE", "UNI_LOCATION", "PercentileBin"], observed=True)
+            uni_base.dropna(subset=["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION", "PercentileBin"])
+            .groupby(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION", "PercentileBin"], observed=True)
             .size()
             .unstack(fill_value=0)
             .reindex(columns=BIN_ORDER, fill_value=0)
@@ -1805,8 +1903,8 @@ with tab5:
 
         st.markdown("**Figure 14. Bin composition by university type**")
         st.caption("Stacked percentages sum to 100% within each university type.")
-        _, uni_decile_pct = pct_table(uni_base, "UNI_TYPE", "PercentileBin", BIN_ORDER)
-        uni_decile_pct.index.name = "UNI_TYPE"
+        _, uni_decile_pct = pct_table(uni_base, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
+        uni_decile_pct.index.name = "UNDERGRAD_UNI_TYPE"
         st.plotly_chart(
             make_stacked_pct_bar(
                 uni_decile_pct,
@@ -1819,7 +1917,7 @@ with tab5:
             key="fig_t5_stacked_uni",
         )
 
-        uni_decile_count, _ = pct_table(uni_base, "UNI_TYPE", "PercentileBin", BIN_ORDER)
+        uni_decile_count, _ = pct_table(uni_base, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
         uni_decile_summary = uni_decile_count.copy()
         uni_decile_summary["Total students"] = uni_decile_summary.sum(axis=1)
         uni_decile_summary = uni_decile_summary.reset_index()
@@ -1829,7 +1927,7 @@ with tab5:
 
         st.markdown("**Table 16. Foreign examinee summary**")
         st.caption("Foreign examinees are shown separately because they are a small but policy-relevant subgroup.")
-        foreign = uni_base[uni_base["UNI_TYPE"].eq("Foreign")].copy()
+        foreign = uni_base[uni_base["UNDERGRAD_UNI_TYPE"].eq("Foreign")].copy()
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Foreign examinees", f"{len(foreign):,}")
         c2.metric("% of total", f"{(len(foreign) / max(len(uni_base), 1) * 100):.2f}%")
@@ -1840,8 +1938,8 @@ with tab5:
         )
 
         if not foreign.empty:
-            _, foreign_pct = pct_table(foreign, "UNI_TYPE", "PercentileBin", BIN_ORDER)
-            foreign_pct.index.name = "UNI_TYPE"
+            _, foreign_pct = pct_table(foreign, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
+            foreign_pct.index.name = "UNDERGRAD_UNI_TYPE"
             st.markdown("**Figure 15. Bin distribution among foreign examinees**")
             st.caption("Values show counts and percentages for foreign examinees under the current filters.")
             st.plotly_chart(
@@ -1857,17 +1955,17 @@ with tab5:
             )
 
         st.markdown("**Figure 16. Medical and allied versus other courses by university type**")
-        st.caption("Stacked percentages sum to 100% within each university type.")
-        med_other = uni_base.copy()
-        med_other["Course bucket"] = np.where(med_other["CourseGroup"].eq("Medical & Allied"), "Medical & Allied", "Other Courses")
+        st.caption(f"Stacked percentages sum to 100% within each university type. Uses {len(uni_type_base):,} examinees (does not require a percentile bin).")
+        med_other = uni_type_base.copy()
+        med_other["Course bucket"] = np.where(med_other["UNDERGRAD_COURSE_GROUP"].eq("Medical & Allied"), "Medical & Allied", "Other Courses")
         med_tbl = (
-            med_other.groupby(["UNI_TYPE", "Course bucket"], observed=True)
+            med_other.groupby(["UNDERGRAD_UNI_TYPE", "Course bucket"], observed=True)
             .size()
             .unstack(fill_value=0)
             .reindex(columns=["Medical & Allied", "Other Courses"], fill_value=0)
         )
         med_pct = med_tbl.div(med_tbl.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
-        med_pct.index.name = "UNI_TYPE"
+        med_pct.index.name = "UNDERGRAD_UNI_TYPE"
         st.plotly_chart(
             make_stacked_pct_bar(
                 med_pct,
@@ -1882,11 +1980,11 @@ with tab5:
         st.dataframe(med_pct.reset_index(), use_container_width=True)
 
         st.markdown("**Table 17. University listings by university type**")
-        st.caption("Each university listing shows the standardized university name, cleaned location, and applicant count.")
+        st.caption(f"Each university listing shows the standardized university name, cleaned location, and applicant count, over {len(uni_type_base):,} examinees (does not require a percentile bin, so this includes applicants dropped from the bin-dependent charts above).")
         for uni_type in ["Public", "Private", "Foreign"]:
             table = (
-                uni_base[uni_base["UNI_TYPE"] == uni_type]
-                .groupby(["UNIVERSITY", "UNI_LOCATION"], observed=True)
+                uni_type_base[uni_type_base["UNDERGRAD_UNI_TYPE"] == uni_type]
+                .groupby(["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_LOCATION"], observed=True)
                 .agg(total_applicants=("APPNO_CLEAN", "count"))
                 .reset_index()
                 .sort_values("total_applicants", ascending=False)
@@ -1910,9 +2008,9 @@ with tab6:
         st.caption("Insight: Compare how Public, Private, and Foreign flows distribute across bins.")
         st.markdown("**Figure 17. Flow from university type to percentile bin**")
         st.caption("Each flow width represents the count of examinees moving from university type to percentile bin.")
-        flow = make_flow(uni, "UNI_TYPE", "PercentileBin", ["Public", "Private", "Foreign"], BIN_ORDER)
+        flow = make_flow(uni, "UNDERGRAD_UNI_TYPE", "PercentileBin", ["Public", "Private", "Foreign"], BIN_ORDER)
         st.plotly_chart(
-            make_sankey(flow, "UNI_TYPE", "PercentileBin", "University Type to Bin", None, None),
+            make_sankey(flow, "UNDERGRAD_UNI_TYPE", "PercentileBin", "University Type to Bin", None, None),
             use_container_width=True,
             key="fig_t6_sankey_uni",
         )
@@ -1927,11 +2025,11 @@ with tab6:
         order = [
             c
             for c in ["Medical & Allied", "Natural Sciences", "Social & Behavioral Sciences", "Education", "Engineering & Technology", "Other"]
-            if c in best["CourseGroup"].unique()
+            if c in best["UNDERGRAD_COURSE_GROUP"].unique()
         ]
-        flow = make_flow(best, "CourseGroup", "PercentileBin", order, BIN_ORDER)
+        flow = make_flow(best, "UNDERGRAD_COURSE_GROUP", "PercentileBin", order, BIN_ORDER)
         st.plotly_chart(
-            make_sankey(flow, "CourseGroup", "PercentileBin", "Course Group to Bin", None, None),
+            make_sankey(flow, "UNDERGRAD_COURSE_GROUP", "PercentileBin", "Course Group to Bin", None, None),
             use_container_width=True,
             key="fig_t6_sankey_course",
         )
@@ -1940,9 +2038,14 @@ with tab6:
         st.dataframe(flow, use_container_width=True)
 
     with flow_tab3:
-        st.caption("Insight: In the observable cohort, this shows how bins map to confirmed or unmatched PLE status.")
+        st.caption(
+            "Insight: In the observable cohort, this shows how bins map to confirmed-PLE-passer versus "
+            "no-confirmed-match status. This is a LINKAGE breakdown, not a pass/fail breakdown -- "
+            "'No confirmed PLE match' can include people who never sat the boards, not only people "
+            "who failed."
+        )
         st.markdown("**Figure 19. Flow from percentile bin to PLE status in the observable cohort**")
-        st.caption("Bin-to-PLE flow uses only the observable best-record cohort.")
+        st.caption("Bin-to-PLE flow uses only the observable best-record cohort (IS_BEST_OBSERVABLE_RECORD).")
         flow = make_flow(observable, "PercentileBin", "PLE_STATUS_LABEL", BIN_ORDER, PLE_ORDER)
         st.plotly_chart(
             make_sankey(flow, "PercentileBin", "PLE_STATUS_LABEL", "Bin to PLE Status (Observable Cohort)", None, None),
@@ -1965,7 +2068,7 @@ with tab6:
         top_deciles = ["B8", "B9", "B10"]
         top_uni = (
             uni[uni["PercentileBin"].isin(top_deciles)]
-            .groupby(["UNI_TYPE", "PercentileBin"], observed=True)
+            .groupby(["UNDERGRAD_UNI_TYPE", "PercentileBin"], observed=True)
             .size()
             .reset_index(name="Count")
             .sort_values("Count", ascending=False)
@@ -1973,7 +2076,7 @@ with tab6:
         )
         top_course = (
             best[best["PercentileBin"].isin(top_deciles)]
-            .groupby(["CourseGroup", "PercentileBin"], observed=True)
+            .groupby(["UNDERGRAD_COURSE_GROUP", "PercentileBin"], observed=True)
             .size()
             .reset_index(name="Count")
             .sort_values("Count", ascending=False)
@@ -2005,7 +2108,11 @@ with tab7:
         st.caption("Table 23 reports count, median, mean, and interquartile range for each score measure by PLE status.")
         desc_cols = ["TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE", "NMS_PER_num", "NMS_GPS", "NMS_APT", "NMS_SA"]
         desc_cols = [c for c in desc_cols if c in df.columns]
-        desc = df.groupby("PLE_STATUS_LABEL", observed=True)[desc_cols].agg(["count", "median", "mean", lambda x: x.quantile(0.25), lambda x: x.quantile(0.75)]).round(2)
+        _q25 = lambda x: x.quantile(0.25)
+        _q25.__name__ = "q25"
+        _q75 = lambda x: x.quantile(0.75)
+        _q75.__name__ = "q75"
+        desc = df.groupby("PLE_STATUS_LABEL", observed=True)[desc_cols].agg(["count", "median", "mean", _q25, _q75]).round(2)
         st.dataframe(desc, use_container_width=True)
 
         st.markdown("**Figure 20. TRUE raw score distribution by PLE status**")
@@ -2032,7 +2139,8 @@ with tab7:
 
     with ple_tab2:
         st.markdown("**Figure 21. Bin distribution by PLE status**")
-        st.caption("This chart reads within PLE status: how bins are distributed across each PLE-status group.")
+        _n_null_bin = int(df["PercentileBin"].isna().sum())
+        st.caption(f"This chart reads within PLE status: how bins are distributed across each PLE-status group. {_n_null_bin:,} of {len(df):,} observable-cohort rows lack a percentile bin and are excluded from this figure and Figure 22/Table 25.")
         ple_dist_count, ple_dist_pct = pct_table(df, "PLE_STATUS_LABEL", "PercentileBin", BIN_ORDER)
         ple_dist_pct = ple_dist_pct.reindex(PLE_ORDER)
         ple_dist_pct.index.name = "PLE_STATUS_LABEL"
@@ -2057,10 +2165,10 @@ with tab7:
     with ple_tab3:
         st.markdown("**Table 26. Course-group representation in the top bins**")
         st.caption("Top-bin survival here means the share of examinees in B8-B10, not a time-to-event survival model.")
-        survival_base = F["besttrend"].dropna(subset=["CourseGroup", "PercentileBin"]).copy()
+        survival_base = F["besttrend"].dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"]).copy()
         survival_base["IS_TOP_BIN"] = survival_base["PercentileBin"].isin(["B8", "B9", "B10"])
         survival = (
-            survival_base.groupby("CourseGroup", observed=True)
+            survival_base.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
             .agg(total_examinees=("IS_TOP_BIN", "size"), top_decile_n=("IS_TOP_BIN", "sum"))
             .reset_index()
         )
@@ -2076,7 +2184,7 @@ with tab7:
         with c2:
             st.plotly_chart(
                 make_top_share_bar(
-                    survival.set_index("CourseGroup")["survival_rate_pct"],
+                    survival.set_index("UNDERGRAD_COURSE_GROUP")["survival_rate_pct"],
                     "Survival to Top Bins by Course Group",
                     "Percent in B8-B10",
                     "Course group",
@@ -2089,7 +2197,7 @@ with tab7:
         st.markdown("**Table 27. Confirmed PLE alignment by university type in the observable cohort**")
         st.caption("University-type policy table reports observable best records, confirmed passers, no confirmed match, and confirmed PLE share.")
         plelink_uni = (
-            dfuni.groupby("UNI_TYPE", observed=True)
+            dfuni.groupby("UNDERGRAD_UNI_TYPE", observed=True)
             .apply(lambda x: pd.Series({
                 "n_observable_best_records": len(x),
                 "confirmed_ple_passers": int(x["HAS_CONFIRMED_PLE"].sum()),
@@ -2116,7 +2224,7 @@ with tab7:
         )
 
         t_course = (
-            policybase.groupby("CourseGroup", observed=True)
+            policybase.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
             .apply(lambda x: pd.Series({
                 "n_observable_best_records": len(x),
                 "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -2129,8 +2237,8 @@ with tab7:
         )
 
         t_uni = (
-            policybase[policybase["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-            .groupby("UNI_TYPE", observed=True)
+            policybase[policybase["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+            .groupby("UNDERGRAD_UNI_TYPE", observed=True)
             .apply(lambda x: pd.Series({
                 "n_observable_best_records": len(x),
                 "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -2154,7 +2262,12 @@ with tab7:
 # -----------------------------------------------------------------------------
 with tab8:
     st.subheader("Repeat-Taker Patterns and Score Change")
-    st.caption("This page examines how often examinees retake the NMAT and whether their last recorded attempt differs from their first recorded attempt.")
+    st.caption(
+        "This page examines how often examinees retake the NMAT and whether their last recorded attempt "
+        "differs from their first recorded attempt. Caveat: PERSON_KEY is a name + partial-birthdate key; "
+        "an estimated third or more of 'repeat takers' may be distinct people who share a name rather than "
+        "one person's genuine repeat attempts (see PERSON_KEY_AMBIGUOUS in the source data)."
+    )
     df = F["trend"]
 
     attempt_ct = df.groupby("PERSON_KEY", observed=True)["APPNO_CLEAN"].nunique().reset_index(name="attempt_count")
@@ -2283,6 +2396,12 @@ with tab8:
             st.plotly_chart(fig, use_container_width=True, key="fig_t8_scatter_repeat")
 
         st.subheader("Repeat-taker detail table")
+        st.caption(
+            "PERSON_KEY is a name + partial-birthdate key, not a verified individual identifier -- "
+            "about 4.6% of repeat-taker keys are known collisions (contradictory SEX across rows of the "
+            "same key), and the true collision rate is plausibly higher. A meaningful minority of the "
+            "'repeats' below may be two different people sharing a name, not one person retaking."
+        )
         display_cols = [
             "PERSON_KEY",
             "n_attempts",
@@ -2295,11 +2414,17 @@ with tab8:
             "last_raw",
             "raw_improvement",
         ]
-        st.dataframe(
-            first_last[display_cols].sort_values(
-                ["pct_improvement", "raw_improvement"], ascending=False
-            ),
-            use_container_width=True,
+        _rt_sorted = first_last[display_cols].sort_values(
+            ["pct_improvement", "raw_improvement"], ascending=False
+        )
+        _rt_max = st.slider("Rows to display", min_value=50, max_value=max(50, len(_rt_sorted)), value=min(500, len(_rt_sorted)), step=50, key="rt_detail_rows")
+        st.caption(f"Showing {min(_rt_max, len(_rt_sorted)):,} of {len(_rt_sorted):,} repeat-taker persons.")
+        st.dataframe(_rt_sorted.head(_rt_max), use_container_width=True)
+        st.download_button(
+            "Download full repeat-taker detail table (CSV)",
+            _rt_sorted.to_csv(index=False).encode("utf-8"),
+            file_name="repeat_taker_detail_full.csv",
+            mime="text/csv",
         )
     else:
         st.info("No repeat takers are available under the current filters.")
@@ -2313,9 +2438,15 @@ with tab8:
 
     if not appno_matches.empty:
         display_cols = ["PERSON_KEY", "APPNO_CLEAN", "Year", "TotalRawScoreTRUE", "NMS_PER_num", "PLE_STATUS_LABEL"]
-        st.dataframe(
-            appno_matches[display_cols].sort_values(["PERSON_KEY", "Year"]),
-            use_container_width=True
+        _am_sorted = appno_matches[display_cols].sort_values(["PERSON_KEY", "Year"])
+        _am_max = st.slider("Rows to display", min_value=50, max_value=max(50, len(_am_sorted)), value=min(500, len(_am_sorted)), step=50, key="appno_match_rows")
+        st.caption(f"Showing {min(_am_max, len(_am_sorted)):,} of {len(_am_sorted):,} rows.")
+        st.dataframe(_am_sorted.head(_am_max), use_container_width=True)
+        st.download_button(
+            "Download full NMA_AppNo match-history table (CSV)",
+            _am_sorted.to_csv(index=False).encode("utf-8"),
+            file_name="appno_match_history_full.csv",
+            mime="text/csv",
         )
     else:
         st.info("No records matched exclusively via NMA_AppNo under the current filters.")
@@ -2333,7 +2464,7 @@ with tab9:
     sub_tab1, sub_tab2, sub_tab3 = st.tabs(["University type", "Course group", "Radar profiles"])
 
     with sub_tab1:
-        uni_table = subtest_mean_table(uni_base, "UNI_TYPE", std=True)
+        uni_table = subtest_mean_table(uni_base, "UNDERGRAD_UNI_TYPE", std=True)
         uni_order = [u for u in ["Public", "Private", "Foreign"] if u in uni_table.index]
         if uni_order:
             uni_table = uni_table.reindex(uni_order)
@@ -2357,14 +2488,14 @@ with tab9:
             st.caption("Higher values indicate stronger average standardized performance in that subtest dimension.")
             st.dataframe(uni_table.reset_index(), use_container_width=True)
 
-            raw_uni_table = subtest_mean_table(uni_base, "UNI_TYPE", std=False)
+            raw_uni_table = subtest_mean_table(uni_base, "UNDERGRAD_UNI_TYPE", std=False)
             if not raw_uni_table.empty:
                 with st.expander("Table 35. Raw-score subtest means by university type", expanded=False):
                     st.caption("Raw-score subtest means for reference; these are not standardized scores.")
                     st.dataframe(raw_uni_table.reset_index(), use_container_width=True)
 
     with sub_tab2:
-        course_table = subtest_mean_table(course_base, "CourseGroup", std=True)
+        course_table = subtest_mean_table(course_base, "UNDERGRAD_COURSE_GROUP", std=True)
         course_order = [c for c in PALETTE_COURSE.keys() if c in course_table.index]
         if course_order:
             course_table = course_table.reindex(course_order)
@@ -2386,7 +2517,7 @@ with tab9:
             st.caption("Higher values indicate stronger average standardized performance in that subtest dimension.")
             st.dataframe(course_table.reset_index(), use_container_width=True)
 
-            raw_course_table = subtest_mean_table(course_base, "CourseGroup", std=False)
+            raw_course_table = subtest_mean_table(course_base, "UNDERGRAD_COURSE_GROUP", std=False)
             if not raw_course_table.empty:
                 with st.expander("Table 37. Raw-score subtest means by course group", expanded=False):
                     st.caption("Raw-score subtest means for reference; these are not standardized scores.")
@@ -2401,7 +2532,7 @@ with tab9:
             else:
                 st.markdown("**Figure 29. Standardized subtest radar profile by university type**")
                 st.caption("Radar shapes are descriptive profiles and should be read together with the mean-value tables.")
-                fig_uni, tbl_uni = radar_for_group(uni_base[uni_base["UNI_TYPE"].isin(["Public", "Private", "Foreign"])], "UNI_TYPE")
+                fig_uni, tbl_uni = radar_for_group(uni_base[uni_base["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])], "UNDERGRAD_UNI_TYPE")
                 st.plotly_chart(fig_uni, use_container_width=True, key="fig_t9_radar_uni")
                 st.markdown("**Table 38. Radar-profile values by university type**")
                 st.dataframe(tbl_uni.reset_index(), use_container_width=True)
@@ -2412,7 +2543,7 @@ with tab9:
             else:
                 st.markdown("**Figure 30. Standardized subtest radar profile by course group**")
                 st.caption("Radar shapes are descriptive profiles and should be read together with the mean-value tables.")
-                fig_course, tbl_course = radar_for_group(course_base, "CourseGroup")
+                fig_course, tbl_course = radar_for_group(course_base, "UNDERGRAD_COURSE_GROUP")
                 st.plotly_chart(fig_course, use_container_width=True, key="fig_t9_radar_course")
                 st.markdown("**Table 39. Radar-profile values by course group**")
                 st.dataframe(tbl_course.reset_index(), use_container_width=True)
@@ -2461,12 +2592,12 @@ with tab10:
             with c2:
                 st.markdown("**Figure 32. PLE year gap by course group**")
                 st.caption("Only confirmed observable PLE passers with non-missing PLE_YEAR_GAP are included.")
-                box_base = gap_df.dropna(subset=["CourseGroup", "PLE_YEAR_GAP"]).copy()
+                box_base = gap_df.dropna(subset=["UNDERGRAD_COURSE_GROUP", "PLE_YEAR_GAP"]).copy()
                 fig = px.box(
                     box_base,
-                    x="CourseGroup",
+                    x="UNDERGRAD_COURSE_GROUP",
                     y="PLE_YEAR_GAP",
-                    color="CourseGroup",
+                    color="UNDERGRAD_COURSE_GROUP",
                     title="PLE year gap by course group",
                     color_discrete_map=PALETTE_COURSE,
                 )
@@ -2474,7 +2605,7 @@ with tab10:
                 st.plotly_chart(fig, use_container_width=True, key="fig_t10_gap_box")
 
             gap_summary = (
-                gap_df.groupby("CourseGroup", observed=True)
+                gap_df.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
                 .agg(
                     confirmed_passers=("PERSON_KEY", "nunique"),
                     median_year_gap=("PLE_YEAR_GAP", "median"),
@@ -2675,7 +2806,12 @@ with tab11:
 # -----------------------------------------------------------------------------
 with tab12:
     st.subheader("Policy Tables and Downloads")
-    st.caption("These tables are formatted as policy-ready reference tables and use the observable best-record cohort for all PLE-linked summaries.")
+    st.caption(
+        "These tables are formatted as policy-ready reference tables and use the observable best-record "
+        "cohort (IS_BEST_OBSERVABLE_RECORD) for all PLE-linked summaries. \"confirmed_ple_share_pct\" is a "
+        "LINKAGE rate (share found in the PLE passer source list), not a licensure pass rate -- the source "
+        "contains passers only, so absence is not evidence of failure."
+    )
 
     policybase = F["bestobservable"].copy()
 
@@ -2695,7 +2831,7 @@ with tab12:
         )
 
         t_course = (
-            policybase.groupby("CourseGroup", observed=True)
+            policybase.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
             .apply(lambda x: pd.Series({
                 "n_observable_best_records": len(x),
                 "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -2708,8 +2844,8 @@ with tab12:
         )
 
         t_uni = (
-            policybase[policybase["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-            .groupby("UNI_TYPE", observed=True)
+            policybase[policybase["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
+            .groupby("UNDERGRAD_UNI_TYPE", observed=True)
             .apply(lambda x: pd.Series({
                 "n_observable_best_records": len(x),
                 "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
@@ -2722,14 +2858,14 @@ with tab12:
 
         survival_base = (
             F["besttrend"]
-            .dropna(subset=["CourseGroup", "PercentileBin"])
+            .dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"])
             .copy()
         )
         survival_base["IS_TOP_BIN"] = survival_base["PercentileBin"].isin(["B8", "B9", "B10"])
 
         survival = (
             survival_base
-            .groupby("CourseGroup", observed=True)
+            .groupby("UNDERGRAD_COURSE_GROUP", observed=True)
             .agg(
                 total_examinees=("IS_TOP_BIN", "size"),
                 top_decile_n=("IS_TOP_BIN", "sum"),
@@ -2761,7 +2897,7 @@ with tab12:
         with c2:
             st.plotly_chart(
                 make_top_share_bar(
-                    survival.set_index("CourseGroup")["survival_rate_pct"],
+                    survival.set_index("UNDERGRAD_COURSE_GROUP")["survival_rate_pct"],
                     "Survival to Top Bins by Course Group",
                     "Percent in B8-B10",
                     "Course group",
@@ -2807,12 +2943,52 @@ with tab12:
 # TAB 13 — CHED Compliance
 # -----------------------------------------------------------------------------
 with tab13:
-    st.subheader("CHED Compliance — CMO No. __, s. 2026")
+    st.subheader("CHED Compliance — What This Dataset Can and Cannot Tell CHED")
     st.caption(
-        "Supporting evidence for the amended NMAT cut-off score policy. "
-        "These tables use the observable best-record cohort (Year <= 2014) for all PLE-linked summaries "
-        "to avoid misclassifying later cohorts as non-passers before their licensure window closes."
+        "CMO No. __, s. 2026 conditions a PHEI's NMAT cut-off privilege (30th vs 40th percentile) on "
+        "that PHEI's OWN PLE passing performance. This dataset cannot support that specific, "
+        "per-institution determination -- see the panel below. What follows is restricted to claims "
+        "the schema genuinely supports: applicant-pool distributions against the candidate thresholds, "
+        "foreign-vs-Filipino composition, and the individual-level PLE-linkage gradient."
     )
+
+    with st.expander("What this dataset CAN and CANNOT tell CHED (read first)", expanded=True):
+        st.markdown(
+            """
+**Supportable, and shown below:**
+- Applicant-pool percentile distributions against the 30th- and 40th-percentile candidate thresholds (Section A).
+- Foreign-vs-Filipino composition of the applicant pool, by percentile bin (Section B).
+- The individual-level PLE-linkage gradient by percentile bin -- a steady rise from bottom to top decile, with no sharp step at the 40th-percentile threshold (Section C).
+
+**NOT supportable with this dataset, and not shown below:**
+- **Per-institution PLE performance.** `UNDERGRAD_UNIVERSITY` records the examinee's undergraduate
+  (pre-NMAT) school, not the medical school the CMO regulates -- e.g. UP Diliman appears in this data
+  with over a thousand eventual PLE-linked examinees despite having no College of Medicine. No column
+  in this schema identifies the medical school actually attended. A per-HEI "PLE passing rate"
+  computed from this data would attribute licensure outcomes to the wrong institution.
+- **The CMO's 5-year national PLE benchmark.** The benchmark the CMO means is the PRC's published
+  national PLE passing percentage for the last 5 *administrations of the exam*. This dataset has no
+  PRC pass-rate series and no fail records at all (the PLE source list contains passers only), so it
+  cannot compute that benchmark -- only a same-cohort "linkage rate" that is a different statistic. The
+  observable-cohort restriction (Year<=2014) also means any dataset-derived proxy would be permanently
+  frozen 12+ years in the past relative to the CMO's 2026 effectivity.
+- **GIDA/IP equity provisions.** No geographic-isolation, indigenous-peoples, or socioeconomic field
+  exists anywhere in the schema.
+- **Enrolment, and the 10-foreign-slot cap.** This dataset counts NMAT *test-takers*, not admitted or
+  enrolled MD freshmen, and the cap is only effective AY2026-2027 -- applying it to 2006-2018
+  test-taker counts would misrepresent historical testing volume as policy violations.
+- **Composite 60/40 or 70/30 admission ranking.** No GWA, interview score, or other admission
+  criterion exists in this dataset beyond the NMAT itself.
+
+A prior version of this tab attempted per-HEI PLE pass/fail verdicts, a "5-year rolling national
+benchmark," and a foreign-enrolment cap check against 2006-2018 data. All three were removed because
+the data cannot support them, not because they were miscalculated -- fixing the arithmetic would not
+fix the underlying category error (RC-4: `UNDERGRAD_UNIVERSITY` is the wrong institution for a PLE
+performance claim).
+            """
+        )
+
+    st.divider()
 
     df_obs = F["bestobservable"]
     df_trend = F["besttrend"]
@@ -2820,157 +2996,16 @@ with tab13:
     if df_obs.empty:
         st.info("No observable best-record rows are available under the current filters.")
     else:
-        # -- Section A: National PLE Benchmark ---------------------------------
-        st.markdown("### Section A: National PLE Benchmark (5-Year Rolling Average)")
+        # -- Section A: Applicant-pool cut-off scenarios -----------------------
+        st.markdown("### Section A: Applicant-Pool Cut-off Scenarios (30th vs 40th Percentile)")
         st.caption(
-            "The CHED amendment uses the average national PLE passing percentage for the last 5 years "
-            "as the benchmark. PHEIs with PLE performance above this benchmark may set NMAT cut-off at the "
-            "30th percentile; those below must maintain the 40th percentile."
-        )
-
-        _annual = (
-            df_obs.groupby("Year", observed=True)
-            .agg(
-                n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
-                n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
-            )
-            .reset_index()
-        )
-        _annual["ple_rate_pct"] = (_annual["n_confirmed_ple"] / _annual["n_examinees"] * 100).round(2)
-        _annual["5yr_rolling_avg_pct"] = _annual["ple_rate_pct"].rolling(window=5, min_periods=3).mean().round(2)
-
-        _c1, _c2 = st.columns([2, 1])
-        with _c1:
-            _fig_natl = go.Figure()
-            _fig_natl.add_trace(go.Scatter(
-                x=_annual["Year"].astype(str), y=_annual["ple_rate_pct"],
-                mode="lines+markers", name="Annual PLE rate",
-                line=dict(color="#1f77b4", width=2),
-                hovertemplate="Year: %{x}<br>PLE rate: %{y:.1f}%<extra></extra>",
-            ))
-            _fig_natl.add_trace(go.Scatter(
-                x=_annual["Year"].astype(str), y=_annual["5yr_rolling_avg_pct"],
-                mode="lines+markers", name="5-year rolling avg",
-                line=dict(color="#d62728", width=3, dash="dash"),
-                hovertemplate="Year: %{x}<br>5yr avg: %{y:.1f}%<extra></extra>",
-            ))
-            _fig_natl.update_layout(
-                title="National PLE Passing Rate with 5-Year Rolling Average",
-                xaxis_title="NMAT Year", yaxis_title="PLE Passing Rate (%)",
-                height=400, hovermode="x unified",
-            )
-            st.plotly_chart(_fig_natl, use_container_width=True, key="fig_t13_natl_benchmark")
-
-        with _c2:
-            _latest_5yr = _annual[_annual["5yr_rolling_avg_pct"].notna()].iloc[-1]
-            st.metric(
-                "Latest 5-year national avg",
-                f"{_latest_5yr['5yr_rolling_avg_pct']:.2f}%",
-                delta=None,
-                help="The benchmark PHEIs must beat to qualify for the 30th percentile cut-off.",
-            )
-            st.metric(
-                "Reference year",
-                f"{int(_latest_5yr['Year'])}",
-                help="The most recent NMAT cohort with a valid 5-year PLE observation window.",
-            )
-            _benchmark_val = _latest_5yr["5yr_rolling_avg_pct"]
-
-        st.dataframe(
-            _annual.rename(columns={
-                "Year": "NMAT Year",
-                "n_examinees": "Examinees (observable)",
-                "n_confirmed_ple": "Confirmed PLE passers",
-                "ple_rate_pct": "PLE passing rate (%)",
-                "5yr_rolling_avg_pct": "5-year rolling avg (%)",
-            }),
-            use_container_width=True,
-            hide_index=True,
-        )
-        st.download_button(
-            "Download national benchmark table",
-            data=_annual.to_csv(index=False).encode("utf-8"),
-            file_name="ched_national_ple_benchmark.csv",
-            mime="text/csv",
-        )
-
-        st.divider()
-
-        # -- Section B: Per-HEI PLE Performance --------------------------------
-        st.markdown("### Section B: Per-HEI PLE Performance vs. National Benchmark")
-        st.caption(
-            "Each HEI's PLE passing rate compared to the national 5-year rolling average. "
-            "Green = above benchmark (eligible for 30th percentile cut-off). "
-            "Red = below benchmark (must maintain 40th percentile). "
-            "Only HEIs with at least 5 observable best-record examinees are shown for statistical reliability."
-        )
-
-        _hei_threshold = st.slider(
-            "Minimum examinee count per HEI", min_value=5, max_value=100, value=5, step=5,
-            key="t13_hei_min",
-        )
-
-        _hei_ple = (
-            df_obs.groupby(["UNIVERSITY", "UNI_TYPE"], observed=True)
-            .agg(
-                n_examinees=("IS_PLE_ANALYSIS_SAFE", "size"),
-                n_confirmed_ple=("IS_PLE_ANALYSIS_SAFE", "sum"),
-                median_percentile=("NMS_PER_num", "median"),
-            )
-            .reset_index()
-        )
-        _hei_ple["ple_rate_pct"] = (_hei_ple["n_confirmed_ple"] / _hei_ple["n_examinees"] * 100).round(2)
-        _hei_ple = _hei_ple[_hei_ple["n_examinees"] >= _hei_threshold].copy()
-        _hei_ple["above_benchmark"] = _hei_ple["ple_rate_pct"] > _benchmark_val
-
-        _hei_display = _hei_ple.sort_values("ple_rate_pct", ascending=False).reset_index(drop=True)
-        _hei_display["status"] = np.where(
-            _hei_display["above_benchmark"],
-            "✅ Above benchmark (30th eligible)",
-            "🔴 Below benchmark (40th required)",
-        )
-
-        _c_pass = int(_hei_display["above_benchmark"].sum())
-        _c_fail = int((~_hei_display["above_benchmark"]).sum())
-        _c1, _c2, _c3 = st.columns(3)
-        _c1.metric("HEIs above benchmark", f"{_c_pass:,}", help="Eligible for 30th percentile cut-off")
-        _c2.metric("HEIs below benchmark", f"{_c_fail:,}", help="Must maintain 40th percentile cut-off")
-        _c3.metric("National benchmark", f"{_benchmark_val:.2f}%")
-
-        st.dataframe(
-            _hei_display[[
-                "UNIVERSITY", "UNI_TYPE", "n_examinees", "median_percentile",
-                "ple_rate_pct", "status",
-            ]].rename(columns={
-                "UNIVERSITY": "HEI Name",
-                "UNI_TYPE": "Type",
-                "n_examinees": "Examinees",
-                "median_percentile": "Median %ile",
-                "ple_rate_pct": "PLE rate (%)",
-                "status": "CHED Status",
-            }),
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "PLE rate (%)": st.column_config.NumberColumn(format="%.2f"),
-                "Median %ile": st.column_config.NumberColumn(format="%.1f"),
-            },
-        )
-
-        st.download_button(
-            "Download per-HEI table",
-            data=_hei_display.to_csv(index=False).encode("utf-8"),
-            file_name="ched_per_hei_ple_performance.csv",
-            mime="text/csv",
-        )
-
-        st.divider()
-
-        # -- Section C: Cut-off Scenario Modeling ------------------------------
-        st.markdown("### Section C: 30th vs 40th Percentile Cut-off Scenarios")
-        st.caption(
-            "Comparison of examinee counts and PLE outcomes under the 30th percentile (B4+) "
-            "vs 40th percentile (B5+) cut-off thresholds, broken down by university type."
+            "Compares the observable-cohort applicant pool at or above the 30th-percentile (B4+) and "
+            "40th-percentile (B5+) candidate thresholds, by undergraduate institution type. "
+            "\"PLE linkage rate\" is the share found in the PLE passer source list -- not a licensure "
+            "pass rate, since the source contains passers only. Both columns below use the SAME "
+            "observable-cohort window (Year<=2014) so they describe one consistent population; an "
+            "earlier version of this table mixed a full-history 'admitted' count with an "
+            "observable-only PLE count in the same row."
         )
 
         def _bin_at_or_above(b, threshold_b):
@@ -2983,22 +3018,20 @@ with tab13:
 
         _scenario_rows = []
         for _uni_type in ["All", "Public", "Private", "Foreign"]:
-            _sub = df_trend if _uni_type == "All" else df_trend[df_trend["UNI_TYPE"] == _uni_type]
-            _sub_obs = df_obs if _uni_type == "All" else df_obs[df_obs["UNI_TYPE"] == _uni_type]
+            _sub_obs = df_obs if _uni_type == "All" else df_obs[df_obs["UNDERGRAD_UNI_TYPE"] == _uni_type]
 
-            for _label, _bin, _cohort in [
-                ("30th percentile (B4+)", "B4", _sub),
-                ("40th percentile (B5+)", "B5", _sub),
+            for _label, _bin in [
+                ("30th percentile (B4+)", "B4"),
+                ("40th percentile (B5+)", "B5"),
             ]:
-                _admitted = _cohort[_cohort["PercentileBin"].apply(lambda x: _bin_at_or_above(x, _bin))]
                 _ple_cohort = _sub_obs[_sub_obs["PercentileBin"].apply(lambda x: _bin_at_or_above(x, _bin))]
                 _scenario_rows.append({
                     "University Type": _uni_type,
                     "Cut-off": _label,
-                    "Admitted (best records)": len(_admitted),
-                    "PLE passers (observable)": int(_ple_cohort["IS_PLE_ANALYSIS_SAFE"].sum()),
-                    "PLE pass rate (%)": round(_ple_cohort["IS_PLE_ANALYSIS_SAFE"].mean() * 100, 2) if len(_ple_cohort) > 0 else 0,
-                    "Median percentile": round(_admitted["NMS_PER_num"].median(), 1) if len(_admitted) > 0 else 0,
+                    "Observable-cohort applicants at/above cut-off": len(_ple_cohort),
+                    "PLE passers (observable)": int(_ple_cohort["IS_PLE_PASSER"].sum()),
+                    "PLE linkage rate (%)": round(_ple_cohort["IS_PLE_PASSER"].mean() * 100, 2) if len(_ple_cohort) > 0 else 0,
+                    "Median percentile": round(_ple_cohort["NMS_PER_num"].median(), 1) if len(_ple_cohort) > 0 else 0,
                 })
 
         _scenario_df = pd.DataFrame(_scenario_rows)
@@ -3009,20 +3042,25 @@ with tab13:
         with _c2:
             _fig_scenario = px.bar(
                 _scenario_df,
-                x="University Type", y="PLE pass rate (%)",
+                x="University Type", y="PLE linkage rate (%)",
                 color="Cut-off", barmode="group",
-                title="PLE Pass Rate by Cut-off Scenario",
+                title="PLE Linkage Rate by Cut-off Scenario (observable cohort)",
                 color_discrete_map={
                     "30th percentile (B4+)": "#2e7d32",
                     "40th percentile (B5+)": "#1565c0",
                 },
             )
-            _fig_scenario.add_hline(
-                y=_benchmark_val, line_dash="dash", line_color="red",
-                annotation_text=f"National avg: {_benchmark_val:.1f}%",
-            )
             _fig_scenario.update_layout(height=400)
             st.plotly_chart(_fig_scenario, use_container_width=True, key="fig_t13_scenario")
+
+        st.info(
+            "**Reading this table:** PLE linkage rises steadily from the lowest to the highest percentile "
+            "bin, with no sharp step at the 30th or 40th percentile threshold -- see the bin-by-bin gradient "
+            "in Section C. A notable data point: a nontrivial number of B1 (lowest-decile) examinees are "
+            "confirmed PLE passers, which a strictly binding 40th-percentile admission floor would not "
+            "predict. This table describes the applicant pool's outcomes at each threshold; it is not, by "
+            "itself, a causal estimate of what would happen if a cut-off were changed."
+        )
 
         st.download_button(
             "Download cut-off scenarios",
@@ -3033,176 +3071,78 @@ with tab13:
 
         st.divider()
 
-        # -- Section D: Foreign Student Slot Analysis --------------------------
-        st.markdown("### Section D: Foreign Student Enrollment (10-Slot Cap)")
+        # -- Section B: Foreign vs Filipino applicant-pool composition ---------
+        st.markdown("### Section B: Foreign vs. Filipino Applicant-Pool Composition")
         st.caption(
-            "The CHED amendment caps foreign student enrollment at 10 per incoming freshmen class at SUCs. "
-            "This table shows foreign student counts per SUC per year based on CITIZENSHIP_FINAL "
-            "from NMAT_Exodus.parquet (Pipeline 4)."
+            "Percentile-bin composition of the observable applicant pool, split by citizenship status. "
+            "This describes the applicant pool only -- it is not an institutional or enrolment metric, "
+            "and it says nothing about the 10-foreign-slot enrolment cap (which this dataset cannot "
+            "evaluate; see the panel above)."
         )
 
-        if "CITIZENSHIP_FINAL" in df_trend.columns:
-            _suc_foreign = df_trend[
-                (df_trend["UNI_TYPE"] == "Public")
-                & (df_trend["FOREIGNER_STATUS"] != "Filipino")
-                & (df_trend["IS_BEST_NMAT_RECORD"] == True)
-            ]
-            if not _suc_foreign.empty:
-                _suc_yr = (
-                    _suc_foreign.groupby(["UNIVERSITY", "Year"], observed=True)
-                    .size()
-                    .reset_index(name="foreign_count")
+        _uniobs_citz = F["uniobservable"].copy()
+        if "FOREIGNER_STATUS" in _uniobs_citz.columns:
+            _uniobs_citz["_citz_group"] = np.where(
+                _uniobs_citz["FOREIGNER_STATUS"] != "Filipino", "Foreigner", "Filipino"
+            )
+            _citz_count, _citz_pct = pct_table(_uniobs_citz, "_citz_group", "PercentileBin", BIN_ORDER)
+            _citz_pct.index.name = "Group"
+
+            _cb1, _cb2 = st.columns(2)
+            with _cb1:
+                st.plotly_chart(
+                    make_stacked_pct_bar(_citz_pct, "Bin Composition: Foreigner vs Filipino", "Group", "Percent", BIN_COLORS),
+                    use_container_width=True, key="fig_t13_citz_stacked",
                 )
-                _suc_yr["over_cap"] = _suc_yr["foreign_count"] > 10
-
-                _c1, _c2 = st.columns([1, 1])
-                with _c1:
-                    _over_cap = _suc_yr[_suc_yr["over_cap"]]
-                    st.metric(
-                        "SUC-Year combos exceeding 10-slot cap",
-                        f"{len(_over_cap)}",
-                        help="Number of SUC-year combinations where foreign enrollment exceeded the CHED 10-slot cap.",
-                    )
-                    st.metric(
-                        "Total foreign students at SUCs",
-                        f"{len(_suc_foreign):,}",
-                        help="Total foreign examinees at SUCs across all years.",
-                    )
-
-                with _c2:
-                    _suc_summary = (
-                        _suc_yr.groupby("UNIVERSITY")
-                        .agg(
-                            max_foreign=("foreign_count", "max"),
-                            total_foreign=("foreign_count", "sum"),
-                            years_over_cap=("over_cap", "sum"),
-                        )
-                        .reset_index()
-                        .sort_values("max_foreign", ascending=False)
-                        .head(20)
-                    )
-                    st.dataframe(
-                        _suc_summary.rename(columns={
-                            "UNIVERSITY": "SUC",
-                            "max_foreign": "Max foreign in 1 year",
-                            "total_foreign": "Total foreign",
-                            "years_over_cap": "Years over 10-cap",
-                        }),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-
-                st.dataframe(
-                    _suc_yr.sort_values(["Year", "foreign_count"], ascending=[True, False]).rename(columns={
-                        "UNIVERSITY": "SUC",
-                        "foreign_count": "Foreign examinees",
-                        "over_cap": "Exceeds 10-cap?",
-                    }),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-                st.download_button(
-                    "Download foreign enrollment table",
-                    data=_suc_yr.to_csv(index=False).encode("utf-8"),
-                    file_name="ched_foreign_enrollment_suc.csv",
-                    mime="text/csv",
-                )
-            else:
-                st.info("No foreign student records at SUCs under the current filters.")
+            with _cb2:
+                _citz_n = _uniobs_citz["_citz_group"].value_counts().rename_axis("Group").reset_index(name="n")
+                st.dataframe(_citz_n, use_container_width=True, hide_index=True)
+                st.dataframe(_citz_pct.reset_index(), use_container_width=True, hide_index=True)
         else:
             st.info("Citizenship columns not available. Run Pipeline 4 to generate NMAT_Exodus.parquet.")
 
         st.divider()
 
-        # -- Section E: Per-HEI Score Distribution -----------------------------
-        st.markdown("### Section E: Per-HEI NMAT Score Distribution Viewer")
+        # -- Section C: Individual-level PLE linkage gradient -------------------
+        st.markdown("### Section C: Individual-Level PLE Linkage Gradient by Percentile Bin")
         st.caption(
-            "Select an institution to view its NMAT score distribution, percentile bin composition, "
-            "and PLE alignment rate. Use this to assess what cut-off level would mean for a specific school's applicants."
+            "The one individual-level relationship this dataset can speak to directly: how the PLE "
+            "linkage rate rises with NMAT percentile bin, in the observable cohort."
         )
 
-        _hei_list = sorted(df_trend["UNIVERSITY"].dropna().unique())
-        _selected_hei = st.selectbox(
-            "Select institution",
-            options=_hei_list,
-            index=_hei_list.index("University Of Santo Tomas") if "University Of Santo Tomas" in _hei_list else 0,
-            key="t13_hei_selector",
-        )
+        _grad = df_obs.groupby("PercentileBin", observed=True)["IS_PLE_PASSER"].agg(["size", "sum", "mean"]).reindex(BIN_ORDER)
+        _grad.columns = ["n", "linked_n", "linkage_rate"]
+        _grad["linkage_rate_pct"] = (_grad["linkage_rate"] * 100).round(2)
+        _grad = _grad.drop(columns=["linkage_rate"]).reset_index()
 
-        _hei_data = df_trend[df_trend["UNIVERSITY"] == _selected_hei].copy()
-        _hei_obs = df_obs[df_obs["UNIVERSITY"] == _selected_hei].copy()
-
-        if not _hei_data.empty:
-            _c1, _c2, _c3, _c4 = st.columns(4)
-            _c1.metric("Total examinees", f"{len(_hei_data):,}")
-            _c2.metric("Median percentile", f"{_hei_data['NMS_PER_num'].median():.1f}")
-            _c3.metric("Median TRUE raw score", f"{_hei_data['TotalRawScoreTRUE'].median():.1f}")
-            _c4.metric(
-                "PLE pass rate (observable)",
-                f"{_hei_obs['IS_PLE_ANALYSIS_SAFE'].mean() * 100:.1f}%" if not _hei_obs.empty else "N/A",
-            )
-
-            _bin_dist = _hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).fillna(0)
-            _bin_pct = (_bin_dist / _bin_dist.sum() * 100).round(1)
-
-            _fig_hei = go.Figure()
-            _fig_hei.add_trace(go.Bar(
-                x=_bin_dist.index, y=_bin_dist.values,
-                text=_bin_dist.values.astype(int),
+        _gc1, _gc2 = st.columns([1, 1])
+        with _gc1:
+            st.dataframe(_grad, use_container_width=True, hide_index=True)
+        with _gc2:
+            _fig_grad = go.Figure(go.Bar(
+                x=_grad["PercentileBin"], y=_grad["linkage_rate_pct"],
+                marker_color=[BIN_COLORS.get(b, "#7f7f7f") for b in _grad["PercentileBin"]],
+                text=[f"{v:.1f}%" if pd.notna(v) else "" for v in _grad["linkage_rate_pct"]],
                 textposition="outside",
-                marker_color=[BIN_COLORS.get(b, "#7f7f7f") for b in _bin_dist.index],
-                hovertemplate="Bin: %{x}<br>Count: %{y}<extra></extra>",
             ))
-            _fig_hei.update_layout(
-                title=f"Bin Distribution — {_selected_hei}",
-                xaxis_title="Percentile Bin", yaxis_title="Examinees (best records)",
-                height=400,
+            _fig_grad.update_layout(
+                title="PLE Linkage Rate by Percentile Bin (observable cohort)",
+                xaxis_title="Percentile bin", yaxis_title="Linkage rate (%)", height=420,
             )
+            st.plotly_chart(_fig_grad, use_container_width=True, key="fig_t13_gradient")
 
-            _fig_hei_box = go.Figure()
-            _fig_hei_box.add_trace(go.Box(
-                y=_hei_data["NMS_PER_num"].dropna(),
-                name=_selected_hei,
-                boxmean=True,
-                marker_color="#1f77b4",
-                hovertemplate="Percentile: %{y:.1f}<extra></extra>",
-            ))
-            _fig_hei_box.update_layout(
-                title=f"Percentile Rank Distribution — {_selected_hei}",
-                yaxis_title="NMAT Percentile Rank",
-                height=400,
-            )
+        _b1_row = _grad[_grad["PercentileBin"] == "B1"]
+        _b1_passers = int(_b1_row["linked_n"].iloc[0]) if not _b1_row.empty and pd.notna(_b1_row["linked_n"].iloc[0]) else 0
+        st.caption(
+            f"The gradient rises steadily from the lowest to the highest bin, with no sharp step at the "
+            f"30th (B4) or 40th (B5) percentile threshold. Notably, {_b1_passers:,} B1 (lowest-decile) "
+            "examinees in the observable cohort are confirmed PLE passers -- a strictly binding "
+            "40th-percentile admission floor would predict this group should barely exist."
+        )
 
-            _col1, _col2 = st.columns(2)
-            with _col1:
-                st.plotly_chart(_fig_hei, use_container_width=True, key="fig_t13_hei_bins")
-            with _col2:
-                st.plotly_chart(_fig_hei_box, use_container_width=True, key="fig_t13_hei_box")
-
-            # Summary stats table for selected HEI
-            _hei_stats = _hei_data["PercentileBin"].value_counts().reindex(BIN_ORDER).reset_index()
-            _hei_stats.columns = ["PercentileBin", "Count"]
-            _hei_stats["Percent"] = (_hei_stats["Count"] / _hei_stats["Count"].sum() * 100).round(1)
-
-            _col1, _col2 = st.columns(2)
-            with _col1:
-                st.dataframe(_hei_stats, use_container_width=True, hide_index=True)
-            with _col2:
-                st.metric(
-                    "% at or above 30th percentile (B4+)",
-                    f"{_hei_stats[_hei_stats['PercentileBin'].isin(['B4','B5','B6','B7','B8','B9','B10'])]['Count'].sum() / _hei_stats['Count'].sum() * 100:.1f}%",
-                )
-                st.metric(
-                    "% at or above 40th percentile (B5+)",
-                    f"{_hei_stats[_hei_stats['PercentileBin'].isin(['B5','B6','B7','B8','B9','B10'])]['Count'].sum() / _hei_stats['Count'].sum() * 100:.1f}%",
-                )
-
-            st.download_button(
-                "Download HEI distribution",
-                data=_hei_stats.to_csv(index=False).encode("utf-8"),
-                file_name=f"ched_hei_{_selected_hei.replace(' ', '_')[:50]}_distribution.csv",
-                mime="text/csv",
-            )
-        else:
-            st.info("No data for the selected institution under the current filters.")
+        st.download_button(
+            "Download linkage-gradient table",
+            data=_grad.to_csv(index=False).encode("utf-8"),
+            file_name="ched_linkage_gradient_by_bin.csv",
+            mime="text/csv",
+        )

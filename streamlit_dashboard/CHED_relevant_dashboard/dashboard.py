@@ -4,18 +4,21 @@ A clean, evidence-focused dashboard built from NMAT_Exodus.parquet for
 presentation to CHED stakeholders.  Only CMO-relevant insights that are
 directly supported by the available data are included.  No compliance
 labels, eligibility decisions, or regulatory assessments are assigned.
+
+All aggregation logic lives in ched_common.py and is shared with
+export_markdown.py so the dashboard and the exported document can never
+silently disagree.
 """
 
 import warnings
-from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
+import ched_common as cc
 from export_markdown import build_full_markdown
 
 warnings.filterwarnings("ignore")
@@ -29,137 +32,24 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-BIN_ORDER = [f"B{i}" for i in range(1, 11)]
-BIN_LABELS = {
-    "B1": "0-9", "B2": "10-19", "B3": "20-29", "B4": "30-39",
-    "B5": "40-49", "B6": "50-59", "B7": "60-69", "B8": "70-79",
-    "B9": "80-89", "B10": "90-100",
-}
-B4_PLUS = ["B4", "B5", "B6", "B7", "B8", "B9", "B10"]
-B5_PLUS = ["B5", "B6", "B7", "B8", "B9", "B10"]
-TOP_BINS = ["B8", "B9", "B10"]
-BOTTOM_BINS = ["B1", "B2", "B3"]
-
-COLORS_BIN = {
-    "B1": "#8B0000", "B2": "#B22222", "B3": "#D9534F", "B4": "#F0AD4E",
-    "B5": "#FFD166", "B6": "#A0D468", "B7": "#66C2A5", "B8": "#41B6C4",
-    "B9": "#2C7FB8", "B10": "#253494",
-}
-COLORS_UNI = {"Public": "#1f77b4", "Private": "#ff7f0e", "Foreign": "#9467bd", "Not Specified": "#7f7f7f"}
-
-REQUIRED_COLS = [
-    "APPNO_CLEAN", "PERSON_KEY", "Year", "UNI_TYPE", "UNIVERSITY",
-    "CourseGroup", "IS_BEST_NMAT_RECORD", "IS_PLE_ANALYSIS_SAFE",
-    "TotalRawScoreTRUE", "NMS_PER_num", "PercentileBin",
-]
-
-# ---------------------------------------------------------------------------
-# Schema validation (lightweight)
-# ---------------------------------------------------------------------------
-def validate_schema(df: pd.DataFrame) -> pd.DataFrame:
-    """Check required columns, normalize types, derive missing fields."""
-    missing = [c for c in REQUIRED_COLS if c not in df.columns]
-    if missing:
-        raise ValueError(
-            "NMAT_Exodus.parquet is missing required columns: "
-            + ", ".join(missing)
-        )
-
-    df = df.copy()
-
-    # Normalize numeric types
-    for c in ["Year", "TotalRawScoreTRUE", "NMS_PER_num", "NMS_GPS",
-              "PartIRawScoreTRUE", "PartIIRawScoreTRUE"]:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-
-    # Derive PercentileBin if absent (left-closed [0,10)...[90,100])
-    if "PercentileBin" not in df.columns or df["PercentileBin"].isna().all():
-        edges = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 101]
-        df["PercentileBin"] = pd.cut(
-            pd.to_numeric(df["NMS_PER_num"], errors="coerce"),
-            bins=edges, labels=BIN_ORDER, right=False, include_lowest=True,
-        )
-    df["PercentileBin"] = pd.Categorical(
-        df["PercentileBin"], categories=BIN_ORDER, ordered=True
-    )
-
-    # Normalise boolean flags safely (may be nullable booleans or strings)
-    for c in ["IS_BEST_NMAT_RECORD", "IS_PLE_ANALYSIS_SAFE"]:
-        if c in df.columns:
-            if not pd.api.types.is_bool_dtype(df[c]):
-                df[c] = df[c].astype(str).str.upper().isin(["TRUE", "1", "YES"])
-            else:
-                df[c] = df[c].fillna(False)
-
-    # Normalize HasTRUErawScores (stored as string "True"/"False" in parquet)
-    for c in ["HasTRUErawScores"]:
-        if c in df.columns:
-            df[c] = df[c].astype(str).str.strip().str.lower().isin(["true", "1", "yes"])
-
-    # Normalize StoredVsDerivedMismatch, CalcVsDerivedMismatch (stored as string "0.0"/"1.0"/"NaN")
-    for c in ["StoredVsDerivedMismatch", "CalcVsDerivedMismatch"]:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-
-    # Fill missing UNI_TYPE
-    df["UNI_TYPE"] = df["UNI_TYPE"].fillna("Not Specified").astype(str).replace({"nan": "Not Specified"})
-
-    return df
+BIN_ORDER = cc.BIN_ORDER
+BIN_LABELS = cc.BIN_LABELS
+B4_PLUS = cc.B4_PLUS
+B5_PLUS = cc.B5_PLUS
+TOP_BINS = cc.TOP_BINS
+BOTTOM_BINS = cc.BOTTOM_BINS
+COLORS_BIN = cc.COLORS_BIN
+COLORS_UNI = cc.COLORS_UNI
+UNI_TYPE_COL = cc.UNI_TYPE_COL
+COURSE_GROUP_COL = cc.COURSE_GROUP_COL
 
 
 # ---------------------------------------------------------------------------
 # Data loading
 # ---------------------------------------------------------------------------
-def find_data_path() -> Path:
-    candidates = [
-        Path("NMAT_Exodus.parquet"),
-        Path("dataset/NMAT_Exodus.parquet"),
-        Path("../main_dashboard/NMAT_Exodus.parquet"),
-        Path("../../dataset/NMAT_Exodus.parquet"),
-    ]
-    for p in candidates:
-        if p.exists():
-            return p.resolve()
-    raise FileNotFoundError(
-        "Could not locate NMAT_Exodus.parquet. "
-        "Place it in ./dataset/ or in the app root."
-    )
-
-
 @st.cache_data(show_spinner="Loading NMAT data ...")
 def load_data():
-    path = find_data_path()
-    df = pd.read_parquet(path)
-    df = validate_schema(df)
-
-    # Subsets
-    df_best = df[df["IS_BEST_NMAT_RECORD"] == True].copy()
-    df_obs = df_best[df_best["Year"] <= 2014].copy()
-
-    if "IS_PLE_ANALYSIS_SAFE" in df_obs.columns:
-        df_obs["HAS_CONFIRMED_PLE"] = (df_obs["IS_PLE_ANALYSIS_SAFE"] == True)
-    else:
-        df_obs["HAS_CONFIRMED_PLE"] = False
-
-    return df, df_best, df_obs
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def make_bin_pct(df, group_col):
-    """Return (count_df, pct_df) of row-wise bin percentages."""
-    ct = pd.crosstab(df[group_col], df["PercentileBin"], dropna=False)
-    ct = ct.reindex(columns=BIN_ORDER, fill_value=0)
-    ct = ct.apply(pd.to_numeric, errors="coerce")
-    pct = ct.div(ct.sum(axis=1).replace(0, np.nan), axis=0).mul(100).fillna(0).round(2)
-    return ct, pct
-
-
-def n_in_bins(df, bins):
-    """Return count of rows whose PercentileBin is in the given list."""
-    return df["PercentileBin"].isin(bins).sum()
+    return cc.load_and_validate()
 
 
 # ---------------------------------------------------------------------------
@@ -167,77 +57,51 @@ def n_in_bins(df, bins):
 # ---------------------------------------------------------------------------
 df_all, df_best, df_obs = load_data()
 
-N_BEST = len(df_best)
+kpi1 = cc.compute_tab1_kpis(df_best)
+N_BEST, N_UNIQUE = kpi1["n_best"], kpi1["n_unique"]
 N_OBS = len(df_obs)
-N_UNIQUE = int(df_best["PERSON_KEY"].nunique())
-N_REPEAT = int((df_all.groupby("PERSON_KEY")["APPNO_CLEAN"].nunique() > 1).sum())
-N_FOREIGN_ALL = int((df_all["FOREIGNER_STATUS"] == "Verified Foreigner").sum()) if "FOREIGNER_STATUS" in df_all.columns else 0
-N_FILIPINO_ALL = int((df_all["CITIZENSHIP_FINAL"] == "Filipino").sum()) if "CITIZENSHIP_FINAL" in df_all.columns else 0
+_rep = cc.compute_repeat_taker_stats(df_all, N_UNIQUE)
+N_REPEAT, REPEAT_PCT = _rep["n_repeat"], _rep["pct"]
+_mismatch = cc.compute_stored_mismatch_stats(df_all)
+_true_stats = cc.compute_true_raw_score_stats(df_all)
 
-# Pre-compute key values for dynamic captions
-_PLE_BIN_ALL = (
-    df_obs.dropna(subset=["PercentileBin", "HAS_CONFIRMED_PLE"])
-    .groupby("PercentileBin", observed=True)
-    .agg(n=("APPNO_CLEAN", "count"), confirmed=("HAS_CONFIRMED_PLE", "sum"))
-    .reset_index()
-)
-_PLE_BIN_ALL.columns = ["Bin", "n", "confirmed"]
-_PLE_BIN_ALL["linkage"] = (_PLE_BIN_ALL["confirmed"] / _PLE_BIN_ALL["n"].replace(0, np.nan) * 100).round(2)
-_B4_LINKAGE = _PLE_BIN_ALL.loc[_PLE_BIN_ALL["Bin"] == "B4", "linkage"].values[0] if "B4" in _PLE_BIN_ALL["Bin"].values else 0
-_B5_LINKAGE = _PLE_BIN_ALL.loc[_PLE_BIN_ALL["Bin"] == "B5", "linkage"].values[0] if "B5" in _PLE_BIN_ALL["Bin"].values else 0
+_df_best_bins = cc.bins_population(df_best)
+_df_obs_bins = cc.bins_population(df_obs)
 
-# Clean PLE subset: strongest defensible match criteria
-# IS_BEST_NMAT_RECORD + IS_PLE_ANALYSIS_SAFE + >=5yr gap + Filipino only
-_df_clean_ple = df_obs[
-    (df_obs["IS_PLE_ANALYSIS_SAFE"] == True)
-    & (df_obs["PLE_YEAR_GAP"] >= 5)
-    & (df_obs["FOREIGNER_STATUS"] == "Filipino")
-].copy()
-N_CLEAN_PLE = len(_df_clean_ple)
-N_CLEAN_B5 = len(_df_clean_ple[_df_clean_ple["PercentileBin"].isin(B5_PLUS)])
+_ple_bin_all = cc.compute_linkage_by(df_obs, "PercentileBin")
+_b4_row = _ple_bin_all.loc[_ple_bin_all["PercentileBin"] == "B4"]
+_b5_row = _ple_bin_all.loc[_ple_bin_all["PercentileBin"] == "B5"]
+_B4_LINKAGE = float(_b4_row["Linkage Rate (%)"].values[0]) if len(_b4_row) else 0.0
+_B5_LINKAGE = float(_b5_row["Linkage Rate (%)"].values[0]) if len(_b5_row) else 0.0
 
-# Yearly B5+ clean PLE breakdown for stacked chart
-_clean_ple_yr = (
-    _df_clean_ple[_df_clean_ple["PercentileBin"].isin(B5_PLUS)]
-    .groupby("Year", observed=True)
-    .agg(
-        total=("APPNO_CLEAN", "count"),
-        confirmed=("HAS_CONFIRMED_PLE", "sum"),
-    )
-    .reset_index()
-)
-_clean_ple_yr["no_match"] = _clean_ple_yr["total"] - _clean_ple_yr["confirmed"]
-_clean_ple_yr["linkage_pct"] = (_clean_ple_yr["confirmed"] / _clean_ple_yr["total"] * 100).round(1)
+_PUB_PRIV_EV = cc.compute_public_private_b5_evidence(_df_best_bins)
 
-# Public school B5+ attainment (for Tab 5 findings)
-_pub_best = df_best[df_best["UNI_TYPE"] == "Public"].dropna(subset=["PercentileBin"])
-PUB_B5_RATE = round(n_in_bins(_pub_best, B5_PLUS) / len(_pub_best) * 100, 1) if len(_pub_best) > 0 else 0
-PUB_B5_COUNT = n_in_bins(_pub_best, B5_PLUS)
-PUB_TOTAL = len(_pub_best)
-PUB_B4O_COUNT = n_in_bins(_pub_best, ["B4"])
-PUB_B4O_RATE = round(PUB_B4O_COUNT / PUB_TOTAL * 100, 1) if PUB_TOTAL > 0 else 0
+SELECTION_EFFECT_NOTE = cc.SELECTION_EFFECT_NOTE
+SCOPE_NOTE = cc.SCOPE_NOTE
 
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
 st.title("NMAT Performance Evidence for CHED Cut-Off Policy Review")
 st.caption(
-    "This dashboard presents descriptive evidence from NMAT_Exodus.parquet "
-    "(178,927 examinee records, 2006-2018) to inform the CMO amendment on "
-    "NMAT cut-off scores.  All analyses use validated data from the "
-    "4-pipeline processing system.  PLE-linked analyses use the observable "
-    "cohort (Year <= 2014) to avoid right-censoring bias."
+    f"This dashboard presents descriptive evidence from NMAT_Exodus.parquet "
+    f"({len(df_all):,} examinee records, 2006-2018) to inform the CMO amendment on "
+    f"NMAT cut-off scores.  All analyses use validated data from the "
+    f"4-pipeline processing system.  PLE-linked analyses use the observable "
+    f"cohort -- each person's best attempt with Year <= 2014 "
+    f"(`IS_BEST_OBSERVABLE_RECORD`) -- to avoid right-censoring bias."
 )
 
 with st.expander("How to read this dashboard", expanded=False):
     st.markdown(
-        """
+        f"""
 - **Best-record examinees** -- one NMAT record per person (removes repeat-taker inflation).
-- **Observable cohort** -- examinees with Year <= 2014, who have had time to take the PLE.
-- **Score bins** -- B1 (0-9) through B10 (90-100).  B4+ means at or above Bin 4 (30th-39th).  B5+ means at or above Bin 5 (40th-49th).
+- **Observable cohort** -- each person's best NMAT attempt with Year <= 2014, who has had time to take the PLE. This is **not** the same as simply filtering the overall-best record to Year<=2014, which would silently drop people whose best attempt fell in a later year.
+- **Score bins** -- B1 (0-9, lowest) through B10 (90-100, highest).  B4+ means at or above Bin 4 (30th-39th).  B5+ means at or above Bin 5 (40th-49th).
 - **NMAT-to-PLE linkage** -- the proportion of NMAT examinees who were later matched to PLE passer records.  This is NOT a PLE pass rate.  The dataset does not contain all PLE takers or PLE failures.
 - **Foreign examinee counts** -- these are NMAT examinees, not enrolled medical students.  Enrollment numbers would require additional data.
-- **All score summaries use recalculated TRUE raw scores** -- the original stored total was inconsistent for 42.2% of records and has been corrected.
+- **All score summaries use recalculated TRUE raw scores.**  Of the {_mismatch['n_stored']:,} records that carry a stored total, {_mismatch['n_mismatch']:,} ({_mismatch['pct_of_stored']:.1f}%) disagreed with the sum of the 8 component subtest scores and have been corrected using the recalculated total.
+- {SCOPE_NOTE}
         """
     )
 
@@ -286,97 +150,82 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("National NMAT Profile and Coverage")
     st.caption(
-        "What this shows: the size, scope, and basic score distribution of the "
-        "NMAT examinee population across 13 examination years.  All score "
-        "summaries use recalculated TRUE raw scores (the original stored total "
-        "was inconsistent for 42.2% of records and has been corrected)."
+        f"What this shows: the size, scope, and basic score distribution of the "
+        f"NMAT examinee population across 13 examination years.  All score "
+        f"summaries use recalculated TRUE raw scores ({_mismatch['n_mismatch']:,} of "
+        f"{_mismatch['n_stored']:,} records with a stored total, or "
+        f"{_mismatch['pct_of_stored']:.1f}%, disagreed with the recalculated total and "
+        f"were corrected)."
     )
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Best-record examinees", f"{N_BEST:,}")
     c2.metric("Unique persons (PERSON_KEY)", f"{N_UNIQUE:,}",
-              help="Distinct person identifiers in the best-record subset.")
-    c3.metric("NMAT years covered", f"{int(df_best['Year'].nunique())}")
-    c4.metric("Median percentile rank", f"{df_best['NMS_PER_num'].median():.1f}")
+              help="Distinct person identifiers in the best-record subset. Equal by construction to best-record examinees.")
+    c3.metric("NMAT years covered", f"{kpi1['n_years']}")
+    c4.metric("Median NMAT percentile", f"{kpi1['median_pct']:.1f}")
 
-    # Simplified annual trend (examinee volume + median percentile)
-    yearly_summary = (
-        df_best.groupby("Year", observed=True)
-        .agg(
-            examinees=("APPNO_CLEAN", "count"),
-            median_pct=("NMS_PER_num", "median"),
-            median_raw=("TotalRawScoreTRUE", "median"),
-        )
-        .reset_index()
-    )
+    yearly_summary = cc.compute_annual_trend(df_best)
     yearly_summary["Year"] = yearly_summary["Year"].astype(str)
 
     fig = make_subplots(
         rows=2, cols=1,
-        subplot_titles=("Examinee Volume by Year", "Median Bin Rank by Year"),
+        subplot_titles=("Examinee Volume by Year", "Median NMAT Percentile by Year"),
         vertical_spacing=0.22,
     )
-    fig.add_trace(go.Bar(x=yearly_summary["Year"], y=yearly_summary["examinees"],
+    fig.add_trace(go.Bar(x=yearly_summary["Year"], y=yearly_summary["Examinees"],
                          name="Examinees", marker_color="#1f77b4",
                          hovertemplate="Year: %{x}<br>Examinees: %{y:,}<extra></extra>"),
                   row=1, col=1)
-    fig.add_trace(go.Scatter(x=yearly_summary["Year"], y=yearly_summary["median_pct"],
-                             mode="lines+markers", name="Median bin rank",
+    fig.add_trace(go.Scatter(x=yearly_summary["Year"], y=yearly_summary["Median_percentile"],
+                             mode="lines+markers", name="Median NMAT percentile",
                              line=dict(color="#d62728", width=3),
-                             hovertemplate="Year: %{x}<br>Median bin rank: %{y:.1f}<extra></extra>"),
+                             hovertemplate="Year: %{x}<br>Median NMAT percentile: %{y:.1f}<extra></extra>"),
                   row=2, col=1)
     fig.update_layout(height=500, hovermode="x unified", showlegend=False)
     fig.update_yaxes(title_text="Examinees", row=1, col=1)
-    fig.update_yaxes(title_text="Median bin rank", row=2, col=1)
+    fig.update_yaxes(title_text="Median NMAT percentile (0-99 scale)", row=2, col=1)
     st.plotly_chart(fig, use_container_width=True, key="t1_trend")
+    _first_med = yearly_summary["Median_percentile"].iloc[0]
+    _last_med = yearly_summary["Median_percentile"].iloc[-1]
     st.caption(
-        "Examinee volume has grown substantially since 2015.  Median bin rank "
-        "has declined from 53-57 in earlier years to 43-48 in 2016-2018.  These "
-        "historical trends provide context for evaluating threshold impacts."
+        f"Examinee volume has grown substantially since 2015.  Median NMAT percentile "
+        f"(the raw 0-99 percentile score, not a bin number) moved from "
+        f"{_first_med:.0f} in {yearly_summary['Year'].iloc[0]} to {_last_med:.0f} in "
+        f"{yearly_summary['Year'].iloc[-1]}.  These historical trends provide context for "
+        f"evaluating threshold impacts."
     )
 
-    # Composition
     c1, c2 = st.columns(2)
     with c1:
-        uni_dist = df_best["UNI_TYPE"].value_counts().reset_index()
-        uni_dist.columns = ["UNI_TYPE", "Count"]
-        uni_dist["Count"] = pd.to_numeric(uni_dist["Count"], errors="coerce")
-        fig = px.pie(uni_dist, names="UNI_TYPE", values="Count",
+        uni_dist = cc.compute_composition(df_best, UNI_TYPE_COL)
+        fig = px.pie(uni_dist, names=UNI_TYPE_COL, values="Count",
                      title="University Type Composition")
         fig.update_traces(textinfo="label+percent",
                           hovertemplate="%{label}: %{value} (%{percent})<extra></extra>")
         st.plotly_chart(fig, use_container_width=True, key="t1_uni_pie")
 
     with c2:
-        course_dist = df_best["CourseGroup"].value_counts().reset_index()
-        course_dist.columns = ["CourseGroup", "Count"]
-        course_dist["Count"] = pd.to_numeric(course_dist["Count"], errors="coerce")
-        fig = px.pie(course_dist, names="CourseGroup", values="Count",
+        course_dist = cc.compute_composition(df_best, COURSE_GROUP_COL)
+        fig = px.pie(course_dist, names=COURSE_GROUP_COL, values="Count",
                      title="Course Group Composition")
         fig.update_traces(textinfo="label+percent",
                           hovertemplate="%{label}: %{value} (%{percent})<extra></extra>")
         st.plotly_chart(fig, use_container_width=True, key="t1_course_pie")
 
-    # Repeat-taker context
     st.markdown("**Repeat-taker context.** "
                 f"Of {N_UNIQUE:,} unique examinees, {N_REPEAT:,} "
-                f"({N_REPEAT / N_UNIQUE * 100:.0f}%) took the NMAT more than once "
+                f"({REPEAT_PCT:.0f}%) took the NMAT more than once "
                 "(up to 9 attempts).  All threshold counts in this dashboard use "
                 "each examinee's best-record NMAT attempt to avoid inflating the "
                 "applicant pool with repeat attempts.")
 
-    # ---- Bin reference table ----
     st.markdown("### Score Bin Reference")
-    st.caption("Each bin corresponds to a range of NMAT percentile rank scores.  B4+ corresponds to the CMO exception floor (30th-39th percentile range).  B5+ corresponds to the SUC standard floor (40th-49th percentile range).")
-    bin_ref = pd.DataFrame({
-        "Bin": [f"B{i}" for i in range(1, 11)],
-        "Score Range": [f"{l}" for l in ["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80-89", "90-100"]],
-        "Threshold": ["", "", "", "CMO exception floor (B4+)", "SUC standard floor (B5+)", "", "", "", "", ""],
-    })
-    st.dataframe(bin_ref, use_container_width=True, hide_index=True)
+    st.caption("Each bin corresponds to a range of NMAT percentile rank scores.  B1 is the lowest decile, B10 the highest.  B4+ corresponds to the CMO exception floor (30th-39th percentile range).  B5+ corresponds to the SUC standard floor (40th-49th percentile range).")
+    st.dataframe(cc.bin_reference_table(), use_container_width=True, hide_index=True)
 
 # ===================================================================
-# TAB 2 -- 30th vs 40th Thresholds
+# TAB 2 -- B4+ vs B5+ Thresholds
 # ===================================================================
 with tab2:
     st.subheader("Score Bin Distribution and Cut-Off Threshold Context")
@@ -387,8 +236,7 @@ with tab2:
         "examinee counts, not medical school admission numbers."
     )
 
-    # ---- Heatmap ----
-    ct_year, pct_year = make_bin_pct(df_best, "Year")
+    ct_year, pct_year = cc.make_bin_pct(df_best, "Year")
     pct_year_t = pct_year.T.reindex(BIN_ORDER[::-1])
 
     fig = px.imshow(
@@ -399,9 +247,8 @@ with tab2:
     )
     fig.update_layout(height=460)
     st.plotly_chart(fig, use_container_width=True, key="t2_heatmap")
-    st.caption("Darker red = higher concentration in that bin for that year.")
+    st.caption("Darker red = higher concentration in that bin for that year.  B1 (lowest decile) at bottom, B10 (highest) at top.")
 
-    # Table for heatmap
     _ht_tbl = pct_year.copy()
     _ht_tbl.index.name = "Year"
     _ht_tbl = _ht_tbl.reset_index()
@@ -409,264 +256,139 @@ with tab2:
     with st.expander("Bin distribution table (row %)", expanded=False):
         st.dataframe(_ht_tbl, use_container_width=True, hide_index=True)
 
-    # ---- 30th vs 40th comparison ----
     st.markdown("### Examinees Meeting Each NMAT Score Threshold")
-    df_best_bins = df_best.dropna(subset=["PercentileBin"]).copy()
-    df_obs_bins = df_obs.dropna(subset=["PercentileBin"]).copy()
-
-    n_b4plus = n_in_bins(df_best_bins, B4_PLUS)
-    n_b5plus = n_in_bins(df_best_bins, B5_PLUS)
-    n_b4only = n_in_bins(df_best_bins, ["B4"])
-
-    scenario_rows = [
-        {"Threshold": "B4+ (Bin 4 and above)", "Best-record examinees": n_b4plus,
-         "Share of all (%)": round(n_b4plus / len(df_best_bins) * 100, 1),
-         "Observable cohort size": n_in_bins(df_obs_bins, B4_PLUS)},
-        {"Threshold": "B5+ (Bin 5 and above)", "Best-record examinees": n_b5plus,
-         "Share of all (%)": round(n_b5plus / len(df_best_bins) * 100, 1),
-         "Observable cohort size": n_in_bins(df_obs_bins, B5_PLUS)},
-        {"Threshold": "B4 only (Bin 4)", "Best-record examinees": n_b4only,
-         "Share of all (%)": round(n_b4only / len(df_best_bins) * 100, 1),
-         "Observable cohort size": n_in_bins(df_obs_bins, ["B4"])},
-    ]
-    st.dataframe(pd.DataFrame(scenario_rows), use_container_width=True, hide_index=True)
+    sc_df = cc.compute_threshold_scenarios(_df_best_bins, _df_obs_bins)
+    st.dataframe(sc_df, use_container_width=True, hide_index=True)
     st.caption(
         "The B4+ threshold (Bin 4 and above) encompasses a substantially larger pool "
         "than the B5+ threshold (Bin 5 and above).  The B4-only group represents "
         "the marginal population affected by a choice between the two thresholds."
     )
 
-    # ---- B4+ vs B5+ by institution type ----
     st.markdown("### Threshold Context by University Type")
     st.caption(
         "This table shows how many examinees from each reported undergraduate "
         "institution type would fall at or above each threshold.  These are NMAT "
-        "score distributions, not medical school admissions."
+        "score distributions, not medical school admissions.  " + SCOPE_NOTE
     )
+    ut_df = cc.compute_threshold_by_uni_type(_df_best_bins)
+    st.dataframe(ut_df, use_container_width=True, hide_index=True)
 
-    uni_threshold_rows = []
-    for ut in ["Public", "Private", "Foreign", "Not Specified"]:
-        sub = df_best_bins[df_best_bins["UNI_TYPE"] == ut]
-        if sub.empty:
-            continue
-        n_ut = len(sub)
-        n_ut_b4 = n_in_bins(sub, B4_PLUS)
-        n_ut_b5 = n_in_bins(sub, B5_PLUS)
-        n_ut_b4o = n_in_bins(sub, ["B4"])
-        uni_threshold_rows.append({
-            "University Type": ut,
-            "Best-record examinees": n_ut,
-            "B4+ (Bin 4 threshold)": f"{n_ut_b4} ({round(n_ut_b4 / n_ut * 100, 1)}%)",
-            "B5+ (Bin 5 threshold)": f"{n_ut_b5} ({round(n_ut_b5 / n_ut * 100, 1)}%)",
-            "B4-only (Bin 4 only)": f"{n_ut_b4o} ({round(n_ut_b4o / n_ut * 100, 1)}%)",
-        })
-    uni_threshold_df = pd.DataFrame(uni_threshold_rows)
-    st.dataframe(uni_threshold_df, use_container_width=True, hide_index=True)
-
-    # ---- Public school B5+ evidence ----
-    st.markdown("### Public School Examinees and the B5+ Threshold")
+    st.markdown("### Public-Institution Examinees and the B5+ Threshold")
     st.caption(
-        "The CMO exception for B4-only (Bin 4) applicants is intended for disadvantaged "
-        "groups (GIDA, IP communities).  If most public school examinees already meet the "
-        "B5+ (Bin 5 and above) threshold, then lowering the cut-off may not primarily "
-        "benefit the intended disadvantaged groups."
+        "Descriptive only.  The CMO's B4-only exception (30th-39th percentile) is intended for "
+        "GIDA/IP-documented applicants; this dataset contains no GIDA/IP field and cannot "
+        "determine whether public-undergraduate-institution examinees overlap with that "
+        "population.  " + SCOPE_NOTE
     )
 
-    _pub = df_best_bins[df_best_bins["UNI_TYPE"] == "Public"]
-    _pub_b5 = n_in_bins(_pub, B5_PLUS)
-    _pub_b4 = n_in_bins(_pub, B4_PLUS)
-    _pub_b4o = n_in_bins(_pub, ["B4"])
-    _pub_total = len(_pub)
-
-    _priv = df_best_bins[df_best_bins["UNI_TYPE"] == "Private"]
-    _priv_b5 = n_in_bins(_priv, B5_PLUS)
-    _priv_b4o = n_in_bins(_priv, ["B4"])
-    _priv_total = len(_priv)
-
+    ev = _PUB_PRIV_EV
     c1, c2, c3 = st.columns(3)
-    c1.metric("Public examinees meeting B5+",
-              f"{_pub_b5:,} ({round(_pub_b5 / _pub_total * 100, 1)}%)",
-              help="Public institution examinees who meet the B5+ threshold.")
-    c2.metric("Public examinees in B4 only",
-              f"{_pub_b4o:,} ({round(_pub_b4o / _pub_total * 100, 1)}%)",
-              help="Public institution examinees in the CMO exception band (B4 only).")
-    c3.metric("Private examinees meeting B5+",
-              f"{_priv_b5:,} ({round(_priv_b5 / _priv_total * 100, 1)}%)",
-              help="Private institution examinees who meet the B5+ threshold.")
+    c1.metric("Public examinees meeting B5+", f"{ev['pub_b5']:,} ({ev['pub_b5_pct']}%)",
+              help="Public undergraduate-institution examinees who meet the B5+ threshold.")
+    c2.metric("Public examinees in B4 only", f"{ev['pub_b4o']:,} ({ev['pub_b4o_pct']}%)",
+              help="Public undergraduate-institution examinees in the CMO exception band (B4 only).")
+    c3.metric("Private examinees meeting B5+", f"{ev['priv_b5']:,} ({ev['priv_b5_pct']}%)",
+              help="Private undergraduate-institution examinees who meet the B5+ threshold.")
 
     _pub_ev_tbl = pd.DataFrame({
-        "Metric": ["Total best-record examinees",
-                   "B5+ (Bin 5 and above)",
-                   "B5+ share (%)",
-                   "B4 only (Bin 4 only)",
-                   "B4 only share (%)"],
-        "Public": [f"{_pub_total:,}",
-                    f"{_pub_b5:,}",
-                    f"{round(_pub_b5 / _pub_total * 100, 1)}%",
-                    f"{_pub_b4o:,}",
-                    f"{round(_pub_b4o / _pub_total * 100, 1)}%"],
-        "Private": [f"{_priv_total:,}",
-                     f"{_priv_b5:,}",
-                     f"{round(_priv_b5 / _priv_total * 100, 1)}%",
-                     f"{_priv_b4o:,}",
-                     f"{round(_priv_b4o / _priv_total * 100, 1)}%"],
+        "Metric": ["Total best-record examinees", "B5+ (Bin 5 and above)", "B5+ share (%)",
+                   "B4 only (Bin 4 only)", "B4 only share (%)"],
+        "Public": [f"{ev['pub_total']:,}", f"{ev['pub_b5']:,}", f"{ev['pub_b5_pct']}%",
+                   f"{ev['pub_b4o']:,}", f"{ev['pub_b4o_pct']}%"],
+        "Private": [f"{ev['priv_total']:,}", f"{ev['priv_b5']:,}", f"{ev['priv_b5_pct']}%",
+                    f"{ev['priv_b4o']:,}", f"{ev['priv_b4o_pct']}%"],
     })
     st.dataframe(_pub_ev_tbl, use_container_width=True, hide_index=True)
     st.caption(
-        f"{round(_pub_b5 / _pub_total * 100, 1)}% of public school examinees already meet the "
-        f"B5+ threshold.  Only {round(_pub_b4o / _pub_total * 100, 1)}% of public school examinees "
-        f"fall in the B4-only band that the CMO exception addresses.  This suggests the B4-only "
-        f"exception may benefit a relatively small share of public school examinees.  Note that "
-        f"UNI_TYPE refers to the examinee's undergraduate institution, not necessarily the medical "
-        f"school they applied to, and GIDA/IP status is not available in this dataset."
+        f"{ev['pub_b5_pct']}% of public-undergraduate-institution examinees already score at or "
+        f"above B5+.  {ev['pub_b4o_pct']}% fall in the B4-only band the CMO exception addresses.  "
+        f"Whether this band overlaps with GIDA/IP applicants cannot be determined from this "
+        f"dataset -- 'public undergraduate institution' is not a GIDA/IP indicator and "
+        f"'public' is not equivalent to 'SUC' as the CMO uses the term."
     )
 
-    # ---- B4 group profile ----
-    b4_group = df_best_bins[df_best_bins["PercentileBin"] == "B4"]
-    if len(b4_group) > 0:
+    b4prof = cc.compute_b4_group_profile(_df_best_bins)
+    if b4prof["n"] > 0:
         st.markdown("### Profile of the B4 Group (Bin 4 only)")
-
-        b4_by_uni = b4_group.groupby("UNI_TYPE", observed=True).size().reset_index(name="count")
-        b4_by_uni["count"] = pd.to_numeric(b4_by_uni["count"], errors="coerce")
-        b4_by_uni["share"] = (b4_by_uni["count"] / b4_by_uni["count"].sum() * 100).round(1)
-
         c1, c2, c3 = st.columns(3)
-        c1.metric("B4 examinees (best record)", f"{len(b4_group):,}")
-        c2.metric("Median total raw score",
-                  f"{b4_group['TotalRawScoreTRUE'].median():.1f}")
-        pub_share = b4_by_uni.loc[b4_by_uni["UNI_TYPE"] == "Public", "share"].values
-        c3.metric("Public institution share",
-                  f"{pub_share[0]:.1f}%" if len(pub_share) > 0 else "0%")
+        c1.metric("B4 examinees (best record)", f"{b4prof['n']:,}")
+        c2.metric("Median total raw score", f"{b4prof['median_raw']:.1f}")
+        c3.metric("Public-institution share", f"{b4prof['pub_share']:.1f}%")
 
-        fig = px.bar(b4_by_uni, x="UNI_TYPE", y="count",
+        fig = px.bar(b4prof["by_uni"], x=UNI_TYPE_COL, y="count",
                      title="B4 Examinees by Institution Type",
-                     labels={"count": "Examinees", "UNI_TYPE": ""},
-                     color="UNI_TYPE", color_discrete_map=COLORS_UNI)
+                     labels={"count": "Examinees", UNI_TYPE_COL: ""},
+                     color=UNI_TYPE_COL, color_discrete_map=COLORS_UNI)
         st.plotly_chart(fig, use_container_width=True, key="t2_b4_uni")
+        st.dataframe(b4prof["by_uni"], use_container_width=True, hide_index=True)
 
-        # Table for B4 chart
-        st.dataframe(b4_by_uni, use_container_width=True, hide_index=True)
-
-    # ---- Top vs bottom bin trend ----
     st.markdown("### Top Bins (B8-B10) vs Bottom Bins (B1-B3) Trend")
-    _, pct_year2 = make_bin_pct(df_best, "Year")
-    top_share = pct_year2[TOP_BINS].sum(axis=1)
-    bot_share = pct_year2[BOTTOM_BINS].sum(axis=1)
-
+    tb_tbl = cc.compute_top_bottom_trend(df_best)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=top_share.index.astype(str), y=top_share.values,
+    fig.add_trace(go.Scatter(x=tb_tbl["Year"], y=tb_tbl["Top B8-B10 (%)"],
                   mode="lines+markers", name="Top B8-B10",
                   line=dict(color="#2e7d32", width=3)))
-    fig.add_trace(go.Scatter(x=bot_share.index.astype(str), y=bot_share.values,
+    fig.add_trace(go.Scatter(x=tb_tbl["Year"], y=tb_tbl["Bottom B1-B3 (%)"],
                   mode="lines+markers", name="Bottom B1-B3",
                   line=dict(color="#c62828", width=3)))
     fig.update_layout(title="Share of Examinees in Top vs Bottom Bins by Year",
                       xaxis_title="Year", yaxis_title="Percent of examinees",
                       height=400)
     st.plotly_chart(fig, use_container_width=True, key="t2_topbot")
-
-    # Table for top/bottom trend
-    _tb_tbl = pd.DataFrame({
-        "Year": top_share.index.astype(str),
-        "Top B8-B10 (%)": top_share.to_numpy(dtype=float, na_value=0).round(1),
-        "Bottom B1-B3 (%)": bot_share.to_numpy(dtype=float, na_value=0).round(1),
-        "Difference (pp)": (top_share.to_numpy(dtype=float, na_value=0) - bot_share.to_numpy(dtype=float, na_value=0)).round(1),
-    }).reset_index(drop=True)
     with st.expander("Top vs bottom bin share table", expanded=False):
-        st.dataframe(_tb_tbl, use_container_width=True, hide_index=True)
+        st.dataframe(tb_tbl, use_container_width=True, hide_index=True)
 
-    # ---- Yearly threshold counts ----
     st.markdown("### Yearly Examinees Meeting Each Threshold")
-    yearly_threshold = []
-    for yr in sorted(df_best_bins["Year"].dropna().unique()):
-        yr_df = df_best_bins[df_best_bins["Year"] == yr]
-        yr_obs = df_obs_bins[df_obs_bins["Year"] == yr]
-        _b4 = n_in_bins(yr_df, B4_PLUS)
-        _b5 = n_in_bins(yr_df, B5_PLUS)
-        _ob4 = n_in_bins(yr_obs, B4_PLUS) if not yr_obs.empty else 0
-        _ob5 = n_in_bins(yr_obs, B5_PLUS) if not yr_obs.empty else 0
-        yearly_threshold.append({
-            "Year": int(yr), "Total (best record)": len(yr_df),
-            "B4+ (Bin 4 threshold)": _b4,
-            "B4+ share (%)": round(_b4 / len(yr_df) * 100, 1),
-            "B5+ (Bin 5 threshold)": _b5,
-            "B5+ share (%)": round(_b5 / len(yr_df) * 100, 1),
-            "Observable B4+": _ob4, "Observable B5+": _ob5,
-        })
-    st.dataframe(pd.DataFrame(yearly_threshold), use_container_width=True, hide_index=True)
+    yt_df = cc.compute_yearly_threshold_counts(_df_best_bins, _df_obs_bins)
+    st.dataframe(yt_df, use_container_width=True, hide_index=True)
     st.caption(
         "The difference between B4+ and B5+ shares indicates how many additional "
         "examinees would meet a B4 threshold versus a B5 "
         "threshold in each year."
     )
 
-    # ---- Yearly B5+ PLE stacked chart (count + percentage) ----
     st.markdown("### B5+ (Bin 5 and above) PLE-Passer Composition by Year")
     st.caption(
         "Among examinees who meet the B5+ threshold (Bin 5 and above, observable cohort), "
-        "this chart shows the count and percentage who were later confirmed as PLE passers. "
-        "Even as the share of top-bin examinees has declined, the absolute number of B5+ "
-        "examinees who become PLE passers remains substantial."
+        "this chart shows the count and percentage who were later confirmed as PLE passers "
+        "versus those with no confirmed PLE match in this dataset.  'No confirmed match' "
+        "does NOT mean 'failed the PLE' -- the PLE source used for matching contains passers "
+        "only, so a no-match examinee may have passed under an unmatched name/AppNo, not yet "
+        "sat the boards, or genuinely not passed; this dataset cannot distinguish those cases."
     )
 
-    _b5_yr_data = _clean_ple_yr.copy()
+    _b5_yr = cc.compute_ple_composition_by_year(df_obs, bins=B5_PLUS, filipino_only=False, strict=False)
+    _b5_yr_data = _b5_yr.copy()
     _b5_yr_data["Year"] = _b5_yr_data["Year"].astype(str)
 
-    # Panel A: Count (stacked bar)
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=_b5_yr_data["Year"], y=_b5_yr_data["confirmed"],
+    fig.add_trace(go.Bar(x=_b5_yr_data["Year"], y=_b5_yr_data["confirmed"],
         name="Confirmed PLE passer", marker_color="#2e7d32",
-        text=_b5_yr_data["confirmed"].astype(str),
-        textposition="inside",
-        hovertemplate="Year: %{x}<br>Confirmed PLE passers: %{y:,}<extra></extra>",
-    ))
-    fig.add_trace(go.Bar(
-        x=_b5_yr_data["Year"], y=_b5_yr_data["no_match"],
+        text=_b5_yr_data["confirmed"].astype(str), textposition="inside",
+        hovertemplate="Year: %{x}<br>Confirmed PLE passers: %{y:,}<extra></extra>"))
+    fig.add_trace(go.Bar(x=_b5_yr_data["Year"], y=_b5_yr_data["no_match"],
         name="No confirmed PLE match", marker_color="#c62828",
-        text=_b5_yr_data["no_match"].astype(str),
-        textposition="inside",
-        hovertemplate="Year: %{x}<br>No confirmed PLE match: %{y:,}<extra></extra>",
-    ))
-    fig.update_layout(
-        barmode="stack",
-        title="B5+ Examinees by PLE Status (Count)",
-        xaxis_title="Year", yaxis_title="Examinees",
-        height=400,
-    )
+        text=_b5_yr_data["no_match"].astype(str), textposition="inside",
+        hovertemplate="Year: %{x}<br>No confirmed PLE match: %{y:,}<extra></extra>"))
+    fig.update_layout(barmode="stack", title="B5+ Examinees by PLE Status (Count)",
+        xaxis_title="Year", yaxis_title="Examinees", height=400)
     st.plotly_chart(fig, use_container_width=True, key="t2_b5_ple_count")
 
-    # Panel B: Percentage (stacked bar)
-    _b5_yr_pct = _b5_yr_data.copy()
-    _b5_yr_pct["confirmed_pct"] = (_b5_yr_pct["confirmed"] / _b5_yr_pct["total"] * 100).round(1)
-    _b5_yr_pct["no_match_pct"] = (_b5_yr_pct["no_match"] / _b5_yr_pct["total"] * 100).round(1)
-
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=_b5_yr_pct["Year"], y=_b5_yr_pct["confirmed_pct"],
+    fig.add_trace(go.Bar(x=_b5_yr_data["Year"], y=_b5_yr_data["linkage_pct"],
         name="Confirmed PLE passer", marker_color="#2e7d32",
-        text=_b5_yr_pct["confirmed_pct"].astype(str) + "%",
-        textposition="inside",
-        hovertemplate="Year: %{x}<br>Confirmed PLE passers: %{y:.1f}%<extra></extra>",
-    ))
-    fig.add_trace(go.Bar(
-        x=_b5_yr_pct["Year"], y=_b5_yr_pct["no_match_pct"],
+        text=_b5_yr_data["linkage_pct"].astype(str) + "%", textposition="inside",
+        hovertemplate="Year: %{x}<br>Confirmed PLE passers: %{y:.1f}%<extra></extra>"))
+    fig.add_trace(go.Bar(x=_b5_yr_data["Year"], y=_b5_yr_data["no_match_pct"],
         name="No confirmed PLE match", marker_color="#c62828",
-        text=_b5_yr_pct["no_match_pct"].astype(str) + "%",
-        textposition="inside",
-        hovertemplate="Year: %{x}<br>No confirmed PLE match: %{y:.1f}%<extra></extra>",
-    ))
-    fig.update_layout(
-        barmode="stack",
-        title="B5+ Examinees by PLE Status (Percent)",
-        xaxis_title="Year", yaxis_title="Percent of B5+ examinees",
-        height=400,
-    )
+        text=_b5_yr_data["no_match_pct"].astype(str) + "%", textposition="inside",
+        hovertemplate="Year: %{x}<br>No confirmed PLE match: %{y:.1f}%<extra></extra>"))
+    fig.update_layout(barmode="stack", title="B5+ Examinees by PLE Status (Percent)",
+        xaxis_title="Year", yaxis_title="Percent of B5+ examinees", height=400)
     st.plotly_chart(fig, use_container_width=True, key="t2_b5_ple_pct")
 
-    # Table for stacked charts
-    _b5_display = _b5_yr_data[["Year", "total", "confirmed", "no_match"]].copy()
-    _b5_display["Linkage Rate (%)"] = _b5_yr_data["linkage_pct"]
+    _b5_display = _b5_yr_data[["Year", "total", "confirmed", "no_match", "linkage_pct"]].copy()
     _b5_display.columns = ["Year", "Total B5+ (observable)", "Confirmed PLE Passers", "No Confirmed Match", "Linkage Rate (%)"]
     st.dataframe(_b5_display, use_container_width=True, hide_index=True)
 
@@ -678,8 +400,8 @@ with tab3:
     st.caption(
         "What this shows: the proportion of NMAT examinees in each score bin "
         "who were later confirmed as PLE passers, using the observable cohort "
-        "(Year <= 2014).  This is an NMAT-to-PLE-passer linkage measure and is "
-        "not comparable to an official PLE pass rate."
+        "(each person's best attempt with Year <= 2014).  This is an NMAT-to-PLE-passer "
+        "linkage measure and is not comparable to an official PLE pass rate."
     )
 
     st.info(
@@ -690,18 +412,8 @@ with tab3:
         "PLE-passer linkage across NMAT score bands."
     )
 
-    # ---- Linkage by bin ----
-    ple_bin = (
-        df_obs.dropna(subset=["PercentileBin", "HAS_CONFIRMED_PLE"])
-        .groupby("PercentileBin", observed=True)
-        .agg(n=("APPNO_CLEAN", "count"), confirmed_passers=("HAS_CONFIRMED_PLE", "sum"))
-        .reset_index()
-    )
-    ple_bin.columns = ["Score Bin", "N (observable cohort)", "Confirmed PLE Passers"]
-    ple_bin["Linkage Rate (%)"] = (
-        ple_bin["Confirmed PLE Passers"] / ple_bin["N (observable cohort)"] * 100
-    ).round(2)
-    ple_bin["Score Bin"] = ple_bin["Score Bin"].astype(str)
+    ple_bin = _ple_bin_all.copy()
+    ple_bin["Score Bin"] = ple_bin["PercentileBin"].astype(str)
     ple_bin["Range"] = ple_bin["Score Bin"].map(BIN_LABELS)
 
     fig = px.bar(
@@ -712,12 +424,13 @@ with tab3:
     )
     fig.update_traces(textposition="outside",
                       hovertemplate="Band: %{x}<br>Linkage: %{y:.1f}%<br>N: %{customdata:,}<extra></extra>",
-                      customdata=ple_bin["N (observable cohort)"].values)
+                      customdata=ple_bin["N"].values)
     fig.add_hline(y=50, line_dash="dash", line_color="gray", annotation_text="50%")
     fig.update_layout(height=480)
     st.plotly_chart(fig, use_container_width=True, key="t3_ple_bar")
 
-    st.dataframe(ple_bin[["Score Bin", "Range", "N (observable cohort)", "Confirmed PLE Passers", "Linkage Rate (%)"]],
+    st.dataframe(ple_bin[["Score Bin", "Range", "N", "Confirmed", "Linkage Rate (%)"]]
+                 .rename(columns={"N": "N (observable cohort)", "Confirmed": "Confirmed PLE Passers"}),
                  use_container_width=True, hide_index=True)
 
     st.markdown(
@@ -725,54 +438,29 @@ with tab3:
         f"{_B4_LINKAGE:.1f}%, compared to {_B5_LINKAGE:.1f}% for B5 (Bin 5).  "
         f"These are historical descriptive patterns, not causal predictions."
     )
+    st.warning(SELECTION_EFFECT_NOTE)
 
-    # ---- Score profile by PLE status ----
     st.markdown("### Score Profile by PLE Status")
-    desc_cols = [c for c in ["TotalRawScoreTRUE", "NMS_PER_num", "PartIRawScoreTRUE", "PartIIRawScoreTRUE"]
-                 if c in df_obs.columns]
-    if desc_cols:
-        desc = (
-            df_obs.groupby("HAS_CONFIRMED_PLE", observed=True)[desc_cols]
-            .agg(["count", "median", "mean", lambda x: x.quantile(0.25), lambda x: x.quantile(0.75)])
-            .round(2)
-        )
-        desc.index = ["No confirmed PLE match", "Confirmed PLE passer"]
+    desc = cc.compute_score_profile_by_ple_status(df_obs)
+    if len(desc):
         st.dataframe(desc, use_container_width=True)
 
-    # ---- Linkage by year ----
     st.markdown("### PLE-Passer Linkage by NMAT Year")
-    ple_yr = (
-        df_obs.groupby("Year", observed=True)
-        .agg(n=("APPNO_CLEAN", "count"), confirmed=("HAS_CONFIRMED_PLE", "sum"))
-        .reset_index()
-    )
-    ple_yr["linkage_pct"] = (ple_yr["confirmed"] / ple_yr["n"] * 100).round(2)
-    ple_yr["Year"] = ple_yr["Year"].astype(str)
-
-    fig = px.line(ple_yr, x="Year", y="linkage_pct", markers=True,
-                  title="NMAT-to-PLE-Passer Linkage Rate by NMAT Year (Observable Cohort)",
-                  labels={"linkage_pct": "Linkage Rate (%)"})
+    ple_yr = cc.compute_linkage_by(df_obs, "Year")
+    ple_yr_disp = ple_yr.copy()
+    ple_yr_disp["Year"] = ple_yr_disp["Year"].astype(str)
+    fig = px.line(ple_yr_disp, x="Year", y="Linkage Rate (%)", markers=True,
+                  title="NMAT-to-PLE-Passer Linkage Rate by NMAT Year (Observable Cohort)")
     fig.update_traces(hovertemplate="Year: %{x}<br>Linkage: %{y:.1f}%<br>N: %{customdata:,}<extra></extra>",
-                      customdata=ple_yr["n"].values, line=dict(color="#1f77b4", width=3))
+                      customdata=ple_yr_disp["N"].values, line=dict(color="#1f77b4", width=3))
     fig.update_layout(height=400)
     st.plotly_chart(fig, use_container_width=True, key="t3_ple_yr")
 
-    # ---- Linkage by course group ----
     st.markdown("### PLE-Passer Linkage by Course Group")
-    if "CourseGroup" in df_obs.columns:
-        ple_course = (
-            df_obs.dropna(subset=["CourseGroup", "HAS_CONFIRMED_PLE"])
-            .groupby("CourseGroup", observed=True)
-            .agg(n=("APPNO_CLEAN", "count"), confirmed=("HAS_CONFIRMED_PLE", "sum"),
-                 median_pct=("NMS_PER_num", "median"))
-            .reset_index()
-        )
-        ple_course["Linkage Rate (%)"] = (ple_course["confirmed"] / ple_course["n"] * 100).round(2)
-        ple_course.columns = [ple_course.columns[0], "N", "Confirmed", "Median %ile", "Linkage Rate (%)"]
-
-        _cg_col = ple_course.columns[0]
-        fig = px.bar(ple_course, x=_cg_col, y="Linkage Rate (%)",
-                     color=_cg_col,
+    ple_course = cc.compute_linkage_by(df_obs, COURSE_GROUP_COL)
+    if len(ple_course):
+        fig = px.bar(ple_course, x=COURSE_GROUP_COL, y="Linkage Rate (%)",
+                     color=COURSE_GROUP_COL,
                      title="NMAT-to-PLE-Passer Linkage Rate by Course Group",
                      text=ple_course["Linkage Rate (%)"].round(1).astype(str) + "%")
         fig.update_traces(textposition="outside")
@@ -780,21 +468,11 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True, key="t3_ple_course")
         st.dataframe(ple_course, use_container_width=True, hide_index=True)
 
-    # ---- Linkage by university type ----
     st.markdown("### PLE-Passer Linkage by University Type")
-    if "UNI_TYPE" in df_obs.columns:
-        ple_uni = (
-            df_obs[df_obs["UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-            .groupby("UNI_TYPE", observed=True)
-            .agg(n=("APPNO_CLEAN", "count"), confirmed=("HAS_CONFIRMED_PLE", "sum"),
-                 median_pct=("NMS_PER_num", "median"))
-            .reset_index()
-        )
-        ple_uni["Linkage Rate (%)"] = (ple_uni["confirmed"] / ple_uni["n"] * 100).round(2)
-        ple_uni.columns = ["University Type", "N", "Confirmed", "Median %ile", "Linkage Rate (%)"]
-
-        fig = px.bar(ple_uni, x="University Type", y="Linkage Rate (%)",
-                     color="University Type", color_discrete_map=COLORS_UNI,
+    ple_uni = cc.compute_linkage_by(df_obs[df_obs[UNI_TYPE_COL].isin(["Public", "Private", "Foreign"])], UNI_TYPE_COL)
+    if len(ple_uni):
+        fig = px.bar(ple_uni, x=UNI_TYPE_COL, y="Linkage Rate (%)",
+                     color=UNI_TYPE_COL, color_discrete_map=COLORS_UNI,
                      title="NMAT-to-PLE-Passer Linkage Rate by University Type",
                      text=ple_uni["Linkage Rate (%)"].round(1).astype(str) + "%")
         fig.update_traces(textposition="outside")
@@ -802,70 +480,65 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True, key="t3_ple_uni")
         st.dataframe(ple_uni, use_container_width=True, hide_index=True)
         st.caption(
-            "The observed difference in linkage rates between institution types "
+            "The observed difference in linkage rates between undergraduate institution types "
             "reflects the set of NMAT examinees who were later matched to PLE "
-            "passer records.  The data does not identify the reasons for these differences."
+            "passer records.  The data does not identify the reasons for these differences.  "
+            + SCOPE_NOTE
         )
 
-    # ---- Clean PLE subset stress-test ----
     st.markdown("### Stress-Test: Defensible PLE Matching Subset")
     st.caption(
-        "This section repeats the PLE-passer linkage analysis using only the most defensible "
-        "matching criteria: single best-record per person, clean deterministic match, "
-        "at least 5 years between NMAT and PLE passage, and Filipino nationals only. "
-        "This subset addresses concerns about PLE matching quality."
+        "This section repeats the B5+ PLE-passer linkage analysis using only the strictest "
+        "defensible match: a confirmed PLE passer AND at least 5 years between the NMAT "
+        "attempt and PLE passage, restricted to Filipino nationals in the B5+ band.  Unlike "
+        "the broader B5+ chart above, the population here is NOT pre-filtered on match "
+        "status, so this check can genuinely show a lower linkage rate if match quality is "
+        "poor -- it is not guaranteed to show 100%."
     )
 
     st.info(
         "The PLE matching process uses deterministic linking via NMAT application numbers. "
         "While the DE-FUZZY refactor removed all fuzzy matching for full auditability, "
         "the match depends on the application number being recorded consistently across "
-        "the NMAT and PLE datasets.  The subset below uses the strictest criteria to "
-        "validate that the broader findings are robust to matching quality concerns."
+        "the NMAT and PLE datasets."
     )
 
+    stress = cc.compute_stress_test(df_obs)
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Clean subset (all bins)", f"{N_CLEAN_PLE:,}",
-              help="Best-record, IS_PLE_ANALYSIS_SAFE, >=5yr gap, Filipino.")
-    c2.metric("B5+ in clean subset", f"{N_CLEAN_B5:,}",
-              help="Clean subset restricted to Bin 5 and above.")
-    c3.metric("Share of observable cohort",
-              f"{N_CLEAN_B5 / len(df_obs) * 100:.1f}%",
-              help="B5+ clean subset as share of all observable best-record examinees.")
-    c4.metric("Median PLE year gap",
-              f"{_df_clean_ple[_df_clean_ple['PercentileBin'].isin(B5_PLUS)]['PLE_YEAR_GAP'].median():.0f} yrs",
-              help="Median years between NMAT and PLE passage in the clean B5+ subset.")
+    c1.metric("B5+ Filipino population", f"{stress['n_population']:,}",
+              help="Filipino, observable-cohort, B5+ examinees -- NOT pre-filtered on match status.")
+    c2.metric("Confirmed under strict criteria", f"{stress['n_confirmed']:,}",
+              help="Confirmed PLE passer AND PLE_YEAR_GAP >= 5 years.")
+    c3.metric("Strict-criteria linkage rate", f"{stress['linkage_pct']:.1f}%",
+              help="confirmed / population -- can genuinely be below 100%.")
+    _gap_display = f"{stress['median_gap']:.0f} yrs" if pd.notna(stress["median_gap"]) else "N/A"
+    c4.metric("Median PLE year gap", _gap_display)
 
-    # Clean subset yearly PLE linkage
-    st.markdown("#### Yearly PLE-Passer Linkage (Clean Subset, B5+)")
-    _cs_yr_link = _clean_ple_yr.copy()
-    _cs_yr_link["Year"] = _cs_yr_link["Year"].astype(str)
-
-    fig = px.line(_cs_yr_link, x="Year", y="linkage_pct", markers=True,
-                  title="NMAT-to-PLE-Passer Linkage Rate (Clean B5+ Subset)",
+    st.markdown("#### Yearly Linkage Rate (Strict-Criteria Subset, B5+, Filipino)")
+    _cs_yr = stress["yearly"].copy()
+    _cs_yr["Year"] = _cs_yr["Year"].astype(str)
+    fig = px.line(_cs_yr, x="Year", y="linkage_pct", markers=True,
+                  title="NMAT-to-PLE-Passer Linkage Rate (Strict-Criteria B5+ Subset)",
                   labels={"linkage_pct": "Linkage Rate (%)"})
     fig.update_traces(hovertemplate="Year: %{x}<br>Linkage: %{y:.1f}%<br>N: %{customdata:,}<extra></extra>",
-                      customdata=_cs_yr_link["total"].values, line=dict(color="#1f77b4", width=3))
+                      customdata=_cs_yr["total"].values, line=dict(color="#1f77b4", width=3))
     fig.update_layout(height=400)
     st.plotly_chart(fig, use_container_width=True, key="t3_clean_ple_yr")
+    st.dataframe(_cs_yr[["Year", "total", "confirmed", "no_match", "linkage_pct"]]
+                 .rename(columns={"total": "Total", "confirmed": "Confirmed (strict)", "no_match": "No match", "linkage_pct": "Linkage Rate (%)"}),
+                 use_container_width=True, hide_index=True)
 
-    # Clean subset by UNI_TYPE
-    st.markdown("#### B5+ Clean Subset by University Type")
-    _cs_uni = (
-        _df_clean_ple[_df_clean_ple["PercentileBin"].isin(B5_PLUS)]
-        .groupby("UNI_TYPE", observed=True)
-        .agg(n=("APPNO_CLEAN", "count"))
-        .reset_index()
-    )
-    _cs_uni["share"] = (_cs_uni["n"] / _cs_uni["n"].sum() * 100).round(1)
-    _cs_uni.columns = ["University Type", "N", "Share (%)"]
-    st.dataframe(_cs_uni, use_container_width=True, hide_index=True)
+    st.markdown("#### Strict-Criteria B5+ Confirmed Passers by University Type")
+    if len(stress["by_uni"]):
+        st.dataframe(stress["by_uni"], use_container_width=True, hide_index=True)
 
     st.caption(
-        f"The clean subset yields {N_CLEAN_B5:,} B5+ PLE-matched passers, representing "
-        f"{N_CLEAN_B5 / len(df_obs) * 100:.1f}% of the observable cohort.  The distribution "
-        f"by university type mirrors the full analysis, confirming the broader findings "
-        f"are robust to matching quality concerns."
+        f"Under strict matching criteria, {stress['n_confirmed']:,} of {stress['n_population']:,} "
+        f"({stress['linkage_pct']:.1f}%) Filipino B5+ observable examinees are confirmed PLE "
+        f"passers with a >=5-year gap.  This is a genuine check, not a tautology: it can and "
+        f"does show less than 100% linkage.  It indicates that a meaningful share of the "
+        f"broader B5+ linkage figures reflect either looser matching criteria or examinees "
+        f"who have not yet been confirmed -- not that the underlying data is unreliable."
     )
 
 # ===================================================================
@@ -875,114 +548,78 @@ with tab4:
     st.subheader("University Type and Institution Context")
     st.caption(
         "What this shows: how NMAT performance varies across Public, Private, "
-        "and Foreign institution types.  These classifications refer to the "
-        "examinee's recorded undergraduate institution, not necessarily the "
-        "medical school they applied to or attended."
+        "and Foreign undergraduate institution types.  " + SCOPE_NOTE
     )
 
-    uni_subset = df_best[df_best["UNI_TYPE"].isin(["Public", "Private", "Foreign"])].copy()
+    uni_subset = df_best[df_best[UNI_TYPE_COL].isin(["Public", "Private", "Foreign"])].copy()
+    uni_subset_bins = cc.bins_population(uni_subset)
 
-    # ---- Score summary ----
     st.markdown("### Score Summary by University Type")
-    uni_score = (
-        uni_subset.groupby("UNI_TYPE", observed=True)
-        .agg(n=("APPNO_CLEAN", "count"),
-             median_percentile=("NMS_PER_num", "median"),
-             q25_percentile=("NMS_PER_num", lambda x: x.quantile(0.25)),
-             q75_percentile=("NMS_PER_num", lambda x: x.quantile(0.75)),
-             median_raw=("TotalRawScoreTRUE", "median"),
-             median_gps=("NMS_GPS", "median"))
-        .round(2).reset_index()
-    )
-    uni_score.columns = ["University Type", "N (best record)", "Median %ile",
-                         "Q25 %ile", "Q75 %ile", "Median Raw Score", "Median GPS"]
-
+    uni_score = cc.compute_uni_score_summary(_df_best_bins)
     c1, c2 = st.columns([1, 1])
     with c1:
         st.dataframe(uni_score, use_container_width=True, hide_index=True)
     with c2:
         fig = px.box(uni_subset.dropna(subset=["NMS_PER_num"]),
-                     x="UNI_TYPE", y="NMS_PER_num",
-                     color="UNI_TYPE", color_discrete_map=COLORS_UNI,
+                     x=UNI_TYPE_COL, y="NMS_PER_num",
+                     color=UNI_TYPE_COL, color_discrete_map=COLORS_UNI,
                      points=False,
-                     title="Bin Rank Distribution by University Type",
-                     labels={"NMS_PER_num": "Bin rank", "UNI_TYPE": ""})
+                     title="NMAT Percentile Distribution by University Type",
+                     labels={"NMS_PER_num": "NMAT percentile (0-99)", UNI_TYPE_COL: ""})
         fig.update_layout(height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True, key="t4_box_uni")
 
-    # ---- Bin by UNI_TYPE heatmap ----
     st.markdown("### Score Bin Distribution by University Type")
-    _, uni_bin_pct = make_bin_pct(uni_subset, "UNI_TYPE")
-    uni_bin_pct.index.name = "University Type"
-
+    uni_bin_pct = cc.compute_bin_dist_by(uni_subset, UNI_TYPE_COL).set_index(UNI_TYPE_COL)
     fig = px.imshow(uni_bin_pct, text_auto=True, aspect="auto",
                     color_continuous_scale="YlOrRd",
                     labels={"x": "Score Bin", "y": "University Type", "color": "%"},
                     title="Bin Distribution by University Type (Row %)")
     fig.update_layout(height=350)
     st.plotly_chart(fig, use_container_width=True, key="t4_uni_bin")
-
-    # Table for bin heatmap
-    _ub_tbl = uni_bin_pct.reset_index()
     with st.expander("Bin distribution table (row %)", expanded=False):
-        st.dataframe(_ub_tbl, use_container_width=True, hide_index=True)
+        st.dataframe(uni_bin_pct.reset_index(), use_container_width=True, hide_index=True)
 
-    # ---- Top-bin share ----
     st.markdown("### Top-Bin Share (B8-B10) by University Type")
-    top_uni = uni_bin_pct[TOP_BINS].sum(axis=1).sort_values()
+    top_uni_tbl = cc.compute_top_bin_share_by(uni_subset, UNI_TYPE_COL)
     fig = go.Figure(go.Bar(
-        x=top_uni.values, y=top_uni.index, orientation="h",
-        marker_color=[COLORS_UNI.get(i, "#7f7f7f") for i in top_uni.index],
-        text=[f"{v:.1f}%" for v in top_uni.values], textposition="outside",
+        x=top_uni_tbl["Top B8-B10 (%)"], y=top_uni_tbl[UNI_TYPE_COL], orientation="h",
+        marker_color=[COLORS_UNI.get(i, "#7f7f7f") for i in top_uni_tbl[UNI_TYPE_COL]],
+        text=[f"{v:.1f}%" for v in top_uni_tbl["Top B8-B10 (%)"]], textposition="outside",
     ))
     fig.update_layout(title="Top-Bin Share (B8-B10) by University Type",
                       xaxis_title="Percent in B8-B10", yaxis_title="", height=300)
     st.plotly_chart(fig, use_container_width=True, key="t4_top_uni")
-
-    # Table for top-bin share
-    _tbuni_tbl = top_uni.reset_index()
-    _tbuni_tbl.columns = ["University Type", "Top B8-B10 (%)"]
-    # Add count column
-    _tbuni_counts = uni_bin_pct[TOP_BINS].sum(axis=1)
-    _tbuni_tbl["Total examinees"] = uni_subset.groupby("UNI_TYPE", observed=True).size().values
-    _tbuni_tbl = _tbuni_tbl[["University Type", "Total examinees", "Top B8-B10 (%)"]]
     with st.expander("Top-bin share table", expanded=False):
-        st.dataframe(_tbuni_tbl, use_container_width=True, hide_index=True)
+        st.dataframe(top_uni_tbl, use_container_width=True, hide_index=True)
 
-    # ---- Foreign examinee context (descriptive only) ----
     st.markdown("### Foreign Examinee Context")
     st.caption(
         "The available data identify NMAT examinees by citizenship.  These are "
-        "NMAT examinees, not enrolled medical students.  The CMO includes "
+        "best-record NMAT examinees (one per person), not enrolled medical students.  The CMO includes "
         "provisions for foreign students, but enrollment numbers would require "
-        "separate data from HEIs."
+        "separate data from HEIs.  'Foreign (unspecified)' is an unresolved citizenship "
+        "bucket, not a country -- excluded from the nationality ranking below."
     )
 
-    # Use ALL records for citizenship context (consistent with data-aggregator page 04)
-    if "CITIZENSHIP_FINAL" in df_all.columns and "FOREIGNER_STATUS" in df_all.columns:
-        foreign_all = df_all[df_all["FOREIGNER_STATUS"] == "Verified Foreigner"]
-        filipino_all = df_all[df_all["CITIZENSHIP_FINAL"] == "Filipino"]
+    fctx = cc.compute_foreign_context(df_best)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Verified Foreign NMAT examinees (best record)", f"{fctx['n_foreign']:,}")
+    c2.metric("Filipino examinees", f"{fctx['n_filipino']:,}")
+    c3.metric("Distinct foreign nationalities", f"{fctx['n_nationalities']}")
 
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Verified Foreign NMAT examinees (all records)", f"{len(foreign_all):,}")
-        c2.metric("Filipino examinees",
-                  f"{len(filipino_all):,}")
-        c3.metric("Distinct foreign nationalities",
-                  f"{foreign_all['CITIZENSHIP_FINAL'].nunique()}")
-
-        top_nat = foreign_all["CITIZENSHIP_FINAL"].value_counts().head(10).reset_index()
-        top_nat.columns = ["Nationality", "Count"]
-        top_nat["Count"] = pd.to_numeric(top_nat["Count"], errors="coerce")
-
-        fig = px.bar(top_nat, x="Count", y="Nationality", orientation="h",
-                     title="Top 10 Nationalities Among Verified Foreign NMAT Examinees",
-                     labels={"Count": "Examinees"})
-        fig.update_traces(hovertemplate="%{y}: %{x:,}<extra></extra>")
-        fig.update_layout(height=350)
-        st.plotly_chart(fig, use_container_width=True, key="t4_foreign_top")
-
-        # Table for foreign chart
-        st.dataframe(top_nat, use_container_width=True, hide_index=True)
+    top_nat = cc.compute_nationality_shares(df_best)
+    fig = px.bar(top_nat, x="Count", y="Nationality", orientation="h",
+                 title="Top 10 Nationalities Among Verified Foreign NMAT Examinees (Best Record)",
+                 labels={"Count": "Examinees"})
+    fig.update_traces(hovertemplate="%{y}: %{x:,}<extra></extra>")
+    fig.update_layout(height=350)
+    st.plotly_chart(fig, use_container_width=True, key="t4_foreign_top")
+    st.dataframe(top_nat, use_container_width=True, hide_index=True)
+    st.caption(
+        "Share is of ALL verified-foreign best-record examinees "
+        f"({fctx['n_foreign']:,}), not of the top-10 subtotal shown here."
+    )
 
 # ===================================================================
 # TAB 5 -- Key Evidence for Policy Review
@@ -996,119 +633,7 @@ with tab5:
         "recommendations."
     )
 
-    # Pre-compute values for dynamic findings
-    _uni_best = df_best.dropna(subset=["PercentileBin"])
-    _n_all = len(_uni_best)
-    _30th_share = n_in_bins(_uni_best, B4_PLUS) / _n_all * 100
-    _40th_share = n_in_bins(_uni_best, B5_PLUS) / _n_all * 100
-    _pub_med_pct = df_best[df_best["UNI_TYPE"] == "Public"]["NMS_PER_num"].median()
-    _priv_med_pct = df_best[df_best["UNI_TYPE"] == "Private"]["NMS_PER_num"].median()
-
-    _ple_b10 = _PLE_BIN_ALL.loc[_PLE_BIN_ALL["Bin"] == "B10", "linkage"].values
-    _ple_b1 = _PLE_BIN_ALL.loc[_PLE_BIN_ALL["Bin"] == "B1", "linkage"].values
-    _b10_link = _ple_b10[0] if len(_ple_b10) > 0 else 0
-    _b1_link = _ple_b1[0] if len(_ple_b1) > 0 else 0
-
-    # Annual linkage data for 5-year context
-    _ann_link = (
-        df_obs.groupby("Year", observed=True)
-        .agg(n=("APPNO_CLEAN", "count"), confirmed=("HAS_CONFIRMED_PLE", "sum"))
-        .reset_index()
-    )
-    _ann_link["rate"] = (_ann_link["confirmed"] / _ann_link["n"] * 100).round(2)
-    _ann_link["5yr"] = _ann_link["rate"].rolling(window=5, min_periods=3).mean().round(2)
-    _valid_5yr = _ann_link[_ann_link["5yr"].notna()]
-    if not _valid_5yr.empty:
-        _latest_5yr = _valid_5yr.iloc[-1]
-        _5yr_val = _latest_5yr["5yr"]
-        _5yr_yr = int(_latest_5yr["Year"])
-    else:
-        _5yr_val = None
-        _5yr_yr = None
-
-    finding1 = (
-        f"The historical NMAT examinee pool ranges from approximately "
-        f"{_30th_share:.0f}% meeting a B4+ threshold to "
-        f"{_40th_share:.0f}% meeting a B5+ threshold "
-        f"(best-record examinees, 2006-2018).  The marginal group between "
-        f"the two thresholds -- B4 only -- accounts "
-        f"for roughly {_30th_share - _40th_share:.0f} percentage points "
-        f"of the examinee population."
-    )
-
-    finding2 = (
-        f"Public institution examinees show a higher median bin rank "
-        f"({_pub_med_pct:.0f}) than Private institution examinees "
-        f"({_priv_med_pct:.0f}).  This pattern is consistent across all "
-        f"NMAT years and may reflect differences in pre-medical preparation, "
-        f"admission selectivity, or other institutional factors not captured "
-        f"in this dataset."
-    )
-
-    finding3 = (
-        f"NMAT-to-PLE-passer linkage increases with score bin, from "
-        f"{_b1_link:.0f}% in the lowest bin (B1) to {_b10_link:.0f}% in the "
-        f"highest bin (B10).  This historical gradient provides context for "
-        f"evaluating the relationship between NMAT scores and licensure "
-        f"outcomes, but is not a PLE pass rate."
-    )
-
-    _yr_trend = _ann_link.copy()
-    _first_pct = _yr_trend["rate"].iloc[0] if len(_yr_trend) > 0 else 0
-    _last_pct = _yr_trend["rate"].iloc[-1] if len(_yr_trend) > 0 else 0
-    finding4 = (
-        f"The observable NMAT-to-PLE-passer linkage rate declined from "
-        f"{_first_pct:.1f}% in {int(_yr_trend['Year'].iloc[0])} to "
-        f"{_last_pct:.1f}% in {int(_yr_trend['Year'].iloc[-1])} across the "
-        f"observable cohort.  The 5-year rolling average, which smooths "
-        f"annual fluctuations, "
-    )
-    if _5yr_val is not None:
-        finding4 += f"was {_5yr_val:.1f}% as of {_5yr_yr}.  "
-    else:
-        finding4 += "is shown in the yearly data.  "
-    finding4 += (
-        "This measure reflects NMAT examinees later matched to PLE passer "
-        "records and is not directly comparable to official PLE passing rates."
-    )
-
-    # (pre-computed globals PUB_B5_RATE, PUB_B5_COUNT, PUB_TOTAL, PUB_B4O_RATE used instead)
-
-    finding5 = (
-        f"Public school examinees already meet the B5+ threshold at a high rate: "
-        f"{PUB_B5_RATE}% ({PUB_B5_COUNT:,} out of {PUB_TOTAL:,}) score at Bin 5 or above. "
-        f"Only {PUB_B4O_RATE}% fall in the "
-        f"B4-only band that the CMO exception addresses.  This suggests the exception may not "
-        f"primarily benefit the intended disadvantaged groups, though GIDA/IP status is not "
-        f"available in this dataset for direct verification."
-    )
-
-    finding6 = (
-        f"Using the strictest defensible PLE matching criteria (single best-record, clean "
-        f"deterministic match, >=5 year gap, Filipino nationals only), the analysis yields "
-        f"{N_CLEAN_B5:,} B5+ matched passers representing {N_CLEAN_B5 / len(df_obs) * 100:.1f}% "
-        f"of the observable cohort.  The distribution by university type and year in this clean "
-        f"subset mirrors the broader analysis, confirming the findings are robust to matching "
-        f"quality concerns."
-    )
-
-    finding7 = (
-        f"Foreign nationals represent approximately "
-        f"{N_FOREIGN_ALL / len(df_all) * 100:.1f}% of all NMAT records "
-        f"({N_FOREIGN_ALL:,} verified foreign records out of {len(df_all):,} total).  India accounts for "
-        f"the largest share of foreign examinees.  These are NMAT examinee "
-        f"counts, not enrolled medical students."
-    )
-
-    findings = [
-        ("National Threshold Context", finding1),
-        ("Institutional Performance Patterns", finding2),
-        ("NMAT-to-PLE-Passer Linkage Gradient", finding3),
-        ("Historical Linkage Trends", finding4),
-        ("Public School Threshold Attainment", finding5),
-        ("PLE Matching Robustness", finding6),
-        ("Foreign Examinee Presence", finding7),
-    ]
+    findings = cc.compute_tab5_finding_texts(df_all, df_best, df_obs)
 
     for title, body in findings:
         st.markdown(f"**{title}**")
@@ -1120,7 +645,7 @@ with tab5:
         "examinee population captured in NMAT_Exodus.parquet.  Key gaps in "
         "the available data include PLE failure rates (only passers are "
         "identifiable), GIDA/IP status, medical school admissions and "
-        "enrollment figures, and institutional admission criteria.  See "
+        "enrollment figures, and institutional admission criteria.  " + SCOPE_NOTE + "  See "
         "the Data, Methods, and Limitations tab for full documentation."
     )
 
@@ -1137,59 +662,73 @@ with tab6:
     st.markdown("### Dataset Overview")
     st.markdown(
         f"""
-- **Source file:** `NMAT_Exodus.parquet` (54 columns, {len(df_all):,} rows)
+- **Source file:** `NMAT_Exodus.parquet` ({df_all.shape[1]} columns, {len(df_all):,} rows)
 - **Examination years:** 2006-2018
 - **Unique examinees (best record):** {N_UNIQUE:,}
-- **Observable PLE cohort (Year <= 2014):** {N_OBS:,}
-- **Repeat takers:** {N_REPEAT:,} unique persons ({N_REPEAT / N_UNIQUE * 100:.0f}%)
+- **Observable PLE cohort (best attempt, Year <= 2014):** {N_OBS:,}
+- **Repeat takers:** {N_REPEAT:,} unique persons ({REPEAT_PCT:.0f}%)
         """
     )
+
+    _amb = cc.compute_ambiguous_person_stats(df_all)
+    if _amb["n_ambiguous_keys"] is not None:
+        st.caption(
+            f"**Data quality note:** {_amb['n_ambiguous_keys']:,} `PERSON_KEY` identifiers have "
+            f"contradictory `SEX` recorded across their rows (`PERSON_KEY_AMBIGUOUS`), indicating "
+            f"a possible identity collision. These records are still included in all counts above; "
+            f"this is disclosed, not hidden or corrected silently."
+        )
 
     st.markdown("### Key Methodological Choices")
 
     with st.expander("TRUE Raw Score Recalculation"):
-        n_true = int((df_all["HasTRUErawScores"] == True).sum()) if "HasTRUErawScores" in df_all.columns else 0
         st.markdown(
             f"""
-The pipeline recalculated all raw scores from the 8 individual subtest components
-because 42.2% of the original stored totals were incorrect.  All analyses in this
+The pipeline recalculated all raw scores from the 8 individual subtest components.
+Of the {_mismatch['n_stored']:,} records that carry a stored total, {_mismatch['n_mismatch']:,}
+({_mismatch['pct_of_stored']:.1f}%) disagreed with the sum of the 8 component subtest scores
+({_mismatch['pct_of_all']:.1f}% of all {len(df_all):,} records).  All analyses in this
 dashboard use the recalculated `TotalRawScoreTRUE` scores.
 
-- Rows with complete TRUE scores: {n_true:,} (99.97%)
-- Formula mismatches (Total != Part I + Part II): 0
+- Rows with complete TRUE scores: {_true_stats['n_true']:,} ({_true_stats['pct_true']:.2f}%)
+- Stored-total mismatches: {_mismatch['n_mismatch']:,} of {_mismatch['n_stored']:,} rows with a
+  stored total ({_mismatch['pct_of_stored']:.1f}%)
         """
         )
 
     with st.expander("Best-Record Deduplication"):
         st.markdown(
             f"""
-{N_REPEAT:,} examinees ({N_REPEAT / N_UNIQUE * 100:.0f}%) took the NMAT more than
+{N_REPEAT:,} examinees ({REPEAT_PCT:.0f}%) took the NMAT more than
 once (up to 9 attempts).  Person-level analyses use the best-record flag
-(`IS_BEST_NMAT_RECORD`), which selects:
+(`IS_BEST_NMAT_RECORD`), which selects, for every person, the single attempt with the
+highest NMAT percentile, latest year as tiebreaker, then lowest application number --
+one uniform rule applied identically to passers and non-passers alike.
 
-- For PLE passers: the specific NMAT attempt that matched to the PLE record.
-- For others: the highest percentile attempt, with latest year as tiebreaker.
+- Best-record examinees: {N_BEST:,}
+- Unique persons: {N_UNIQUE:,} (equal by construction -- exactly one best record per person)
 
 This prevents repeat takers from inflating counts in any percentile band.
         """
         )
 
     with st.expander("Observable Cohort Definition (Year <= 2014)"):
-        avg_gap = df_obs[df_obs["HAS_CONFIRMED_PLE"]]["PLE_YEAR_GAP"].median() if "PLE_YEAR_GAP" in df_obs.columns else "N/A"
+        avg_gap = df_obs.loc[df_obs["HAS_CONFIRMED_PLE"], "PLE_YEAR_GAP"].median()
         st.markdown(
             f"""
-PLE-linked analyses are restricted to examinees whose NMAT year is 2014 or earlier.
-This ensures a minimum 5-year window for PLE passage, avoiding the misclassification
-of later cohorts as non-passers before their licensure window closes.
+PLE-linked analyses use each person's best NMAT attempt among rows with Year <= 2014
+(`IS_BEST_OBSERVABLE_RECORD`).  This is deliberately **not** the same as filtering the
+overall best-record flag to Year<=2014, which would silently drop people whose
+overall-best attempt fell after 2014 and inflate the observed linkage rate.
 
-- Observable best-record cohort: {N_OBS:,}
-- Median NMAT-to-PLE year gap: {avg_gap} years
+- Observable cohort (best attempt within window): {N_OBS:,}
+- Median NMAT-to-PLE year gap among confirmed passers: {avg_gap:.0f} years
         """
         )
 
     with st.expander("Deterministic PLE Matching"):
-        n_all_ple = int((df_all["IS_PLE_ANALYSIS_SAFE"] == True).sum()) if "IS_PLE_ANALYSIS_SAFE" in df_all.columns else 0
-        n_obs_ple = int(df_obs["HAS_CONFIRMED_PLE"].sum()) if "HAS_CONFIRMED_PLE" in df_obs.columns else 0
+        match_stats = cc.compute_ple_matching_stats(df_all, df_obs)
+        outcome = match_stats["outcome_counts"]
         st.markdown(
             f"""
 All PLE matching is deterministic (exact NMA_AppNo match, manual AppNo match,
@@ -1200,61 +739,34 @@ full auditability but has important caveats:
   identifier across datasets.  The matching process depends on this number being
   recorded identically in both the NMAT and PLE datasets, which is not always the
   case.  Undercounting is possible where numbers differ.
-- The "clean subset" analysis in Tab 3 uses the strictest criteria (single best
-  record per person, clean deterministic match, >=5 year gap, Filipino nationals
-  only) as a robustness check.  The results are consistent with the broader
-  analysis.{chr(10)}
-- Confirmed PLE passers (all rows): {n_all_ple:,}
-- Confirmed PLE passers (best record, observable): {n_obs_ple:,}
-- Clean subset (B5+, Filipino, >=5yr gap): {N_CLEAN_B5:,}
+- Match outcome breakdown (`PLE_MATCH_OUTCOME`, all rows): **accepted** {outcome.get('accepted', 0):,},
+  **rejected_ambiguous_person** {outcome.get('rejected_ambiguous_person', 0):,} (a name-collision
+  candidate was found but rejected as genuinely ambiguous by the disambiguator -- distinguished from
+  a bare "no match" so a reader can see where borderline candidates went), **no_match**
+  {outcome.get('no_match', 0):,}.  `PLE_YEAR_UNCERTAIN` additionally flags
+  {match_stats['n_year_uncertain']:,} confirmed passers whose PLE year is not determinable; they
+  remain counted as passers but are excluded from any year-specific figure.
+- Three other columns carry PLE-related metadata but are **not** authoritative passer counts and
+  do not nest inside `IS_PLE_PASSER`: `PLE_YEAR_PASSED` is non-null for
+  {match_stats['n_year_passed_notna']:,} rows, `PLE_MATCH_METHOD` for
+  {match_stats['n_match_method_notna']:,} rows, `PLE_YEAR_GAP` for
+  {match_stats['n_year_gap_notna']:,} rows.  Only `IS_PLE_PASSER` should be used as the passer flag.
+- The "Stress-Test" analysis in Tab 3 uses the strictest criteria (confirmed match, >=5 year gap,
+  Filipino nationals only) as a genuine, non-tautological sensitivity check -- see Tab 3 for the
+  result, which is below 100% linkage.
+- Confirmed PLE passers (all rows): {match_stats['n_all_ple']:,}
+- Confirmed PLE passers (best-attempt, observable cohort): {match_stats['n_obs_ple']:,}
         """
         )
 
     with st.expander("Data Integrity Summary"):
-        ci_cols = ["StoredVsDerivedMismatch", "CalcVsDerivedMismatch"]
-        if all(c in df_all.columns for c in ci_cols):
-            c1, c2 = st.columns(2)
-            c1.metric("Stored-vs-derived mismatches",
-                      f"{int((df_all['StoredVsDerivedMismatch'] == 1.0).sum()):,}")
-            c2.metric("Calc-vs-derived mismatches",
-                      f"{int((df_all['CalcVsDerivedMismatch'] == 1.0).sum()):,}")
+        st.metric("Stored-vs-derived mismatches",
+                  f"{_mismatch['n_mismatch']:,} of {_mismatch['n_stored']:,} rows with a stored total "
+                  f"({_mismatch['pct_of_stored']:.1f}%)")
 
     st.markdown("### Limitations Relevant to CHED Decision-Making")
 
-    limitations_text = [
-        ("PLE Outcomes",
-         "The dataset only identifies NMAT examinees later matched to PLE passer "
-         "records.  It does not contain all PLE takers or PLE failures.  Therefore, "
-         "this dashboard reports NMAT-to-PLE-passer linkage rates, not PLE pass "
-         "rates.  Official PLE passing rates published by the PRC should be used "
-         "for benchmarking purposes."),
-        ("GIDA and IP Status",
-         "The dataset does not contain indicators for Geographically Isolated and "
-         "Disadvantaged Area (GIDA) residence or Indigenous Peoples (IP) membership.  "
-         "The CMO exception for 30th-39th percentile applicants from these groups "
-         "requires documentation not available in this dataset."),
-        ("Medical School Admissions and Enrollment",
-         "This dataset records NMAT examinees, not enrolled medical students.  "
-         "The number of examinees at or above a threshold represents the available "
-         "applicant pool, not actual enrollment.  HEI-level admissions decisions, "
-         "capacity constraints, and selection criteria are not captured."),
-        ("Foreign Student Enrollment Cap",
-         "The CMO caps foreign student enrollment at 10 slots per incoming class at "
-         "SUCs.  The dataset shows NMAT examinees by citizenship, not enrolled "
-         "foreign students.  A descriptive foreign-examinee profile is provided, "
-         "but this dashboard does not assess compliance with the 10-slot cap."),
-        ("Composite Ranking for Foreign Applicants",
-         "The CMO encourages composite ranking for foreign applicants.  The dataset "
-         "does not contain GWA, interview scores, or other admission criteria "
-         "needed for such analysis."),
-        ("PHEI Accountability and Sanctions",
-         "The CMO ties cut-off privileges to PLE performance and provides for "
-         "revocation after three consecutive years below benchmark.  This dashboard "
-         "does not assign compliance labels or risk ratings to individual HEIs.  "
-         "The NMAT-linked PLE data is not a complete measure of institutional "
-         "PLE performance, as it only captures NMAT examinees who later passed "
-         "the PLE."),
-    ]
+    limitations_text = cc.compute_limitations_cards(df_all, df_best, df_obs)
 
     for title, detail in limitations_text:
         st.markdown(f"**{title}**")

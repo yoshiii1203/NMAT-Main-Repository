@@ -4,17 +4,18 @@ Page 05 — University Type Analysis
 Output: page_results/05_university_type.md
 
 Analyses:
-  1. UNI_TYPE distribution by UNI_LOCATION (matrix and counts)
-  2. Bin distribution by UNI_TYPE (counts and percentages)
-  3. Top bin share (B8-B10) by UNI_TYPE
-  4. Foreign examinee summary (by FOREIGNER_STATUS and UNI_TYPE)
-  5. Descriptive statistics by UNI_TYPE (n, median %ile, median raw, etc.)
-  6. Kruskal-Wallis test: UNI_TYPE x NMS_PER_num
+  1. UNDERGRAD_UNI_TYPE distribution by UNDERGRAD_UNI_LOCATION (matrix and counts)
+  2. Bin distribution by UNDERGRAD_UNI_TYPE (counts and percentages)
+  3. Top bin share (B8-B10) by UNDERGRAD_UNI_TYPE
+  4. Foreign examinee summary (by FOREIGNER_STATUS and UNDERGRAD_UNI_TYPE)
+  5. Descriptive statistics by UNDERGRAD_UNI_TYPE (n, median %ile, median raw, etc.)
+  6. Kruskal-Wallis test: UNDERGRAD_UNI_TYPE x NMS_PER_num
 
-Data subset: "uni" (besttrend with UNI_TYPE in [Public, Private, Foreign])
+Data subset: "uni" (besttrend with UNDERGRAD_UNI_TYPE in [Public, Private, Foreign])
 Filters: None (full unfiltered dataset)
 """
 import sys
+import os
 sys.path.append("data_aggregator")
 
 import numpy as np
@@ -22,16 +23,16 @@ import pandas as pd
 from scipy import stats as sp_stats
 from itertools import combinations
 
-from config import BIN_ORDER, SUBTEST_STD, SUBTEST_RAW
+from config import BIN_ORDER, SUBTEST_STD, SUBTEST_RAW, EXODUS_PARQUET, RESULTS_DIR
 from helpers import write_header, write_dataframe, pct_table
 
-MD_PATH = "page_results/05_university_type.md"
+MD_PATH = RESULTS_DIR / "05_university_type.md"
 
 
 def load_uni_data():
     """Load only the 'uni' subset directly (avoids load_data memory overhead)."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus.parquet")
+    table = pq.read_table(EXODUS_PARQUET)
     df = table.to_pandas()
     # Free table
     del table
@@ -40,11 +41,11 @@ def load_uni_data():
     if "Year" in df.columns:
         df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
 
-    # Filter: IS_BEST_NMAT_RECORD == True, Year 2006-2018, UNI_TYPE in Public/Private/Foreign
+    # Filter: IS_BEST_NMAT_RECORD == True, Year 2006-2018, UNDERGRAD_UNI_TYPE in Public/Private/Foreign
     mask = (
         (df.get("IS_BEST_NMAT_RECORD", pd.Series([True] * len(df))) == True)
         & (df["Year"].between(2006, 2018, inclusive="both"))
-        & (df["UNI_TYPE"].isin(["Public", "Private", "Foreign"]))
+        & (df["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"]))
     )
     uni = df.loc[mask].copy()
     # Drop full dataframe
@@ -54,7 +55,7 @@ def load_uni_data():
 
 
 def descriptive_stats(uni_base):
-    """Descriptive statistics by UNI_TYPE."""
+    """Descriptive statistics by UNDERGRAD_UNI_TYPE."""
     stats_list = []
     # Each entry: (label, column, agg_func)
     score_cols = [
@@ -74,8 +75,8 @@ def descriptive_stats(uni_base):
     ]
 
     for uni_type in ["Public", "Private", "Foreign"]:
-        subset = uni_base[uni_base["UNI_TYPE"] == uni_type]
-        row = {"UNI_TYPE": uni_type, "N": len(subset)}
+        subset = uni_base[uni_base["UNDERGRAD_UNI_TYPE"] == uni_type]
+        row = {"UNDERGRAD_UNI_TYPE": uni_type, "N": len(subset)}
         for label, col, agg_fn in score_cols:
             vals = subset[col].dropna()
             if len(vals) == 0:
@@ -91,9 +92,9 @@ def descriptive_stats(uni_base):
 
 
 def kruskal_uni_type(uni_base):
-    """Kruskal-Wallis test: UNI_TYPE x NMS_PER_num."""
-    groups = [g for g in ["Public", "Private", "Foreign"] if g in uni_base["UNI_TYPE"].unique()]
-    data = {g: uni_base[uni_base["UNI_TYPE"] == g]["NMS_PER_num"].dropna().values for g in groups}
+    """Kruskal-Wallis test: UNDERGRAD_UNI_TYPE x NMS_PER_num."""
+    groups = [g for g in ["Public", "Private", "Foreign"] if g in uni_base["UNDERGRAD_UNI_TYPE"].unique()]
+    data = {g: uni_base[uni_base["UNDERGRAD_UNI_TYPE"] == g]["NMS_PER_num"].dropna().values for g in groups}
     valid = {k: v for k, v in data.items() if len(v) >= 5}
 
     results = {}
@@ -144,8 +145,8 @@ def kruskal_uni_type(uni_base):
 
 
 def foreign_summary(uni_base):
-    """Foreign examinee summary by FOREIGNER_STATUS and UNI_TYPE."""
-    foreign = uni_base[uni_base["UNI_TYPE"] == "Foreign"].copy()
+    """Foreign examinee summary by FOREIGNER_STATUS and UNDERGRAD_UNI_TYPE."""
+    foreign = uni_base[uni_base["UNDERGRAD_UNI_TYPE"] == "Foreign"].copy()
 
     f_status = (
         foreign.groupby("FOREIGNER_STATUS", observed=True)
@@ -162,7 +163,7 @@ def foreign_summary(uni_base):
     f_status["Top Bin (B8-B10) Rate"] = (f_status["Top Bin (B8-B10) Rate"] * 100).round(2)
 
     f_status_all = (
-        uni_base.groupby(["UNI_TYPE", "FOREIGNER_STATUS"], observed=True)
+        uni_base.groupby(["UNDERGRAD_UNI_TYPE", "FOREIGNER_STATUS"], observed=True)
         .agg(
             N=("APPNO_CLEAN", "count"),
             Median_Percentile=("NMS_PER_num", "median"),
@@ -170,7 +171,7 @@ def foreign_summary(uni_base):
         )
         .reset_index()
     )
-    f_status_all.columns = ["UNI_TYPE", "FOREIGNER_STATUS", "N", "Median Percentile",
+    f_status_all.columns = ["UNDERGRAD_UNI_TYPE", "FOREIGNER_STATUS", "N", "Median Percentile",
                             "Median Raw Total"]
     f_status_all["Median Percentile"] = f_status_all["Median Percentile"].round(1)
     f_status_all["Median Raw Total"] = f_status_all["Median Raw Total"].round(1)
@@ -179,12 +180,12 @@ def foreign_summary(uni_base):
 
 
 def kruskal_subtests(uni_base):
-    """Kruskal-Wallis tests for each standard subtest by UNI_TYPE."""
+    """Kruskal-Wallis tests for each standard subtest by UNDERGRAD_UNI_TYPE."""
     results = []
     for label, col in SUBTEST_STD.items():
         groups = {}
         for ut in ["Public", "Private", "Foreign"]:
-            vals = uni_base[uni_base["UNI_TYPE"] == ut][col].dropna().values
+            vals = uni_base[uni_base["UNDERGRAD_UNI_TYPE"] == ut][col].dropna().values
             if len(vals) >= 5:
                 groups[ut] = vals
         if len(groups) >= 2:
@@ -205,61 +206,67 @@ def kruskal_subtests(uni_base):
 
 def run():
     print("Loading uni data...")
-    uni_base = load_uni_data()
-    uni_base = uni_base.dropna(subset=["UNI_TYPE", "UNI_LOCATION", "PercentileBin"]).copy()
+    uni_type_base = load_uni_data()
+    uni_type_base = uni_type_base.dropna(subset=["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]).copy()
+    # uni_base additionally requires a non-null PercentileBin — used only by bin-dependent
+    # charts/tables, per dashboard.py:1799-1802. uni_type_base (no bin requirement) is used
+    # for Table 17 and Figure 16 below so those tables don't silently drop the ~2.3% of
+    # applicants with no percentile bin (P5-01, P5-02).
+    uni_base = uni_type_base.dropna(subset=["PercentileBin"]).copy()
     print(f"  Records: {len(uni_base):,}")
 
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     with open(MD_PATH, "w", encoding="utf-8") as f:
         write_header(f, "University Type Analysis (Page 05)", "uni", 5)
-        f.write("**Subset:** besttrend filtered to UNI_TYPE in [Public, Private, Foreign]\n\n")
+        f.write("**Subset:** besttrend filtered to UNDERGRAD_UNI_TYPE in [Public, Private, Foreign]\n\n")
         f.write(f"**Total records:** {len(uni_base):,}\n\n")
         f.write("---\n\n")
 
-        # ── 1. UNI_TYPE distribution by UNI_LOCATION ──
-        f.write("## 1. UNI_TYPE Distribution by UNI_LOCATION\n\n")
+        # ── 1. UNDERGRAD_UNI_TYPE distribution by UNDERGRAD_UNI_LOCATION ──
+        f.write("## 1. UNDERGRAD_UNI_TYPE Distribution by UNDERGRAD_UNI_LOCATION\n\n")
 
         f.write("### 1a. Institution type by location mix\n\n")
         type_loc = (
-            uni_base.groupby(["UNI_TYPE", "UNI_LOCATION"], observed=True)
+            uni_base.groupby(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"], observed=True)
             .size()
             .reset_index(name="Count")
         )
         type_loc["Percent of Total"] = (type_loc["Count"] / type_loc["Count"].sum() * 100).round(2)
-        type_loc = type_loc.sort_values(["UNI_TYPE", "UNI_LOCATION"]).reset_index(drop=True)
+        type_loc = type_loc.sort_values(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]).reset_index(drop=True)
         write_dataframe(f, type_loc, "Table 05-1. Institution type by location mix")
 
         f.write("### 1b. Count matrix with margins\n\n")
-        inst_count = pd.crosstab(uni_base["UNI_TYPE"], uni_base["UNI_LOCATION"], margins=True)
+        inst_count = pd.crosstab(uni_base["UNDERGRAD_UNI_TYPE"], uni_base["UNDERGRAD_UNI_LOCATION"], margins=True)
         write_dataframe(
             f, inst_count.reset_index(),
-            "Table 05-2. UNI_TYPE x UNI_LOCATION count matrix (with totals)"
+            "Table 05-2. UNDERGRAD_UNI_TYPE x UNDERGRAD_UNI_LOCATION count matrix (with totals)"
         )
 
-        f.write("### 1c. Row percentages (within UNI_TYPE)\n\n")
-        inst_pct_row = (pd.crosstab(uni_base["UNI_TYPE"], uni_base["UNI_LOCATION"],
+        f.write("### 1c. Row percentages (within UNDERGRAD_UNI_TYPE)\n\n")
+        inst_pct_row = (pd.crosstab(uni_base["UNDERGRAD_UNI_TYPE"], uni_base["UNDERGRAD_UNI_LOCATION"],
                                     normalize="index") * 100).round(2)
         write_dataframe(
             f, inst_pct_row.reset_index(),
-            "Table 05-3. Row percentages: within UNI_TYPE"
+            "Table 05-3. Row percentages: within UNDERGRAD_UNI_TYPE"
         )
 
-        f.write("### 1d. Column percentages (within UNI_LOCATION)\n\n")
-        inst_pct_col = (pd.crosstab(uni_base["UNI_TYPE"], uni_base["UNI_LOCATION"],
+        f.write("### 1d. Column percentages (within UNDERGRAD_UNI_LOCATION)\n\n")
+        inst_pct_col = (pd.crosstab(uni_base["UNDERGRAD_UNI_TYPE"], uni_base["UNDERGRAD_UNI_LOCATION"],
                                     normalize="columns") * 100).round(2)
         write_dataframe(
             f, inst_pct_col.reset_index(),
-            "Table 05-4. Column percentages: within UNI_LOCATION"
+            "Table 05-4. Column percentages: within UNDERGRAD_UNI_LOCATION"
         )
 
         f.write("---\n\n")
 
-        # ── 2. Bin distribution by UNI_TYPE ──
-        f.write("## 2. Bin Distribution by UNI_TYPE\n\n")
+        # ── 2. Bin distribution by UNDERGRAD_UNI_TYPE ──
+        f.write("## 2. Bin Distribution by UNDERGRAD_UNI_TYPE\n\n")
 
-        uni_decile_count, uni_decile_pct = pct_table(uni_base, "UNI_TYPE", "PercentileBin",
+        uni_decile_count, uni_decile_pct = pct_table(uni_base, "UNDERGRAD_UNI_TYPE", "PercentileBin",
                                                      BIN_ORDER)
 
-        f.write("### 2a. Bin counts by UNI_TYPE\n\n")
+        f.write("### 2a. Bin counts by UNDERGRAD_UNI_TYPE\n\n")
         summary = uni_decile_count.copy()
         summary["Total"] = summary.sum(axis=1)
         write_dataframe(
@@ -267,19 +274,19 @@ def run():
             "Table 05-5. Bin counts by university type"
         )
 
-        f.write("### 2b. Bin percentages by UNI_TYPE\n\n")
+        f.write("### 2b. Bin percentages by UNDERGRAD_UNI_TYPE\n\n")
         write_dataframe(
             f, uni_decile_pct.reset_index(),
-            "Table 05-6. Row percentages (within UNI_TYPE) across percentile bins"
+            "Table 05-6. Row percentages (within UNDERGRAD_UNI_TYPE) across percentile bins"
         )
 
         f.write("---\n\n")
 
-        # ── 3. Top bin share (B8-B10) by UNI_TYPE ──
-        f.write("## 3. Top Bin Share (B8-B10) by UNI_TYPE\n\n")
+        # ── 3. Top bin share (B8-B10) by UNDERGRAD_UNI_TYPE ──
+        f.write("## 3. Top Bin Share (B8-B10) by UNDERGRAD_UNI_TYPE\n\n")
 
         top_share = (
-            uni_base.groupby("UNI_TYPE", observed=True)
+            uni_base.groupby("UNDERGRAD_UNI_TYPE", observed=True)
             .apply(
                 lambda g: pd.Series({
                     "Total N": len(g),
@@ -294,9 +301,9 @@ def run():
         )
         write_dataframe(f, top_share, "Table 05-7. Top bin (B8-B10) share by university type")
 
-        f.write("### 3b. Top bin share by UNI_TYPE x UNI_LOCATION\n\n")
+        f.write("### 3b. Top bin share by UNDERGRAD_UNI_TYPE x UNDERGRAD_UNI_LOCATION\n\n")
         inst_top = (
-            uni_base.groupby(["UNI_TYPE", "UNI_LOCATION"], observed=True)
+            uni_base.groupby(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"], observed=True)
             .apply(
                 lambda g: pd.Series({
                     "Total N": len(g),
@@ -319,8 +326,8 @@ def run():
         # ── 4. Foreign examinee summary ──
         f.write("## 4. Foreign Examinee Summary\n\n")
 
-        f.write("### 4a. Foreign examinee overview (UNI_TYPE = Foreign)\n\n")
-        foreign = uni_base[uni_base["UNI_TYPE"].eq("Foreign")].copy()
+        f.write("### 4a. Foreign examinee overview (UNDERGRAD_UNI_TYPE = Foreign)\n\n")
+        foreign = uni_base[uni_base["UNDERGRAD_UNI_TYPE"].eq("Foreign")].copy()
         f.write(f"- **Foreign examinees (besttrend):** {len(foreign):,}\n")
         f.write(f"- **Percent of total (uni subset):** "
                 f"{(len(foreign) / max(len(uni_base), 1) * 100):.2f}%\n")
@@ -336,10 +343,10 @@ def run():
             "Table 05-9. Foreign examinee summary by FOREIGNER_STATUS"
         )
 
-        f.write("### 4c. FOREIGNER_STATUS x UNI_TYPE cross-tabulation\n\n")
+        f.write("### 4c. FOREIGNER_STATUS x UNDERGRAD_UNI_TYPE cross-tabulation\n\n")
         write_dataframe(
             f, f_status_all,
-            "Table 05-10. FOREIGNER_STATUS by UNI_TYPE (all types)"
+            "Table 05-10. FOREIGNER_STATUS by UNDERGRAD_UNI_TYPE (all types)"
         )
 
         foreign_decile_count, foreign_decile_pct = pct_table(
@@ -352,8 +359,8 @@ def run():
 
         f.write("---\n\n")
 
-        # ── 5. Descriptive stats by UNI_TYPE ──
-        f.write("## 5. Descriptive Statistics by UNI_TYPE\n\n")
+        # ── 5. Descriptive stats by UNDERGRAD_UNI_TYPE ──
+        f.write("## 5. Descriptive Statistics by UNDERGRAD_UNI_TYPE\n\n")
 
         stats_df = descriptive_stats(uni_base)
         write_dataframe(
@@ -361,13 +368,13 @@ def run():
             "Table 05-12. Descriptive statistics by university type"
         )
 
-        # Subtest standard scores by UNI_TYPE
-        f.write("### 5b. Median standard subtest scores by UNI_TYPE\n\n")
+        # Subtest standard scores by UNDERGRAD_UNI_TYPE
+        f.write("### 5b. Median standard subtest scores by UNDERGRAD_UNI_TYPE\n\n")
         subtest_rows = []
         for label, col in SUBTEST_STD.items():
             row = {"Subtest": label}
             for ut in ["Public", "Private", "Foreign"]:
-                vals = uni_base[uni_base["UNI_TYPE"] == ut][col].dropna()
+                vals = uni_base[uni_base["UNDERGRAD_UNI_TYPE"] == ut][col].dropna()
                 row[f"{ut} (n={len(vals):,})"] = round(vals.median(), 2) if len(vals) > 0 else np.nan
             subtest_rows.append(row)
         subtest_df = pd.DataFrame(subtest_rows)
@@ -376,12 +383,12 @@ def run():
             "Table 05-13. Median standard subtest scores by university type"
         )
 
-        f.write("### 5c. Median raw subtest scores by UNI_TYPE\n\n")
+        f.write("### 5c. Median raw subtest scores by UNDERGRAD_UNI_TYPE\n\n")
         raw_rows = []
         for label, col in SUBTEST_RAW.items():
             row = {"Subtest": label}
             for ut in ["Public", "Private", "Foreign"]:
-                vals = uni_base[uni_base["UNI_TYPE"] == ut][col].dropna()
+                vals = uni_base[uni_base["UNDERGRAD_UNI_TYPE"] == ut][col].dropna()
                 row[f"{ut} (n={len(vals):,})"] = round(vals.median(), 2) if len(vals) > 0 else np.nan
             raw_rows.append(row)
         raw_df = pd.DataFrame(raw_rows)
@@ -392,8 +399,8 @@ def run():
 
         f.write("---\n\n")
 
-        # ── 6. Kruskal-Wallis: UNI_TYPE x NMS_PER_num ──
-        f.write("## 6. Kruskal-Wallis Test: UNI_TYPE x NMS_PER_num\n\n")
+        # ── 6. Kruskal-Wallis: UNDERGRAD_UNI_TYPE x NMS_PER_num ──
+        f.write("## 6. Kruskal-Wallis Test: UNDERGRAD_UNI_TYPE x NMS_PER_num\n\n")
 
         kw_result = kruskal_uni_type(uni_base)
         if kw_result:
@@ -419,6 +426,56 @@ def run():
                 f, kw_subtests_df,
                 "Table 05-17. Kruskal-Wallis tests by subtest (standard scores)"
             )
+
+        f.write("---\n\n")
+
+        # ── 7. Medical & Allied vs Other courses by UNDERGRAD_UNI_TYPE (P5-02) ──
+        f.write("## 7. Medical & Allied vs Other Courses by UNDERGRAD_UNI_TYPE\n\n")
+        f.write(f"Stacked percentages sum to 100% within each university type. "
+                f"Uses {len(uni_type_base):,} examinees (does not require a percentile "
+                f"bin — dashboard.py Figure 16).\n\n")
+        med_other = uni_type_base.copy()
+        med_other["Course bucket"] = np.where(
+            med_other["UNDERGRAD_COURSE_GROUP"].eq("Medical & Allied"),
+            "Medical & Allied", "Other Courses"
+        )
+        med_tbl = (
+            med_other.groupby(["UNDERGRAD_UNI_TYPE", "Course bucket"], observed=True)
+            .size().unstack(fill_value=0)
+            .reindex(columns=["Medical & Allied", "Other Courses"], fill_value=0)
+        )
+        med_pct = med_tbl.div(med_tbl.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
+        med_pct.index.name = "UNDERGRAD_UNI_TYPE"
+        write_dataframe(
+            f, med_pct.reset_index(),
+            "Figure 16 data. Medical & Allied vs Other Courses by university type (row %)"
+        )
+
+        f.write("---\n\n")
+
+        # ── 8. University listings by UNDERGRAD_UNI_TYPE (P5-01) ──
+        f.write("## 8. University Listings by UNDERGRAD_UNI_TYPE\n\n")
+        f.write(f"Each row is the standardized university name, cleaned location, and "
+                f"applicant count, over {len(uni_type_base):,} examinees (does not "
+                f"require a percentile bin, so this includes applicants dropped from "
+                f"the bin-dependent tables above — dashboard.py Table 17).\n\n")
+        for uni_type in ["Public", "Private", "Foreign"]:
+            listing = (
+                uni_type_base[uni_type_base["UNDERGRAD_UNI_TYPE"] == uni_type]
+                .groupby(["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_LOCATION"], observed=True)
+                .agg(total_applicants=("APPNO_CLEAN", "count"))
+                .reset_index()
+                .sort_values("total_applicants", ascending=False)
+            )
+            f.write(f"### 8.{['Public', 'Private', 'Foreign'].index(uni_type) + 1} {uni_type} Universities "
+                    f"({listing.shape[0]:,} institutions, {listing['total_applicants'].sum():,} applicants)\n\n")
+            if listing.shape[0] > 200:
+                listing_csv = RESULTS_DIR / f"05_university_listings_{uni_type.lower()}.csv"
+                listing.to_csv(listing_csv, index=False)
+                write_dataframe(f, listing.head(200), f"Table 17 ({uni_type}, first 200 of {listing.shape[0]:,})")
+                f.write(f"> Full listing: [{listing_csv.name}]({listing_csv.name}) ({listing.shape[0]:,} rows)\n\n")
+            else:
+                write_dataframe(f, listing, f"Table 17 ({uni_type}, {listing.shape[0]:,} institutions)")
 
         f.write("\n---\n")
         f.write("*Analysis complete. Generated by page_05_university_type.py*\n")

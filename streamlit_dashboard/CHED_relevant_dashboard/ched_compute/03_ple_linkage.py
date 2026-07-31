@@ -3,8 +3,8 @@
 
 Computes:
   - PLE linkage rate by ScoreBin
-  - PLE linkage by UNI_TYPE x ScoreBin
-  - PLE linkage by CourseGroup x ScoreBin
+  - PLE linkage by UNDERGRAD_UNI_TYPE x ScoreBin
+  - PLE linkage by UNDERGRAD_COURSE_GROUP x ScoreBin
   - Box plot data: score distribution by PLE status (median, Q1, Q3)
   - Course group survival: % in B8-B10 and PLE linkage rate
 
@@ -69,8 +69,9 @@ def compute():
     # ────────────────────────────────────────────────────────────────────
     lines.append("### PLE Linkage by Score Bin\n")
     lines.append(
-        "The NMAT-to-PLE linkage rate for each score bin. "
-        "The B4->B5 jump is the largest adjacent-bin increase.\n"
+        "The NMAT-to-PLE linkage rate for each score bin. Linkage rises roughly continuously "
+        "across bins; the B4->B5 step is comparable in size to the steps on either side of it, "
+        "not an isolated break concentrated at the 40th-percentile boundary.\n"
     )
 
     bin_header = "| Score Bin | Range | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |"
@@ -107,9 +108,9 @@ def compute():
     lines.append("")
 
     # ────────────────────────────────────────────────────────────────────
-    # 2) Score Bin x UNI_TYPE heatmap
+    # 2) Score Bin x UNDERGRAD_UNI_TYPE heatmap
     # ────────────────────────────────────────────────────────────────────
-    lines.append("### Linkage by Score Bin and UNI_TYPE\n")
+    lines.append("### Linkage by Score Bin and UNDERGRAD_UNI_TYPE\n")
     lines.append(
         "How linkage rates vary by university type within each score bin.\n"
     )
@@ -122,7 +123,7 @@ def compute():
     for b in BIN_ORDER:
         row = [b]
         for ut in UNI_TYPE_ORDER:
-            sub = obs[(obs["PercentileBin"] == b) & (obs["UNI_TYPE"] == ut)]
+            sub = obs[(obs["PercentileBin"] == b) & (obs["UNDERGRAD_UNI_TYPE"] == ut)]
             n_sub = len(sub)
             ple_sub = int(sub["IS_PLE_PASSER"].sum())
             lr = (ple_sub / n_sub * 100) if n_sub > 0 else 0
@@ -135,14 +136,14 @@ def compute():
     lines.append("")
 
     # ────────────────────────────────────────────────────────────────────
-    # 3) Score Bin x CourseGroup heatmap
+    # 3) Score Bin x UNDERGRAD_COURSE_GROUP heatmap
     # ────────────────────────────────────────────────────────────────────
-    lines.append("### Linkage by Score Bin and CourseGroup\n")
+    lines.append("### Linkage by Score Bin and UNDERGRAD_COURSE_GROUP\n")
     lines.append(
         "How linkage rates differ by course group across the score bin distribution.\n"
     )
 
-    cg_order = obs["CourseGroup"].value_counts().index.tolist()
+    cg_order = obs["UNDERGRAD_COURSE_GROUP"].value_counts().index.tolist()
 
     cg_bin_header = "| Score Bin | " + " | ".join(str(cg) for cg in cg_order) + " |"
     cg_bin_sep = "|:------------:|" + "|".join([":---:"] * len(cg_order)) + "|"
@@ -152,7 +153,7 @@ def compute():
     for b in BIN_ORDER:
         row = [b]
         for cg in cg_order:
-            sub = obs[(obs["PercentileBin"] == b) & (obs["CourseGroup"] == cg)]
+            sub = obs[(obs["PercentileBin"] == b) & (obs["UNDERGRAD_COURSE_GROUP"] == cg)]
             n_sub = len(sub)
             ple_sub = int(sub["IS_PLE_PASSER"].sum()) if n_sub > 0 else 0
             lr = (ple_sub / n_sub * 100) if n_sub > 0 else 0
@@ -164,15 +165,15 @@ def compute():
 
     lines.append("")
 
-    # CourseGroup summary
-    lines.append("#### CourseGroup Summary\n")
+    # UNDERGRAD_COURSE_GROUP summary
+    lines.append("#### UNDERGRAD_COURSE_GROUP Summary\n")
     cg_sum_header = "| Course Group | n (Pre-2015) | PLE Matched | NMAT-to-PLE Linkage Rate |"
     cg_sum_sep = "|:-------------|:------------:|:-----------:|:------------------------:|"
     lines.append(cg_sum_header)
     lines.append(cg_sum_sep)
 
     for cg in cg_order:
-        sub = obs[obs["CourseGroup"] == cg]
+        sub = obs[obs["UNDERGRAD_COURSE_GROUP"] == cg]
         n_sub = len(sub)
         ple_sub = int(sub["IS_PLE_PASSER"].sum())
         lr = (ple_sub / n_sub * 100) if n_sub > 0 else 0
@@ -252,13 +253,13 @@ def compute():
     lines.append(surv_sep)
 
     surv_data = []
-    for cg in best["CourseGroup"].value_counts().index:
-        sub_best = best[best["CourseGroup"] == cg]
+    for cg in best["UNDERGRAD_COURSE_GROUP"].value_counts().index:
+        sub_best = best[best["UNDERGRAD_COURSE_GROUP"] == cg]
         n_cg = len(sub_best)
         n_b8b10 = int((sub_best["PercentileBin"].isin(["B8", "B9", "B10"])).sum())
         pct_b8b10 = (n_b8b10 / n_cg * 100) if n_cg > 0 else 0
 
-        sub_obs = obs[obs["CourseGroup"] == cg]
+        sub_obs = obs[obs["UNDERGRAD_COURSE_GROUP"] == cg]
         n_obs_cg = len(sub_obs)
         n_ple_cg = int(sub_obs["IS_PLE_PASSER"].sum())
         lr_cg = (n_ple_cg / n_obs_cg * 100) if n_obs_cg > 0 else 0
@@ -294,7 +295,7 @@ def compute():
         "follow-up time. More recent cohorts cannot be fully evaluated."
     )
     lines.append(
-        "- **Clean subset:** The strictest subset (IS_PLE_ANALYSIS_SAFE, gap >= 5 years, "
+        "- **Clean subset:** The strictest subset (IS_PLE_PASSER, gap >= 5 years, "
         "Filipino only) provides more reliable estimates but with reduced sample size."
     )
     lines.append("")
@@ -310,7 +311,7 @@ def compute():
     lines.append("### Clean PLE Subset\n")
     lines.append(
         "A strict, defensible subset for more reliable PLE linkage analysis. "
-        "This subset filters to best-record examinees with IS_PLE_ANALYSIS_SAFE=True, "
+        "This subset filters to best-record examinees with IS_PLE_PASSER=True, "
         "PLE_YEAR_GAP >= 5, and Filipino citizenship only.\n"
     )
 
@@ -323,7 +324,7 @@ def compute():
         ("Clean Subset Size", fmt(n_clean)),
         ("PLE Matched in Clean Subset", fmt(n_ple_clean)),
         ("NMAT-to-PLE Linkage Rate (Clean)", f"{lr_clean:.2f}%"),
-        ("Filters Applied", "Best record, IS_PLE_ANALYSIS_SAFE, Gap >= 5yrs, Filipino"),
+        ("Filters Applied", "Best record, IS_PLE_PASSER, Gap >= 5yrs, Filipino"),
     ]
     lines.append(make_metric_table(clean_metrics))
     lines.append("")

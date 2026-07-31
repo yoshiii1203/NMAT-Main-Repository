@@ -1,6 +1,6 @@
 # Page 2: Data Integrity and Cohort Definition Checks
 
-**Generated:** 2026-07-28 01:17
+**Generated:** 2026-07-31 16:30
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -15,9 +15,9 @@
 | Metric | Value |
 |--------|------:|
 | All NMAT rows | 178,927 |
-| Best-record rows | 133,804 |
+| Best-record rows | 134,869 |
 | Rows with TRUE raw scores | 178,882 |
-| Observable best-record rows | 64,501 |
+| Observable best-record rows | 69,503 |
 
 ---
 
@@ -28,11 +28,11 @@ Each row defines one analytic subset used in later pages. Counts are rows, not n
 | Analytic subset                               |   Row count | Interpretation                                |   Share of all (%) |
 |:----------------------------------------------|------------:|:----------------------------------------------|-------------------:|
 | All cleaned NMAT rows                         |      178927 | All cleaned NMAT rows                         |                100 |
-| One best NMAT record per person               |      133804 | One best NMAT record per person               |              74.78 |
-| Best-record rows within 2006-2018             |      133804 | Best-record rows within 2006-2018             |              74.78 |
-| Best-record rows in the observable PLE window |       64501 | Best-record rows in the observable PLE window |              36.05 |
-| Confirmed PLE-matched NMAT rows               |       49986 | Confirmed PLE-matched NMAT rows               |              27.94 |
-| Confirmed PLE-matched best-record persons     |       36305 | Confirmed PLE-matched best-record persons     |              20.29 |
+| One best NMAT record per person               |      134869 | One best NMAT record per person               |              75.38 |
+| Best-record rows within 2006-2018             |      134869 | Best-record rows within 2006-2018             |              75.38 |
+| Best-record rows in the observable PLE window |       69503 | Best-record rows in the observable PLE window |              38.84 |
+| Confirmed PLE-matched NMAT rows               |       49086 | Confirmed PLE-matched NMAT rows               |              27.43 |
+| Confirmed PLE-matched best-record persons     |       37365 | Confirmed PLE-matched best-record persons     |              20.88 |
 
 ---
 
@@ -47,41 +47,31 @@ These checks confirm whether TRUE total raw score is internally consistent with 
 | Stored-vs-derived mismatch flag count         |           56065 |                    31.334 |
 | Calc-vs-derived mismatch flag count           |               0 |                         0 |
 
+**Stored-total mismatch, correctly denominated:** 56,065 of 99,316 rows that have a stored total (`StoredRawTotal` notna) = **56.45%**. (The table above expresses the same numerator, 56,065, as a share of ALL 178,927 rows = 31.33% — a different, smaller-looking denominator. Neither is "42.2%"; that figure is retired.)
+
 ### StoredVsDerivedMismatch detailed distribution
 
-|   Value |   Count |
-|--------:|--------:|
-|     nan |   79611 |
-|       1 |   56065 |
-|       0 |   43251 |
+| Value   |   Count |
+|:--------|--------:|
+| <NA>    |   79611 |
+| True    |   56065 |
+| False   |   43251 |
 
 ### CalcVsDerivedMismatch detailed distribution
 
-|   Value |   Count |
-|--------:|--------:|
-|       0 |  178882 |
-|     nan |      45 |
+Column not present.
 
 ---
 
-## Table 4: Post-Cleaning UNI_TYPE Consistency by Source College
+## Table 4: Post-Cleaning UNDERGRAD_UNI_TYPE Consistency by Source College
 
-Each row summarizes how one normalized source college name maps to the cleaned UNI_TYPE field. Any college with more than one mapped type should be reviewed.
+Each row summarizes how one normalized source college name maps to the cleaned UNDERGRAD_UNI_TYPE field. Any college with more than one mapped type should be reviewed.
 
-**Colleges checked:** 3,213
-
-**Colleges with >1 UNI_TYPE:** 0
-
-### All inconsistent colleges
-
-| NMA_College_norm   | records   | n_types   | mapped_types   |
-|--------------------|-----------|-----------|----------------|
-
-**Colleges with exactly 1 UNI_TYPE:** 3,213
+NMA_College column not available in the dataset.
 
 ---
 
-## Table 5: UNIVERSITY to UNI_TYPE and UNI_LOCATION Pairing Audit
+## Table 5: UNDERGRAD_UNIVERSITY to UNDERGRAD_UNI_TYPE and UNDERGRAD_UNI_LOCATION Pairing Audit
 
 This table checks whether each standardized university name maps consistently to one university type and one location.
 
@@ -103,16 +93,16 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 ### Table 6: Distribution of University Type (all rows)
 
-| UNI_TYPE      |   Count |   Share (%) |
-|:--------------|--------:|------------:|
-| Private       |  137476 |       76.83 |
-| Public        |   37304 |       20.85 |
-| Foreign       |    2315 |        1.29 |
-| Not Specified |    1832 |        1.02 |
+| UNDERGRAD_UNI_TYPE   |   Count |   Share (%) |
+|:---------------------|--------:|------------:|
+| Private              |  137476 |       76.83 |
+| Public               |   37304 |       20.85 |
+| Foreign              |    2315 |        1.29 |
+| Not Specified        |    1832 |        1.02 |
 
 ### Table 7: Distribution of Course Group (all rows)
 
-| CourseGroup                  |   Count |   Share (%) |
+| UNDERGRAD_COURSE_GROUP       |   Count |   Share (%) |
 |:-----------------------------|--------:|------------:|
 | Medical & Allied             |   86140 |       48.14 |
 | Natural Sciences             |   55900 |       31.24 |
@@ -125,8 +115,26 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 | PLE_STATUS_LABEL       |   Count |   Share (%) |
 |:-----------------------|--------:|------------:|
-| No confirmed PLE match |  128941 |       72.06 |
-| Confirmed PLE passer   |   49986 |       27.94 |
+| No confirmed PLE match |  129841 |       72.57 |
+| Confirmed PLE passer   |   49086 |       27.43 |
+
+### Table 9: Distribution of PLE Match Outcome (all rows)
+
+`accepted` rows are counted in IS_PLE_PASSER. `rejected_ambiguous_person` and `rejected` are candidate matches that existed but were NOT counted — the person-key resolved to more than one plausible match and was discarded rather than guessed. `no_match` means no candidate was found at all.
+
+| PLE_MATCH_OUTCOME         |   Count |   Share (%) |
+|:--------------------------|--------:|------------:|
+| no_match                  |  121623 |       67.97 |
+| accepted                  |   49086 |       27.43 |
+| rejected_ambiguous_person |    8216 |        4.59 |
+| rejected                  |       2 |           0 |
+
+### Table 10: Distribution of PLE Year Uncertainty (all rows)
+
+| PLE_YEAR_UNCERTAIN   |   Count |   Share (%) |
+|:---------------------|--------:|------------:|
+| False                |  178817 |       99.94 |
+| True                 |     110 |        0.06 |
 
 ---
 
@@ -165,9 +173,9 @@ Values are row counts under the current filters (full unfiltered dataset).
 - Persons with 3+ records: 7,901
 - Max records for one person: 9
 
-### IS_PLE_ANALYSIS_SAFE Distribution
+### IS_PLE_PASSER Distribution
 
-| IS_PLE_ANALYSIS_SAFE   |   Count |   Share (%) |
-|:-----------------------|--------:|------------:|
-| False                  |  128941 |       72.06 |
-| True                   |   49986 |       27.94 |
+| IS_PLE_PASSER   |   Count |   Share (%) |
+|:----------------|--------:|------------:|
+| False           |  129841 |       72.57 |
+| True            |   49086 |       27.43 |

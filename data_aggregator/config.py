@@ -4,12 +4,17 @@ All constants mirror dashboard.py definitions.
 """
 from pathlib import Path
 
-# Paths
-ROOT = Path("dataset")
+# Paths — anchored on this file's location, NOT the process cwd (INFRA-01).
+# dataset/ lives at the repo root (this file's parent's parent);
+# page_results/ lives inside data_aggregator/ (this file's parent).
+_HERE = Path(__file__).resolve().parent
+_REPO_ROOT = _HERE.parent
+
+ROOT = _REPO_ROOT / "dataset"
 EXODUS_PARQUET = ROOT / "NMAT_Exodus.parquet"
 EXODUS_CSV = ROOT / "NMAT_Exodus.csv"
 REAL_FOREIGNERS = ROOT / "REAL_FOREIGNERS.csv"
-RESULTS_DIR = Path("page_results")
+RESULTS_DIR = _HERE / "page_results"
 
 # Bin and PLE order
 BIN_ORDER = [f"B{i}" for i in range(1, 11)]
@@ -75,7 +80,7 @@ SUBTEST_RAW = {
 }
 
 REQUIRED_PIPELINE_COLS = [
-    "APPNO_CLEAN", "PERSON_KEY", "UNI_TYPE", "UNI_LOCATION",
-    "CourseGroup", "IS_BEST_NMAT_RECORD", "IS_PLE_ANALYSIS_SAFE",
+    "APPNO_CLEAN", "PERSON_KEY", "UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION",
+    "UNDERGRAD_COURSE_GROUP", "IS_BEST_NMAT_RECORD", "IS_PLE_PASSER",
     "HasTRUErawScores", "PLE_MATCH_METHOD",
 ]

@@ -173,6 +173,24 @@ def run() -> str:
     lines.append(raw_tbl.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
 
+    # Schema contract §8: the headline stored-total mismatch stat is 56,065 of the
+    # 99,316 rows that HAVE a stored total (56.45%), not 31.33% of all 178,927 rows —
+    # that 31.33%-of-everything framing produced the debunked "42.2%" figure elsewhere
+    # in this project's history. Show both denominators explicitly so neither is
+    # mistaken for the other.
+    stored_total_n = int(df["StoredRawTotal"].notna().sum()) if "StoredRawTotal" in df.columns else 0
+    if stored_total_n > 0:
+        stored_mismatch_pct_of_stored = round(stored_mismatch_count / stored_total_n * 100, 2)
+        lines.append(
+            f"**Stored-total mismatch, correctly denominated:** {stored_mismatch_count:,} of "
+            f"{stored_total_n:,} rows that have a stored total (`StoredRawTotal` notna) = "
+            f"**{stored_mismatch_pct_of_stored}%**. (The table above expresses the same "
+            f"numerator, {stored_mismatch_count:,}, as a share of ALL {total:,} rows = "
+            f"{round(stored_mismatch_count / total * 100, 2)}% — a different, smaller-looking "
+            f"denominator. Neither is \"42.2%\"; that figure is retired.)"
+        )
+        lines.append("")
+
     # Detailed flag value counts
     lines.append("### StoredVsDerivedMismatch detailed distribution")
     lines.append("")
@@ -196,13 +214,13 @@ def run() -> str:
     lines.append("")
 
     # ========== COLLEGE-TYPE CONSISTENCY TABLE (Table 4) ==========
-    lines.append("## Table 4: Post-Cleaning UNI_TYPE Consistency by Source College")
+    lines.append("## Table 4: Post-Cleaning UNDERGRAD_UNI_TYPE Consistency by Source College")
     lines.append("")
-    lines.append("Each row summarizes how one normalized source college name maps to the cleaned UNI_TYPE field. Any college with more than one mapped type should be reviewed.")
+    lines.append("Each row summarizes how one normalized source college name maps to the cleaned UNDERGRAD_UNI_TYPE field. Any college with more than one mapped type should be reviewed.")
     lines.append("")
 
     if "NMA_College" in df.columns:
-        integrity_base = df[["NMA_College", "UNI_TYPE"]].copy()
+        integrity_base = df[["NMA_College", "UNDERGRAD_UNI_TYPE"]].copy()
         integrity_base["NMA_College_norm"] = (
             integrity_base["NMA_College"]
             .astype("string")
@@ -214,9 +232,9 @@ def run() -> str:
             integrity_base.dropna(subset=["NMA_College_norm"])
             .groupby("NMA_College_norm", observed=True)
             .agg(
-                records=("UNI_TYPE", "size"),
-                n_types=("UNI_TYPE", "nunique"),
-                mapped_types=("UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
+                records=("UNDERGRAD_UNI_TYPE", "size"),
+                n_types=("UNDERGRAD_UNI_TYPE", "nunique"),
+                mapped_types=("UNDERGRAD_UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
             )
             .reset_index()
             .sort_values(["n_types", "records"], ascending=[False, False])
@@ -225,7 +243,7 @@ def run() -> str:
 
         lines.append(f"**Colleges checked:** {college_check.shape[0]:,}")
         lines.append("")
-        lines.append(f"**Colleges with >1 UNI_TYPE:** {inconsistent.shape[0]:,}")
+        lines.append(f"**Colleges with >1 UNDERGRAD_UNI_TYPE:** {inconsistent.shape[0]:,}")
         lines.append("")
         lines.append("### All inconsistent colleges")
         lines.append("")
@@ -234,7 +252,7 @@ def run() -> str:
 
         # Also show the consistent colleges summary
         consistent = college_check[college_check["n_types"] == 1]
-        lines.append(f"**Colleges with exactly 1 UNI_TYPE:** {consistent.shape[0]:,}")
+        lines.append(f"**Colleges with exactly 1 UNDERGRAD_UNI_TYPE:** {consistent.shape[0]:,}")
         lines.append("")
     else:
         lines.append("NMA_College column not available in the dataset.")
@@ -243,23 +261,23 @@ def run() -> str:
     lines.append("---")
     lines.append("")
 
-    # ========== UNIVERSITY PAIRING CONFLICTS TABLE (Table 5) ==========
-    lines.append("## Table 5: UNIVERSITY to UNI_TYPE and UNI_LOCATION Pairing Audit")
+    # ========== UNDERGRAD_UNIVERSITY PAIRING CONFLICTS TABLE (Table 5) ==========
+    lines.append("## Table 5: UNDERGRAD_UNIVERSITY to UNDERGRAD_UNI_TYPE and UNDERGRAD_UNI_LOCATION Pairing Audit")
     lines.append("")
     lines.append("This table checks whether each standardized university name maps consistently to one university type and one location.")
     lines.append("")
 
-    if "UNIVERSITY" in df.columns:
+    if "UNDERGRAD_UNIVERSITY" in df.columns:
         university_pairing = (
-            df[["UNIVERSITY", "UNI_TYPE", "UNI_LOCATION"]]
-            .dropna(subset=["UNIVERSITY"])
-            .groupby("UNIVERSITY", observed=True)
+            df[["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]]
+            .dropna(subset=["UNDERGRAD_UNIVERSITY"])
+            .groupby("UNDERGRAD_UNIVERSITY", observed=True)
             .agg(
-                records=("UNI_TYPE", "size"),
-                n_uni_types=("UNI_TYPE", "nunique"),
-                n_locations=("UNI_LOCATION", "nunique"),
-                uni_types=("UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x))))),
-                locations=("UNI_LOCATION", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
+                records=("UNDERGRAD_UNI_TYPE", "size"),
+                n_uni_types=("UNDERGRAD_UNI_TYPE", "nunique"),
+                n_locations=("UNDERGRAD_UNI_LOCATION", "nunique"),
+                uni_types=("UNDERGRAD_UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x))))),
+                locations=("UNDERGRAD_UNI_LOCATION", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
             )
             .reset_index()
             .sort_values(["n_uni_types", "n_locations", "records"], ascending=[False, False, False])
@@ -286,7 +304,7 @@ def run() -> str:
         lines.append(uni_type_dist.to_markdown(index=False, tablefmt="pipe", numalign="right"))
         lines.append("")
     else:
-        lines.append("UNIVERSITY column not available in the dataset.")
+        lines.append("UNDERGRAD_UNIVERSITY column not available in the dataset.")
         lines.append("")
 
     lines.append("---")
@@ -298,18 +316,18 @@ def run() -> str:
     lines.append("Values are row counts under the current filters (full unfiltered dataset).")
     lines.append("")
 
-    # Table 6: UNI_TYPE distribution
+    # Table 6: UNDERGRAD_UNI_TYPE distribution
     lines.append("### Table 6: Distribution of University Type (all rows)")
     lines.append("")
-    uni_type_dist = df["UNI_TYPE"].value_counts(dropna=False).rename_axis("UNI_TYPE").reset_index(name="Count")
+    uni_type_dist = df["UNDERGRAD_UNI_TYPE"].value_counts(dropna=False).rename_axis("UNDERGRAD_UNI_TYPE").reset_index(name="Count")
     uni_type_dist["Share (%)"] = (uni_type_dist["Count"] / total * 100).round(2)
     lines.append(uni_type_dist.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
 
-    # Table 7: CourseGroup distribution
+    # Table 7: UNDERGRAD_COURSE_GROUP distribution
     lines.append("### Table 7: Distribution of Course Group (all rows)")
     lines.append("")
-    course_dist = df["CourseGroup"].value_counts(dropna=False).rename_axis("CourseGroup").reset_index(name="Count")
+    course_dist = df["UNDERGRAD_COURSE_GROUP"].value_counts(dropna=False).rename_axis("UNDERGRAD_COURSE_GROUP").reset_index(name="Count")
     course_dist["Share (%)"] = (course_dist["Count"] / total * 100).round(2)
     lines.append(course_dist.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
@@ -320,7 +338,7 @@ def run() -> str:
     # Derive PLE_STATUS_LABEL if not present (matching helpers.py logic)
     if "PLE_STATUS_LABEL" not in df.columns:
         ple_label = np.where(
-            df["IS_PLE_ANALYSIS_SAFE"] == True,
+            df["IS_PLE_PASSER"] == True,
             "Confirmed PLE passer", "No confirmed PLE match"
         )
         ple_vc = pd.Series(ple_label).value_counts(dropna=False).rename_axis("PLE_STATUS_LABEL").reset_index(name="Count")
@@ -329,6 +347,33 @@ def run() -> str:
     ple_vc["Share (%)"] = (ple_vc["Count"] / total * 100).round(2)
     lines.append(ple_vc.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")
+
+    # Table 9: PLE_MATCH_OUTCOME distribution — explains WHY candidate PLE matches were
+    # or were not counted (accepted / rejected_ambiguous_person / no_match / rejected).
+    if "PLE_MATCH_OUTCOME" in df.columns:
+        lines.append("### Table 9: Distribution of PLE Match Outcome (all rows)")
+        lines.append("")
+        lines.append(
+            "`accepted` rows are counted in IS_PLE_PASSER. `rejected_ambiguous_person` and "
+            "`rejected` are candidate matches that existed but were NOT counted — the "
+            "person-key resolved to more than one plausible match and was discarded rather "
+            "than guessed. `no_match` means no candidate was found at all."
+        )
+        lines.append("")
+        outcome_vc = df["PLE_MATCH_OUTCOME"].value_counts(dropna=False).rename_axis("PLE_MATCH_OUTCOME").reset_index(name="Count")
+        outcome_vc["Share (%)"] = (outcome_vc["Count"] / total * 100).round(2)
+        lines.append(outcome_vc.to_markdown(index=False, tablefmt="pipe", numalign="right"))
+        lines.append("")
+
+    # Table 10: PLE_YEAR_UNCERTAIN — rows where the matched PLE year is not reliably known
+    # (e.g. MANUAL_APPNO_MATCH source has no year column).
+    if "PLE_YEAR_UNCERTAIN" in df.columns:
+        lines.append("### Table 10: Distribution of PLE Year Uncertainty (all rows)")
+        lines.append("")
+        year_unc_vc = df["PLE_YEAR_UNCERTAIN"].value_counts(dropna=False).rename_axis("PLE_YEAR_UNCERTAIN").reset_index(name="Count")
+        year_unc_vc["Share (%)"] = (year_unc_vc["Count"] / total * 100).round(2)
+        lines.append(year_unc_vc.to_markdown(index=False, tablefmt="pipe", numalign="right"))
+        lines.append("")
 
     lines.append("---")
     lines.append("")
@@ -364,10 +409,10 @@ def run() -> str:
     lines.append(f"- Max records for one person: {person_counts.max()}")
     lines.append("")
 
-    # IS_PLE_ANALYSIS_SAFE distribution
-    lines.append("### IS_PLE_ANALYSIS_SAFE Distribution")
+    # IS_PLE_PASSER distribution
+    lines.append("### IS_PLE_PASSER Distribution")
     lines.append("")
-    ple_safe_vc = df["IS_PLE_ANALYSIS_SAFE"].value_counts(dropna=False).rename_axis("IS_PLE_ANALYSIS_SAFE").reset_index(name="Count")
+    ple_safe_vc = df["IS_PLE_PASSER"].value_counts(dropna=False).rename_axis("IS_PLE_PASSER").reset_index(name="Count")
     ple_safe_vc["Share (%)"] = (ple_safe_vc["Count"] / total * 100).round(2)
     lines.append(ple_safe_vc.to_markdown(index=False, tablefmt="pipe", numalign="right"))
     lines.append("")

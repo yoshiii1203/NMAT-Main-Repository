@@ -5,39 +5,51 @@ Replicates dashboard.py computation logic for standalone use.
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from config import BIN_ORDER, PLE_ORDER
+from config import BIN_ORDER, PLE_ORDER, EXODUS_PARQUET
 
 
 def load_data():
-    """Load NMAT_Exodus.parquet and create all data subsets matching the dashboard."""
-    df = pd.read_parquet("dataset/NMAT_Exodus.parquet")
-    
+    """Load NMAT_Exodus.parquet and create all data subsets matching the dashboard.
+
+    Schema contract v2 (51 cols): IS_PLE_ANALYSIS_SAFE is gone (it was a byte-identical
+    duplicate of IS_PLE_PASSER). IS_OBSERVABLE_COHORT (Year<=2014) and
+    IS_BEST_OBSERVABLE_RECORD (best attempt *within* that window) are now real columns.
+
+    Person-level PLE-linked subsets MUST use IS_BEST_OBSERVABLE_RECORD, never
+    IS_BEST_NMAT_RECORD & Year<=2014 — that naive combination drops 3,721 people whose
+    overall-best attempt fell after 2014 even though they also sat (and are observable)
+    before it. See .claude/audit/_TARGET_SCHEMA_CONTRACT.md §2a.
+    """
+    df = pd.read_parquet(EXODUS_PARQUET)
+
     # Ensure required derived columns
     if "PLE_STATUS_LABEL" not in df.columns:
         df["PLE_STATUS_LABEL"] = np.where(
-            df["IS_PLE_ANALYSIS_SAFE"] == True,
+            df["IS_PLE_PASSER"] == True,
             "Confirmed PLE passer", "No confirmed PLE match"
         )
     if "HAS_CONFIRMED_PLE" not in df.columns:
-        df["HAS_CONFIRMED_PLE"] = df["IS_PLE_ANALYSIS_SAFE"] == True
-    if "IS_BOARD_OBSERVABLE_COHORT" not in df.columns:
-        df["IS_BOARD_OBSERVABLE_COHORT"] = df["Year"] <= 2014
-    
+        df["HAS_CONFIRMED_PLE"] = df["IS_PLE_PASSER"] == True
+    if "IS_OBSERVABLE_COHORT" not in df.columns:
+        df["IS_OBSERVABLE_COHORT"] = df["Year"] <= 2014
+
     # Parse Year
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
-    
+
     # Create subsets (mirroring dashboard.py load_data_and_subsets)
     subsets = {}
     subsets["all"] = df
     subsets["best"] = df[df["IS_BEST_NMAT_RECORD"] == True].copy() if "IS_BEST_NMAT_RECORD" in df.columns else df
     subsets["trend"] = df[df["Year"].between(2006, 2018, inclusive="both")].copy()
     subsets["besttrend"] = subsets["best"][subsets["best"]["Year"].between(2006, 2018, inclusive="both")].copy()
-    subsets["bestobservable"] = subsets["besttrend"][subsets["besttrend"]["IS_BOARD_OBSERVABLE_COHORT"] == True].copy()
-    subsets["uni"] = subsets["besttrend"][subsets["besttrend"]["UNI_TYPE"].isin(["Public", "Private", "Foreign"])].copy()
-    subsets["uniobservable"] = subsets["bestobservable"][subsets["bestobservable"]["UNI_TYPE"].isin(["Public", "Private", "Foreign"])].copy()
-    subsets["plesafe"] = df[df["IS_PLE_ANALYSIS_SAFE"] == True].copy() if "IS_PLE_ANALYSIS_SAFE" in df.columns else df.iloc[0:0]
+    # Corrected observable cohort: best attempt WITHIN the Year<=2014 window, not the
+    # overall-best attempt intersected with the window (that's the naive/wrong version).
+    subsets["bestobservable"] = df[df["IS_BEST_OBSERVABLE_RECORD"] == True].copy()
+    subsets["uni"] = subsets["besttrend"][subsets["besttrend"]["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])].copy()
+    subsets["uniobservable"] = subsets["bestobservable"][subsets["bestobservable"]["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])].copy()
+    subsets["plesafe"] = df[df["IS_PLE_PASSER"] == True].copy() if "IS_PLE_PASSER" in df.columns else df.iloc[0:0]
     subsets["plebest"] = subsets["plesafe"][subsets["plesafe"]["IS_BEST_NMAT_RECORD"] == True].copy() if not subsets["plesafe"].empty else df.iloc[0:0]
-    
+
     return df, subsets
 
 
@@ -177,23 +189,37 @@ def mannwhitney_table(df, group_col, score_cols):
 
 
 def chi_square_table(df, row_col, col_col):
-    """Compute Chi-square test of independence with expected frequencies."""
+    """Compute Chi-square test of independence with expected frequencies.
+
+    PercentileBin axes are reordered B1..B10 for display (P4-02): pandas string-sorts
+    bin labels ("B1","B10","B2",...) by default, which reads as scrambled. The chi2
+    statistic/p-value/dof/Cramer's V are order-invariant, so this is display-only.
+    """
     from scipy import stats as sp_stats
-    
+
     contingency = pd.crosstab(df[row_col], df[col_col])
     chi2, p_val, dof, expected = sp_stats.chi2_contingency(contingency)
-    
+
     # Cramer's V
     n = contingency.sum().sum()
     min_dim = min(contingency.shape) - 1
     cramer_v = np.sqrt(chi2 / (n * min_dim)) if min_dim > 0 else 0
-    
+
     expected_df = pd.DataFrame(
         expected,
         index=contingency.index,
         columns=contingency.columns,
     )
-    
+
+    if row_col == "PercentileBin":
+        order = [b for b in BIN_ORDER if b in contingency.index]
+        contingency = contingency.reindex(index=order, fill_value=0)
+        expected_df = expected_df.reindex(index=order, fill_value=0)
+    if col_col == "PercentileBin":
+        order = [b for b in BIN_ORDER if b in contingency.columns]
+        contingency = contingency.reindex(columns=order, fill_value=0)
+        expected_df = expected_df.reindex(columns=order, fill_value=0)
+
     return {
         "chi2": round(chi2, 4),
         "p_value": p_val,

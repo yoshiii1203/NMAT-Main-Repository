@@ -2,13 +2,15 @@
 aggregate_all.py — Combines all page extraction results into ONE master markdown file.
 """
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 
-sys.path.append("data_aggregator")
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-RESULTS_DIR = Path("page_results")
-OUTPUT_FILE = Path("page_results") / "00_MASTER_REPORT.md"
+from config import RESULTS_DIR
+
+OUTPUT_FILE = RESULTS_DIR / "00_MASTER_REPORT.md"
 
 PAGE_ORDER = [
     ("01", "Executive Summary"),
@@ -44,8 +46,10 @@ def get_all_metrics():
             "Median percentile rank": r"Median percentile rank[|\s|]+([0-9.]+)",
             "Unique examinees": r"Unique examinees[|\s|]+([0-9,]+)",
             "Repeat takers": r"Repeat takers[|\s|]+([0-9,]+)",
-            "Observable cohort": r"Observable cohort[|\s|]+([0-9,]+)",
-            "Confirmed PLE share": r"Confirmed PLE share[|\s|]+([0-9.]+%)",
+            # INFRA-04: labels in page_01 are "Observable cohort size" and "Confirmed PLE
+            # share (observable)" — match up to the next pipe rather than a fixed char class.
+            "Observable cohort": r"Observable cohort[^\n|]*\|\s*([0-9,]+)",
+            "Confirmed PLE share": r"Confirmed PLE share[^\n|]*\|\s*([0-9.]+%)",
         }
         for key, pattern in metrics.items():
             m = re.search(pattern, text)

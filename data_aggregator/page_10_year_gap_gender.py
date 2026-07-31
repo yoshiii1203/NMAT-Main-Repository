@@ -5,12 +5,12 @@ Output: page_results/10_year_gap_gender.md
 
 Analyses:
   1. PLE year gap distribution: n, median gap, min, max, quartiles
-  2. PLE year gap by CourseGroup (n, median, q25, q75, median percentile)
+  2. PLE year gap by UNDERGRAD_COURSE_GROUP (n, median, q25, q75, median percentile)
   3. Gender composition: Male/Female counts and % overall
   4. Gender by year: Male/Female counts and % per year
   5. Gender score comparison: median %ile, median raw for Male vs Female
   6. Mann-Whitney for Sex x NMS_PER_num
-  7. Sex x PLE status: counts and pass rates (observable cohort)
+  7. Sex x PLE status: counts and linkage rates (observable cohort)
   8. PLE year gap by gender
 
 Data subsets:
@@ -19,22 +19,23 @@ Data subsets:
 Filters: None (full unfiltered dataset)
 """
 import sys
+import os
 sys.path.append("data_aggregator")
 
 import numpy as np
 import pandas as pd
 from scipy import stats as sp_stats
 
-from config import PLE_ORDER
+from config import PLE_ORDER, EXODUS_PARQUET, RESULTS_DIR
 from helpers import write_header, write_dataframe, pct_table
 
-MD_PATH = "page_results/10_year_gap_gender.md"
+MD_PATH = RESULTS_DIR / "10_year_gap_gender.md"
 
 
 def load_subsets():
     """Load besttrend and bestobservable subsets."""
     import pyarrow.parquet as pq
-    table = pq.read_table("dataset/NMAT_Exodus.parquet")
+    table = pq.read_table(EXODUS_PARQUET)
     df = table.to_pandas()
     del table
 
@@ -55,11 +56,11 @@ def load_subsets():
 
     if "PLE_STATUS_LABEL" not in df.columns:
         df["PLE_STATUS_LABEL"] = np.where(
-            df["IS_PLE_ANALYSIS_SAFE"] == True,
+            df["IS_PLE_PASSER"] == True,
             "Confirmed PLE passer", "No confirmed PLE match"
         )
-    if "IS_BOARD_OBSERVABLE_COHORT" not in df.columns:
-        df["IS_BOARD_OBSERVABLE_COHORT"] = df["Year"] <= 2014
+    if "IS_OBSERVABLE_COHORT" not in df.columns:
+        df["IS_OBSERVABLE_COHORT"] = df["Year"] <= 2014
 
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
 
@@ -70,13 +71,10 @@ def load_subsets():
     )
     besttrend = df.loc[mask_besttrend].copy()
 
-    # bestobservable
-    mask_observable = (
-        (df.get("IS_BEST_NMAT_RECORD", pd.Series([True] * len(df))) == True)
-        & (df["Year"].between(2006, 2018, inclusive="both"))
-        & (df["IS_BOARD_OBSERVABLE_COHORT"] == True)
-    )
-    bestobservable = df.loc[mask_observable].copy()
+    # bestobservable: best attempt WITHIN Year<=2014 (IS_BEST_OBSERVABLE_RECORD), not
+    # best-overall & Year<=2014 — that naive combination drops people whose
+    # overall-best attempt landed after 2014 (see _TARGET_SCHEMA_CONTRACT.md §2a).
+    bestobservable = df.loc[df["IS_BEST_OBSERVABLE_RECORD"] == True].copy()
 
     del df
     return besttrend, bestobservable
@@ -118,13 +116,13 @@ def write_section_gap_distribution(f, bestobservable):
 
 
 def write_section_gap_by_course(f, bestobservable):
-    """2. PLE year gap by CourseGroup."""
-    f.write("## 2. PLE Year Gap by CourseGroup\n\n")
+    """2. PLE year gap by UNDERGRAD_COURSE_GROUP."""
+    f.write("## 2. PLE Year Gap by UNDERGRAD_COURSE_GROUP\n\n")
 
     gap_df = bestobservable[
         (bestobservable["PLE_STATUS_LABEL"] == "Confirmed PLE passer")
         & (bestobservable["PLE_YEAR_GAP"].notna())
-        & (bestobservable["CourseGroup"].notna())
+        & (bestobservable["UNDERGRAD_COURSE_GROUP"].notna())
     ].copy()
 
     if gap_df.empty:
@@ -132,7 +130,7 @@ def write_section_gap_by_course(f, bestobservable):
         return
 
     gap_summary = (
-        gap_df.groupby("CourseGroup", observed=True)
+        gap_df.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
         .agg(
             confirmed_passers=("PERSON_KEY", "nunique"),
             median_year_gap=("PLE_YEAR_GAP", "median"),
@@ -284,7 +282,7 @@ def write_section_mannwhitney(f, besttrend):
 
 
 def write_section_sex_ple_status(f, bestobservable):
-    """7. Sex x PLE status: counts and pass rates (observable cohort)."""
+    """7. Sex x PLE status: counts and linkage rates (observable cohort)."""
     f.write("## 7. Sex x PLE Status (Observable Cohort)\n\n")
 
     obs_sex = bestobservable.dropna(subset=["SEX_CLEAN"]).copy()
@@ -301,21 +299,21 @@ def write_section_sex_ple_status(f, bestobservable):
     f.write("**Table 49. PLE status percentages by sex (observable cohort)**\n\n")
     write_dataframe(f, pct.reset_index(), None)
 
-    # Pass rate: % confirmed PLE passer within each sex
+    # Linkage rate: % confirmed PLE passer within each sex
     f.write("\n")
-    f.write("**Table 50. Confirmed PLE pass rate by sex**\n\n")
-    pass_rate = (
+    f.write("**Table 50. Confirmed PLE linkage rate by sex**\n\n")
+    linkage_rate = (
         obs_sex.groupby("SEX_CLEAN", observed=True)
         .apply(
             lambda x: pd.Series({
                 "total": len(x),
                 "confirmed_passers": int(x["PLE_STATUS_LABEL"].eq("Confirmed PLE passer").sum()),
-                "pass_rate_pct": round(x["PLE_STATUS_LABEL"].eq("Confirmed PLE passer").mean() * 100, 2),
+                "linkage_rate_pct": round(x["PLE_STATUS_LABEL"].eq("Confirmed PLE passer").mean() * 100, 2),
             })
         )
         .reset_index()
     )
-    write_dataframe(f, pass_rate, None)
+    write_dataframe(f, linkage_rate, None)
 
     # Chi-square test: Sex x PLE status
     try:
@@ -410,6 +408,7 @@ def run():
     print(f"  bestobservable:  {len(bestobservable):,} records")
 
     print("[Page 10] Computing analyses...")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     with open(MD_PATH, "w", encoding="utf-8") as f:
         write_header(f, "Page 10: PLE Year Gap and Gender Patterns",
                      "besttrend / bestobservable", 10)
