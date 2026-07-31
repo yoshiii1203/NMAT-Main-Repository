@@ -1,6 +1,6 @@
 # NMAT Analysis — Complete Data Extraction Report
 
-**Generated:** 2026-07-31 16:28
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -48,7 +48,7 @@
 
 <a id="01-executive-summary"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:31
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -233,7 +233,7 @@ Median TRUE raw score, Part I and Part II medians, median percentile rank, and e
 
 <a id="02-data-integrity"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:31
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -419,7 +419,7 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 <a id="03-trends-and-stability"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:31
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -571,7 +571,7 @@ Tests whether score distributions differ significantly across NMAT years. Eta-sq
 
 <a id="04-score-bins-and-citizenship"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:31
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -1446,7 +1446,7 @@ Compares (1) actual foreigners (non-Filipino, identified via the profiling CSV),
 
 <a id="05-university-type-analysis"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:31
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -2330,7 +2330,7 @@ Each row is the standardized university name, cleaned location, and applicant co
 
 <a id="06-flow-and-pathways"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:31
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -2766,7 +2766,7 @@ Source: `besttrend` subset
 
 <a id="07-ple-alignment"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -3016,7 +3016,7 @@ Top 20 records per PLE status, sorted by highest percentile rank.
 
 <a id="08-repeat-takers"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -3459,7 +3459,7 @@ Attempt histories exclusively for records matched deterministically via applicat
 
 <a id="09-subtests-and-profiles"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -3600,7 +3600,7 @@ Attempt histories exclusively for records matched deterministically via applicat
 
 <a id="10-year-gap-and-gender"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -3792,7 +3792,7 @@ Attempt histories exclusively for records matched deterministically via applicat
 
 <a id="11-statistical-tests"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -4054,7 +4054,7 @@ Pairwise comparisons of percentile rank across NMAT years (2006-2018).
 
 <a id="12-policy-tables-and-export"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -4137,7 +4137,7 @@ Proportion of examinees in each course group whose best-record percentile rank f
 
 <a id="13-ched-compliance"></a>
 
-**Generated:** 2026-07-31 16:27
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 

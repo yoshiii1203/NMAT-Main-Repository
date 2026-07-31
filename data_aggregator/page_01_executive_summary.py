@@ -24,7 +24,7 @@ def run() -> str:
 
     # Subsets matching dashboard tab1
     base = subsets["besttrend"]       # best-record rows within 2006-2018
-    observable = subsets["bestobservable"]  # best-record rows with Year <= 2014
+    observable = subsets["bestobservable"]  # IS_BEST_OBSERVABLE_RECORD: best attempt within Year<=2014
     trend = subsets["trend"]           # all rows within 2006-2018
 
     lines = []

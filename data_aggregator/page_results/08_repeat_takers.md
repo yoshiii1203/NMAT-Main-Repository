@@ -1,6 +1,6 @@
 # Page 8: Repeat-Taker Patterns and Score Change
 
-**Generated:** 2026-07-31 16:30
+**Generated:** 2026-07-31 16:32
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
