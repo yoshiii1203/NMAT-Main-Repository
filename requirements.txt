@@ -8,4 +8,5 @@ kaleido
 unidecode
 tqdm
 streamlit>=1.25
+duckdb>=0.9
 pytest>=7.0
