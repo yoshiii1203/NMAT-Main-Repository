@@ -3,7 +3,7 @@
 ## End-to-End Data Transformation Documentation
 
 **Last updated:** 2026-08-14 (post-remediation rewrite)
-**Final output:** `dataset/NMAT_Exodus.parquet` (53 columns, 178,927 rows, md5 `28b85ac53af13b4a2ef3ee93527c97c1`)
+**Final output:** `dataset/NMAT_Exodus.parquet` (53 columns, 178,927 rows, md5 `72b2808bb8bb9c3594980c5735f814e1`)
 **Total examinees:** 178,927 exam sittings, 134,869 unique people, covering NMAT 2006-2018
 
 This document replaces an earlier version that described a 4-pipeline, 54-column system. That
@@ -186,13 +186,14 @@ receive only the year-gap check.
 
 | Status | Rows |
 |--------|-----:|
-| `IS_PLE_PASSER == True` (accepted) | **49,086** |
-| `rejected_ambiguous_person` (2+ survivors, no accept) | 8,216 |
-| `no_match` (no candidate at all) | 121,623 |
+| `IS_PLE_PASSER == True` (accepted) | **47,485** |
+| `rejected_ambiguous_person` (2+ survivors, no accept) | 8,207 |
+| `no_match` (no candidate at all) | 123,233 |
 | `rejected` | 2 |
 
-`PLE_MATCH_METHOD` breakdown among accepted+near-accepted rows: `EXACT` 54,437,
-`MANUAL_APPNO_MATCH` 2,775, `DETERMINISTIC_APPNO` 92.
+`PLE_MATCH_METHOD` breakdown among accepted+near-accepted rows: `EXACT` 52,637,
+`MANUAL_APPNO_MATCH` 3,005, `DETERMINISTIC_APPNO` 52. (`DETERMINISTIC_APPNO` fell from 92 because
+the FUZZY-derived rows of the fossil `PLE_STILL_UNMATCHED.csv` are no longer consumed.)
 
 ### Observable cohort
 
@@ -201,7 +202,7 @@ confuse this row-level flag with the person-level cohort; see `IS_BEST_OBSERVABL
 `data_dictionary.md` and §7 below.
 
 **Cohort sizes (current, post-fix):** 69,503 people in the observable cohort
-(`IS_BEST_OBSERVABLE_RECORD`), 45.44% observable linkage rate.
+(`IS_BEST_OBSERVABLE_RECORD`), 43.31% observable linkage rate.
 
 ### Output
 
@@ -312,7 +313,7 @@ applying the column selection / rename / dtype-coercion contract, and writing th
 ### Output
 
 `dataset/NMAT_Exodus.parquet` + 2 dashboard-folder copies, 178,927 rows x 53 columns, all sharing
-md5 `28b85ac53af13b4a2ef3ee93527c97c1`.
+md5 `72b2808bb8bb9c3594980c5735f814e1`.
 
 ---
 
@@ -344,38 +345,42 @@ reconcile and the underlying predicate was read directly rather than trusted fro
 **Fix:** Step 4 deleted outright. Identity now resolves purely on year-gap, DOB/sex, and latest
 year; ties are rejected as ambiguous, never decided by score.
 
-**Measured effect** (person-level observable linkage rate by bin, before vs. after):
+**Measured effect** (person-level observable linkage rate by bin, before RC-0 vs. current — the
+"current" column also reflects the five further fixes described below, most significantly the
+`get_ple_info()` name-only-fallback fix, so do not read the full delta as RC-0's effect alone):
 
-| Bin | Before (biased matcher) | After (corrected) | Change |
+| Bin | Before (biased matcher) | Current (corrected) | Change |
 |---|---|---|---|
-| B1 | 8.1% | **11.6%** | +3.5 |
-| B2 | 16.0% | **22.7%** | +6.7 |
-| B3 | 21.1% | **29.3%** | +8.2 |
-| B4 | 25.9% | **36.0%** | +10.1 |
-| B5 | 46.8% | **45.6%** | -1.2 |
-| B6 | 52.9% | **50.4%** | -2.5 |
-| B7 | 58.0% | **53.6%** | -4.4 |
-| B8 | 61.3% | **55.0%** | -6.3 |
-| B9 | 68.0% | **61.6%** | -6.4 |
-| B10 | 76.6% | **71.0%** | -5.6 |
+| B1 | 8.1% | **10.8%** | +2.7 |
+| B2 | 16.0% | **20.7%** | +4.7 |
+| B3 | 21.1% | **26.7%** | +5.6 |
+| B4 | 25.9% | **33.3%** | +7.4 |
+| B5 | 46.8% | **43.3%** | -3.5 |
+| B6 | 52.9% | **47.4%** | -5.5 |
+| B7 | 58.0% | **50.5%** | -7.5 |
+| B8 | 61.3% | **52.7%** | -8.6 |
+| B9 | 68.0% | **59.5%** | -8.5 |
+| B10 | 76.6% | **69.8%** | -6.8 |
 
 Exactly the predicted two-directional movement: below-40 bins gained (they had been suppressed),
 above-40 bins lost (they had been absorbing collisions they had not earned).
 
 **A previously-reported finding is withdrawn as a result.** Earlier project history described a
 sharp 21-point "policy discontinuity" between B4 and B5, and recommended a regression
-discontinuity design built on it. Corrected, that step is **9.6 points** — in line with B1->B2
-(+11.1) and B9->B10 (+9.4), not an outlier. The discontinuity was mostly an artefact of the
+discontinuity design built on it. Corrected, that step is **10.0 points** — in line with B1->B2
+(+9.9) and B9->B10 (+10.3), not an outlier. The discontinuity was mostly an artefact of the
 matcher's own percentile floor, not of the admission policy it was thought to reveal. If you have
 seen the B4->B5 discontinuity or an RDD recommendation built on it cited elsewhere in this
 project's history, treat it as superseded.
 
-**The current headline finding, which replaces it:** among the 25,596 observable-cohort people
-scoring below the 40th percentile at their best attempt, **6,173 (24.1%) are confirmed PLE
-passers** — 795 of them in the lowest decile (B1). This survives the obvious objections: the
-ambiguous-key rate among them (3.0%) is *below* the cohort base rate (3.5%), so it is not a
-collision artefact; 6,152 of 6,173 are Filipino, not a foreign-student exemption effect; and they
-are spread across all nine observable years, not concentrated in one anomalous year.
+**The current headline finding, which replaces it:** among the 25,023 observable-cohort people
+scoring below the 40th percentile at their best attempt, **5,665 (22.6%) are confirmed PLE
+passers** — 740 of them in the lowest decile (B1). This survives the obvious objections: the
+ambiguous-key rate among them (3.3%) is close to, and still below, the cohort base rate (3.5%), so
+it is not a collision artefact; 5,645 of 5,665 are Filipino, not a foreign-student exemption
+effect; and they are spread across all nine observable years, not concentrated in one anomalous
+year. (At the equal 8-year exposure horizon described in the data dictionary, this figure is
+18.3%; the finding is re-quantified across every fix applied so far, not overturned.)
 
 ### O-24 — the documented DOB check was dead code
 
@@ -399,8 +404,45 @@ real birthdate data for the first time in this pipeline's history.
 -1.8% — the sum of several partially-offsetting movements: candidates newly resolved by Steps 1-3
 alone gained, candidates that used to be narrowed by the percentile floor before a tie-break now
 face a larger unresolved pool and are rejected as ambiguous instead). If you see 49,986 cited
-elsewhere in this project's history as the passer count, it predates this fix; **49,086 is
-current.**
+elsewhere in this project's history as the passer count, it predates this fix. **It is also no
+longer the current figure** — a further remediation pass (below) moved it again, to **47,485**.
+
+### Five further fixes (2026-08-14 follow-on pass)
+
+Found after RC-0/O-24 above, in a second pass that re-ran the chain 1→2→4→5 against the live
+parquet:
+
+- **`get_ple_info()` name-only fallback (the most consequential of the five).** After
+  `disambiguate()` adjudicated a single `MATCHED_APPNO` for a name-collision group, a separate
+  lookup function, `get_ple_info()`, re-applied a **name-only** match to every row sharing that
+  name — including rows the disambiguator had never adjudicated a match for — silently crediting
+  one PLE passer record to multiple distinct people and undoing `disambiguate()`'s own decision.
+  **Fix:** the fallback is now restricted to rows with no `MATCHED_APPNO`. **Effect:** names with
+  2+ distinct passer `PERSON_KEY`s fell **1,624 → 4**; people involved in such a collision fell
+  **3,256 → 8**; those with conflicting birthdates among them fell **232 → 1**.
+- **Person-level `IS_PLE_PASSER` propagation now keys on `PERSON_KEY`** (name + DOB fragment)
+  instead of name alone — the direct downstream consequence of the fix above.
+- **`NMS_PER_num`'s `-1` sentinel (2,866 rows) is now fixed at the source, in Pipeline 1** — it is
+  `NaN`, not `-1`. Previously `-1` was correctly excluded from `PercentileBin` but `-1 < 40` was
+  `True`, so every naive `< 40` predicate silently swallowed those rows. `NMS_PER_num` nulls:
+  1,275 → 4,141.
+- **University merge now keys on `(NMA_College, School Type_rec2_FINAL)`**, fixing 416 rows whose
+  assigned `UNDERGRAD_UNI_TYPE` contradicted their own source hint (233 of the 416 hinted Private
+  but were counted Public).
+- **`FUZZY`-derived rows dropped from the fossil `PLE_STILL_UNMATCHED.csv`**, so the
+  deterministic-only matching guarantee (§3 above) holds for the full historical lineage, not just
+  the current source file. Real historical exposure was 269 usable AppNos, not the 4,810 raw
+  `FUZZY` rows the fossil file carried.
+
+**Combined effect of this pass:** confirmed PLE passers moved from 49,086 to **47,485** (35,746
+distinct people, down from 37,420); observable linkage 45.44% → **43.31%**;
+`PLE_YEAR_UNCERTAIN` 110 → **79**; `rejected_ambiguous_person` 8,216 → **8,207**; non-nested
+`PLE_MATCH_CONFIDENCE`/`PLE_MATCH_METHOD` counts (8,218 / 2,775) → **(8,209 / 3,005)**;
+`UNDERGRAD_UNI_TYPE` Public 37,304 → **36,890**, Private 137,476 → **137,711**, Not Specified
+1,832 → **2,011**; median percentile (best-record) 50.0 → **51.0**. The below-40th-percentile
+headline finding above already reflects this pass. **The conclusion is unchanged: the gradient
+stays monotone and the lowest-decile confirmed passers remain incompatible with a uniformly
+enforced 40th-percentile floor — the finding was re-quantified, not overturned.**
 
 ---
 

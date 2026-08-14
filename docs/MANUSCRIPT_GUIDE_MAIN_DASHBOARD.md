@@ -4,7 +4,7 @@ This is a **writing guide, not the manuscript**. For each section it says what t
 dashboard tab/table/figure supplies the evidence, the specific numbers to cite, and the caveat that
 must travel with the claim. Evidence source is `streamlit_dashboard/main_dashboard/dashboard.py`
 (13 tabs, 42 tabs+subtabs) unless stated otherwise. All numbers were verified against
-`dataset/NMAT_Exodus.parquet` (md5 `28b85ac53af13b4a2ef3ee93527c97c1`) on 2026-08-14; see
+`dataset/NMAT_Exodus.parquet` (md5 `72b2808bb8bb9c3594980c5735f814e1`) on 2026-08-14; see
 `docs/HANDOFF_TESTING_GUIDE.md` for the verification commands.
 
 **Global rules that apply to every section below** (do not restate them as caveats each time, but
@@ -20,7 +20,7 @@ never violate them):
 - **`UNDERGRAD_UNIVERSITY` / `UNDERGRAD_UNI_TYPE` / `UNDERGRAD_UNI_LOCATION` describe the applicant's
   undergraduate degree, not their medical school.** No medical-school identifier exists anywhere in
   this dataset. Evidence: UP Diliman — no College of Medicine — appears as `UNDERGRAD_UNIVERSITY` for
-  4,421 rows, 1,914 of them confirmed PLE passers.
+  4,454 rows, 1,638 of them confirmed PLE passers.
 
 ---
 
@@ -109,7 +109,9 @@ percentile.
 **Consequence, reported with direction:** confirmed passers moved **49,986 → 49,086** — some
 name-collision winners who previously cleared 40 while their name-twin did not are now correctly
 ambiguous and dropped; others whose entire candidate group scored below 40 are newly resolvable and
-matched. The second group is the one the CHED question is about (see
+matched. (**A further fix on 2026-08-14** — a `get_ple_info()` name-only fallback that was
+re-crediting one passer record to multiple people, see `docs/pipeline_architecture.md` §7 — moved it
+again, to **47,485**; cite 47,485 as current.) The second group is the one the CHED question is about (see
 `docs/MANUSCRIPT_GUIDE_CHED_DASHBOARD.md` §5 for its profile). `disambiguate()` runs only when a name
 collides with more than one NMAT record — unique-name matches bypass it entirely, so most of the
 dataset was never touched by either bug; the effect is real but confined to name-collision groups.
@@ -123,10 +125,10 @@ exact rate (a same-sex collision is invisible to this test). These are flagged
 **Evidence:** `dashboard.py` Tab 2 Table 9 (PLE match-outcome breakdown, if `PLE_MATCH_OUTCOME` is
 present); Tab 8 (Repeat Takers) caption cites the 4.6% collision rate directly.
 
-**Numbers to cite:** 49,086 confirmed passers (`IS_PLE_PASSER`, the only authoritative passer count
+**Numbers to cite:** 47,485 confirmed passers (`IS_PLE_PASSER`, the only authoritative passer count
 — `PLE_YEAR_PASSED`/`PLE_MATCH_METHOD`/`PLE_YEAR_GAP` are diagnostic metadata whose non-null sets do
 **not** nest inside `IS_PLE_PASSER`, and must never be used as a passer denominator); 6,148 ambiguous
-keys; 110 `PLE_YEAR_UNCERTAIN` confirmed passers whose PLE year could not be pinned down (still
+keys; 79 `PLE_YEAR_UNCERTAIN` confirmed passers whose PLE year could not be pinned down (still
 counted as passers, excluded from any year-specific figure).
 
 ### 2.3 Pipeline 3 — Statistical Analysis (`3_NMAT_PLE_Analysis.ipynb`)
@@ -167,7 +169,7 @@ correct, for different questions.
 **What to discuss:** the previously-undocumented, hand-maintained 118→53-column slim step is now a
 reproducible script with structural (hard-fail) and reference (warn-only) invariant checks, and a
 byte-identical three-copy guarantee across `dataset/`, `main_dashboard/`, and
-`CHED_relevant_dashboard/` (all three share md5 `28b85ac53af13b4a2ef3ee93527c97c1`, recorded in
+`CHED_relevant_dashboard/` (all three share md5 `72b2808bb8bb9c3594980c5735f814e1`, recorded in
 `dataset/EXODUS_MANIFEST.json`). This is infrastructure, not a finding — mention it briefly as the
 reason the two dashboards can never silently diverge on their source data (they can still diverge on
 *computation*, which is a separate concern; see the CHED guide's Pipeline 4/RC-5 discussion).
@@ -187,7 +189,7 @@ the reader before the detailed tabs.
 **Evidence:** Tab 1 Overview/Composition/Quick Tables sub-tabs; Table 1.
 
 **Numbers:** 134,869 unique examinees across 13 years; median TRUE raw score 122.0; median percentile
-rank 50.0; 33,713 repeat takers (25.0%); observable cohort 69,503; observable-cohort linkage 45.44%.
+rank 51.0; 33,713 repeat takers (25.0%); observable cohort 69,503; observable-cohort linkage 43.31%.
 
 **Caveat:** the repeat-taker figure inherits the `PERSON_KEY` collision risk (§2.2) — footnote it here
 even though the detailed treatment belongs in §3.8.
@@ -359,8 +361,8 @@ duplicating it.
 
 **Evidence:** Tab 13 Sections A–C.
 
-**Numbers:** the corrected linkage-by-bin gradient — B1 11.6% (795/6,853), B2 22.7%, B3 29.3%, B4
-36.0%, B5 45.6%, B6 50.4%, B7 53.6%, B8 55.0%, B9 61.6%, B10 71.0%.
+**Numbers:** the corrected linkage-by-bin gradient — B1 10.8% (740/6,853), B2 20.7%, B3 26.7%, B4
+33.3%, B5 43.3%, B6 47.4%, B7 50.5%, B8 52.7%, B9 59.5%, B10 69.8%.
 
 **Caveat:** carry both the selection-effect caveat (§3.7) and the RC-4 scope ceiling (§3.5) here
 explicitly — this is the tab most likely to be screenshotted into a policy conversation, so it cannot
@@ -369,8 +371,8 @@ rely on caveats stated only in earlier tabs.
 ### 3.13a The one finding strong enough to lead with
 
 **What to discuss:** the single most defensible result in the project, and the one that should carry
-the manuscript's headline. Of the **25,596** observable-cohort examinees who scored below the 40th
-percentile, **6,173 (24.1%)** are confirmed PLE passers — **795** of them in B1, the lowest decile.
+the manuscript's headline. Of the **25,023** observable-cohort examinees who scored below the 40th
+percentile, **5,665 (22.6%)** are confirmed PLE passers — **740** of them in B1, the lowest decile.
 Under a uniformly enforced 40th-percentile floor those people should barely exist. They do exist, in
 volume, which says the historical floor was **not uniformly binding** across the schools examinees
 actually attended between 2006 and 2014. That is a direct, data-supported observation about the
@@ -380,10 +382,10 @@ premise of CMO §IV.B.1, and unlike the linkage gradient it does not require any
 `IS_BEST_OBSERVABLE_RECORD & (NMS_PER_num < 40)` and `IS_PLE_PASSER`.
 
 **Why it survives attack — state all three, they are what makes it publishable:**
-- Identity collisions do not explain it: the `PERSON_KEY_AMBIGUOUS` rate among these 6,173 is
-  **3.0%**, *below* the observable cohort's own **3.5%** base rate. If they were collision artefacts
-  the rate would be higher, not lower.
-- Citizenship does not explain it: **6,152 of 6,173** are Filipino.
+- Identity collisions do not explain it: the `PERSON_KEY_AMBIGUOUS` rate among these 5,665 is
+  **3.3%**, still *below* the observable cohort's own **3.5%** base rate. If they were collision
+  artefacts the rate would be higher, not lower.
+- Citizenship does not explain it: **5,645 of 5,665** are Filipino.
 - A single anomalous year does not explain it: they are spread across **all nine** observable years,
   2006–2014.
 
@@ -415,12 +417,13 @@ stored-total and matcher issues fall in the first).
 An earlier version of this analysis reported a **21-point "policy discontinuity"** in PLE linkage
 between bin B4 and bin B5 — exactly at the 40th percentile — and proposed a regression-discontinuity
 design around it. **This finding was withdrawn.** After fixing RC-0 (the matcher's hard 40th-percentile
-floor, §2.2), the corrected B4→B5 step is **9.6 points**, in line with B1→B2 (+11.1) and B9→B10
-(+9.4) — not an outlier among the nine consecutive bin-to-bin steps:
+floor, §2.2) and the further fixes of 2026-08-14 (§2.2, `docs/pipeline_architecture.md` §7), the
+corrected B4→B5 step is **10.0 points**, in line with B1→B2 (+9.9) and B9→B10 (+10.3) — not an
+outlier among the nine consecutive bin-to-bin steps:
 
 ```
-B1->B2 +11.1   B2->B3 +6.6   B3->B4 +6.7   B4->B5 +9.6   B5->B6 +4.8
-B6->B7 +3.2    B7->B8 +1.4   B8->B9 +6.6   B9->B10 +9.4
+B1->B2 +9.9    B2->B3 +6.0   B3->B4 +6.6   B4->B5 +10.0   B5->B6 +4.1
+B6->B7 +3.1    B7->B8 +2.2   B8->B9 +6.8   B9->B10 +10.3
 ```
 
 The original 21-point jump was **largely an artefact of the project's own matching code**, not a

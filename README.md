@@ -2,7 +2,7 @@
 
 **Descriptive and trend-based analysis of the Philippine National Medical Admission Test (NMAT), linked to Philippine Licensure Examination (PLE) outcomes and citizenship data.**
 
-**Final dataset:** `dataset/NMAT_Exodus.parquet` (178,927 rows × 53 columns), md5 `28b85ac53af13b4a2ef3ee93527c97c1`, present as 3 byte-identical copies (`dataset/` + both live dashboard folders).
+**Final dataset:** `dataset/NMAT_Exodus.parquet` (178,927 rows × 53 columns), md5 `72b2808bb8bb9c3594980c5735f814e1`, present as 3 byte-identical copies (`dataset/` + both live dashboard folders).
 
 > **2026-08 remediation notice.** This README was rewritten against the corrected pipeline and
 > schema. If you have an older copy of this project's documentation, note two corrections in
@@ -88,7 +88,7 @@ flowchart LR
 - **Deterministic-only matching** — no fuzzy/rapidfuzz matching in this pipeline
 - 3-stage cascade: Manual AppNo recovery → Exact name match → Deterministic AppNo
 - Disambiguator for multiple candidates: year-gap → DOB/sex → latest year → **exactly one survivor accepted, two or more rejected as ambiguous**. Earlier versions of this pipeline had a hard percentile-floor step and a score-based tie-break here; both were identity-resolution bugs that pushed matching decisions onto the very outcome variable this project studies. Both are removed — see `docs/pipeline_architecture.md` §7 for the fix and its measured effect.
-- **Results:** `IS_PLE_PASSER = 49,086` (49,986 was the pre-fix figure; if you see 49,986 elsewhere it predates this fix)
+- **Results:** `IS_PLE_PASSER = 47,485` (49,986 was the original pre-fix figure; 49,086 was an intermediate figure after the RC-0 percentile-floor fix but before the `get_ple_info()` name-only-fallback fix; if you see either elsewhere it predates this fix)
 - **Output:** `NMAT_Ultima.parquet` (119 columns), `PLE_MATCH_MASTER.csv`
 
 ### Pipeline 3: Statistical Analysis (`3_NMAT_PLE_Analysis.ipynb`)
@@ -128,7 +128,7 @@ counts, one best-record per person, dropped columns actually absent) and warns �
 blocking — on drift in reference headline numbers, recording both in
 `dataset/EXODUS_MANIFEST.json`.
 
-**Result:** 118 → 53 columns, 3 byte-identical copies, md5 `28b85ac53af13b4a2ef3ee93527c97c1`.
+**Result:** 118 → 53 columns, 3 byte-identical copies, md5 `72b2808bb8bb9c3594980c5735f814e1`.
 
 ---
 

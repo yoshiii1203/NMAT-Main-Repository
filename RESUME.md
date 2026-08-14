@@ -13,7 +13,7 @@ what is not, how each agent performed, and the rules that bind future work. Then
 ## Everything verified green
 
 ```
-dataset/NMAT_Exodus.parquet   178,927 x 53   md5 28b85ac53af13b4a2ef3ee93527c97c1
+dataset/NMAT_Exodus.parquet   178,927 x 53   md5 72b2808bb8bb9c3594980c5735f814e1
 3 byte-identical copies (dataset/ + both dashboard folders), enforced by 5_Slim_Exodus.py
 
 pytest tests/                                          36 passed
@@ -28,15 +28,15 @@ forensic_audit/forensic_audit.py                       completes, writes 5 CSVs
 Authoritative values — assert against these, hardcode nowhere:
 ```
 sittings 178,927 | unique examinees 134,869 | observable cohort (people) 69,503
-observable linkage 45.44% | confirmed PLE passers 49,086 | ambiguous PERSON_KEYs 6,148
-PLE_YEAR_UNCERTAIN 110 | stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
+observable linkage 43.31% | confirmed PLE passers 47,485 | ambiguous PERSON_KEYs 6,148
+PLE_YEAR_UNCERTAIN 79 | stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
 repeat takers 33,713   (people with >1 distinct APPNO_CLEAN -- the row-count form gives 33,714
                         because appno 1073584 "VENTANILLA, GLEN TAN||" / 2007 carries TWO rows
                         with different score sets, percentiles 98 and 80, same test date:
                         a source collision, not a duplicated row)
-confirmed PLE passers  49,086 SITTINGS = 37,420 distinct people. Cite the one you mean.
-linkage by bin: B1 11.6  B2 22.7  B3 29.3  B4 36.0  B5 45.6
-                B6 50.4  B7 53.6  B8 55.0  B9 61.6  B10 71.0
+confirmed PLE passers  47,485 SITTINGS = 35,746 distinct people. Cite the one you mean.
+linkage by bin: B1 10.8  B2 20.7  B3 26.7  B4 33.3  B5 43.3
+                B6 47.4  B7 50.5  B8 52.7  B9 59.5  B10 69.8
 ```
 
 ## How to run it
@@ -59,23 +59,26 @@ must pass within 8 years to appear at all, while 2006 examinees lose anyone who 
 `Year <= 2014` does **not** make the cohort comparable.
 
 This inflates every published linkage figure. At an equal 8-year horizon the observable linkage is
-**39.4%**, not 45.44%, and the apparent 54%→37% decline across years mostly disappears.
+**38.0%**, not 43.31%, and the apparent 54%→37% decline across years mostly disappears.
 
-Three defects compound on the headline. Applied in sequence:
+Two defects compound on the headline. Applied in sequence (the former `-1`-sentinel step is no
+longer separate — it is now fixed at the source, see below):
 
 | below-40 linkage | value | n |
 |---|---|---|
-| published | 24.1% | 6,173 / 25,596 |
-| drop `-1` sentinel rows (see below) | 24.6% | 6,164 / 25,023 |
-| + equal 8-year exposure | 19.5% | 4,879 / 25,023 |
+| published | 22.6% | 5,665 / 25,023 |
+| + equal 8-year exposure | 18.3% | not independently re-verified this pass |
 | + drop contested-name people (**conservative floor**) | **17.9%** | 4,325 / 24,185 |
 
-B1, lowest decile: **795 published → 482 at the floor.** The gradient stays clean and monotone
+B1, lowest decile: **740 published → 482 at the floor.** The gradient stays clean and monotone
 (B1 7.1 → B10 63.3), so **the conclusion survives — the 40th-percentile floor was not uniformly
-binding** — but the published precision does not. Cite a range, not "24.1%".
+binding** — but the published precision does not. Cite a range, not "22.6%".
 
-Also: **`NMS_PER_num` uses `-1` as a sentinel** for 2,866 rows. They are correctly excluded from
-`PercentileBin` (NaN) but `-1 < 40` is true, so every naive `< 40` predicate swallows them.
+Also: **`NMS_PER_num`'s `-1` sentinel** (2,866 rows) is now **fixed at the source** in Pipeline 1 —
+it is `NaN`, not `-1`. Previously it was correctly excluded from `PercentileBin` (NaN) but
+`-1 < 40` was `True`, so every naive `< 40` predicate silently swallowed it; that is what the old
+"drop `-1` sentinel rows" cascade step above corrected for, and why the "published" row now starts
+from the sentinel-safe number directly.
 
 Full detail, including the contested-name double-crediting bug and six other confirmed defects:
 `.claude/audit/_PIPELINE_ACCURACY_AUDIT.md`.
@@ -92,12 +95,12 @@ year-gap, DOB/sex and latest-year only; ties are rejected as ambiguous, never de
 `disambiguate()` reads, so the documented birthdate check never ran in any historical execution.
 With DOB dead, the percentile floor became the de-facto discriminator.
 
-**Headline finding (replaces a withdrawn one):** 6,173 of 25,596 below-40 observable examinees
-(**24.1%**) are confirmed PLE passers — 795 in the lowest decile. Ambiguous-key rate among them is
-3.0%, *below* the 3.5% cohort base rate; 6,152 of 6,173 are Filipino; spread across all nine years.
+**Headline finding (replaces a withdrawn one):** 5,665 of 25,023 below-40 observable examinees
+(**22.6%**) are confirmed PLE passers — 740 in the lowest decile. Ambiguous-key rate among them is
+3.3%, *below* the 3.5% cohort base rate; 5,645 of 5,665 are Filipino; spread across all nine years.
 
 **Withdrawn:** the 21-point B4→B5 "discontinuity" and the regression-discontinuity recommendation
-built on it. Corrected step is 9.6 points, in line with B1→B2 (+11.1). It was mostly our own filter.
+built on it. Corrected step is 10.0 points, in line with B1→B2 (+9.9). It was mostly our own filter.
 
 ---
 

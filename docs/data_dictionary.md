@@ -5,7 +5,7 @@
 - **File:** `dataset/NMAT_Exodus.parquet`
 - **Rows:** 178,927 (exam sittings, not unique people)
 - **Columns:** 53
-- **md5:** `28b85ac53af13b4a2ef3ee93527c97c1`
+- **md5:** `72b2808bb8bb9c3594980c5735f814e1`
 - **Three byte-identical copies**, enforced by `5_Slim_Exodus.py`:
   `dataset/NMAT_Exodus.parquet`, `streamlit_dashboard/main_dashboard/NMAT_Exodus.parquet`,
   `streamlit_dashboard/CHED_relevant_dashboard/NMAT_Exodus.parquet`. A copy that drifts from the
@@ -52,13 +52,13 @@ non-null rows, verified as a structural (hard-fail) invariant in `5_Slim_Exodus.
 - **No medical-school identifier exists anywhere in this dataset.** `UNDERGRAD_UNIVERSITY` /
   `UNDERGRAD_UNI_TYPE` / `UNDERGRAD_UNI_LOCATION` / `UNDERGRAD_COURSE_GROUP` describe the
   applicant's **pre-med undergraduate degree**, not the medical school that trained them (proof:
-  UP Diliman has no College of Medicine, yet 4,421 NMAT rows list it as `UNDERGRAD_UNIVERSITY`,
-  1,914 of them confirmed PLE passers). No institution-level PLE passing-rate claim is
+  UP Diliman has no College of Medicine, yet 4,454 NMAT rows list it as `UNDERGRAD_UNIVERSITY`,
+  1,638 of them confirmed PLE passers). No institution-level PLE passing-rate claim is
   supportable from this data, and `UNDERGRAD_UNI_TYPE` is not an SUC/PHEI proxy for CMO purposes.
-- **`IS_PLE_PASSER` flags 49,086 SITTINGS, not 49,086 people.** Those sittings belong to **37,420
-  distinct `PERSON_KEY`s** (out of 43,630 unique names in the PLE source, an 85.8% match). The flag
-  is a person-level attribute propagated across a person's sittings. Cite 49,086 as a sitting count
-  and 37,420 as the passer count; person-level rates such as the 45.44% observable linkage are
+- **`IS_PLE_PASSER` flags 47,485 SITTINGS, not 47,485 people.** Those sittings belong to **35,746
+  distinct `PERSON_KEY`s** (out of 43,630 unique names in the PLE source, an 81.9% match). The flag
+  is a person-level attribute propagated across a person's sittings. Cite 47,485 as a sitting count
+  and 35,746 as the passer count; person-level rates such as the 43.31% observable linkage are
   computed on best-record rows and are unaffected.
 - **`IS_PLE_PASSER` is the only authoritative passer flag.** `PLE_YEAR_PASSED`,
   `PLE_MATCH_METHOD`, `PLE_MATCH_CONFIDENCE`, `PLE_YEAR_GAP` are diagnostic metadata — their
@@ -100,7 +100,7 @@ framing note above — this is the single most important caveat in this file).
 |---|--------|------|------:|---------:|-------------|
 | 4 | `UNDERGRAD_UNIVERSITY` | string | 0 | 2,907 | Standardized undergraduate institution name, matched against `UNIVS.csv` in Pipeline 1's 4-tier cascade. |
 | 5 | `UNDERGRAD_UNI_LOCATION` | string | 0 | 3 | `Local` (174,780) / `International` (2,315) / `Unknown` (1,832). |
-| 6 | `UNDERGRAD_UNI_TYPE` | string | 0 | 4 | `Private` (137,476, 76.8%) / `Public` (37,304, 20.8%) / `Foreign` (2,315, 1.3%) / `Not Specified` (1,832, 1.0%). |
+| 6 | `UNDERGRAD_UNI_TYPE` | string | 0 | 4 | `Private` (137,711, 77.0%) / `Public` (36,890, 20.6%) / `Foreign` (2,315, 1.3%) / `Not Specified` (2,011, 1.1%). |
 | 7 | `UNDERGRAD_COURSE_GROUP` | string | 0 | 6 | Pre-med course grouping: `Medical & Allied` (86,140), `Natural Sciences` (55,900), `Social & Behavioral Sciences` (22,022), `Other` (9,855), `Education` (4,162), `Engineering & Technology` (848). |
 
 ### Percentile & Composite Scores (8-12)
@@ -108,7 +108,7 @@ framing note above — this is the single most important caveat in this file).
 | # | Column | Type | Nulls | Distinct | Description |
 |---|--------|------|------:|---------:|-------------|
 | 8 | `PercentileBin` | string | 4,141 (2.3%) | 10 | Decile bin `B1`-`B10` from `NMS_PER_num`, left-closed `[0,10) .. [90,100]`. **`B1` = weakest (0-9), `B10` = strongest (90-99)** — verified monotonic against mean `TotalRawScoreTRUE` per bin (B1 75.1 -> B10 175.5). Counts: B1 24,434, B2 19,393, B3 17,443, B4 18,600, B5 15,857, B6 15,829, B7 15,282, B8 15,407, B9 15,500, B10 17,041. |
-| 9 | `NMS_PER_num` | float64 | 1,275 (0.7%) | 101 | Percentile rank (0-100), the outcome variable underlying every cut-off/bin analysis and `PercentileBin`. |
+| 9 | `NMS_PER_num` | float64 | 4,141 (2.3%) | 101 | Percentile rank (0-100), the outcome variable underlying every cut-off/bin analysis and `PercentileBin`. |
 | 10 | `NMS_GPS` | int64 | 0 | 443 | General Performance Score — overall standard score. |
 | 11 | `NMS_APT` | int64 | 0 | 320 | Part I (Aptitude) composite standard score. |
 | 12 | `NMS_SA` | int64 | 0 | 334 | Part II (Science) composite standard score. |
@@ -184,10 +184,10 @@ Matching is **deterministic only** — no fuzzy/`rapidfuzz` matching anywhere in
 
 | # | Column | Type | Nulls | Description |
 |---|--------|------|------:|-------------|
-| 41 | `IS_PLE_PASSER` | bool | 0 | **The only authoritative passer flag.** `True` for 49,086 rows. Set when a candidate PLE record was accepted through the 3-stage deterministic cascade and the disambiguator (see `pipeline_architecture.md`). |
-| 42 | `PLE_MATCH_METHOD` | string | 121,623 (68.0%) | `EXACT` (54,437), `MANUAL_APPNO_MATCH` (2,775), `DETERMINISTIC_APPNO` (92). Diagnostic metadata — do not use as a passer denominator. |
-| 43 | `PLE_MATCH_CONFIDENCE` | float64 | 121,623 | `100.0` (49,086 rows — matches `IS_PLE_PASSER` exactly) or `50.0` (8,218 rows — lower-confidence `EXACT` candidates that did **not** clear the disambiguator and are therefore `IS_PLE_PASSER == False`). |
-| 44 | `PLE_YEAR_PASSED` | float64 | 124,398 (69.5%) | Year of PLE passage. **The source `PLE_DATA.csv` covers ONLY 2011-2022 — zero records outside that window.** With a median NMAT-to-PLE gap of 6 years, this censors every cohort differently: a 2014 examinee must pass within 8 years to appear at all, while a 2006 examinee loses anyone who passed before 2011. `Year <= 2014` therefore does **not** make the observable cohort comparable, and any pooled linkage rate is a mixture over unequal windows. At an equal 8-year horizon the observable linkage is 39.4%, not 45.44%. **Never cite a linkage figure without stating the exposure window** — see `.claude/audit/_PIPELINE_ACCURACY_AUDIT.md` §1. Applies to accepted and some rejected-but-metadata-retaining rows. Non-null count (54,528) exceeds `IS_PLE_PASSER` (49,086) — the two sets are **not nested**; 7,318 rows have a year but are not counted passers (rejected candidates that kept metadata), and 2,776 are passers with no year (all `MANUAL_APPNO_MATCH`, whose source file lacks a year column). |
+| 41 | `IS_PLE_PASSER` | bool | 0 | **The only authoritative passer flag.** `True` for 47,485 rows. Set when a candidate PLE record was accepted through the 3-stage deterministic cascade and the disambiguator (see `pipeline_architecture.md`). |
+| 42 | `PLE_MATCH_METHOD` | string | 123,233 (68.9%) | `EXACT` (52,637), `MANUAL_APPNO_MATCH` (3,005), `DETERMINISTIC_APPNO` (52). Diagnostic metadata — do not use as a passer denominator. |
+| 43 | `PLE_MATCH_CONFIDENCE` | float64 | 123,233 | `100.0` (47,485 rows — matches `IS_PLE_PASSER` exactly) or `50.0` (8,209 rows — lower-confidence `EXACT` candidates that did **not** clear the disambiguator and are therefore `IS_PLE_PASSER == False`). |
+| 44 | `PLE_YEAR_PASSED` | float64 | 124,398 (69.5%) | Year of PLE passage. **The source `PLE_DATA.csv` covers ONLY 2011-2022 — zero records outside that window.** With a median NMAT-to-PLE gap of 6 years, this censors every cohort differently: a 2014 examinee must pass within 8 years to appear at all, while a 2006 examinee loses anyone who passed before 2011. `Year <= 2014` therefore does **not** make the observable cohort comparable, and any pooled linkage rate is a mixture over unequal windows. At an equal 8-year horizon the observable linkage is 38.0%, not 43.31%. **Never cite a linkage figure without stating the exposure window** — see `.claude/audit/_PIPELINE_ACCURACY_AUDIT.md` §1. Applies to accepted and some rejected-but-metadata-retaining rows. Non-null count (54,528) exceeds `IS_PLE_PASSER` (47,485) — the two sets are **not nested**; 7,318 rows have a year but are not counted passers (rejected candidates that kept metadata), and 2,776 are passers with no year (all `MANUAL_APPNO_MATCH`, whose source file lacks a year column). |
 | 45 | `PLE_YEAR_GAP` | float64 | 132,708 (74.2%) | `PLE_YEAR_PASSED - Year`, range 5-15. Used by the disambiguator's year-gap check (candidates must clear >= 5 years). |
 
 ### Citizenship (46-47)
@@ -210,7 +210,7 @@ pre-existing identity-resolution weakness.
 |---|--------|------|------:|-------------|
 | 48 | `IS_OBSERVABLE_COHORT` | bool | 0 | `True` iff `Year <= 2014` (88,144 rows) — examinees with enough elapsed time to plausibly have sat the PLE. Replaces the retired `IS_PLE_ANALYSIS_SAFE`, which was found to be a byte-for-byte duplicate of `IS_PLE_PASSER` (documented as "Year<=2014" but actually true for 9,116 rows in 2015-2018) — using it as a cohort filter made every "observable pass rate" 100% by construction. Verified non-tautological: `not (IS_OBSERVABLE_COHORT == IS_PLE_PASSER).all()`. |
 | 49 | `PERSON_KEY_AMBIGUOUS` | bool | 0 | `True` where a `PERSON_KEY` has **contradictory `SEX`** across the rows sharing it — direct, detectable evidence of two different people colliding on the same key. **6,148 distinct keys** (constant within each key, verified). This is a *lower bound*: it only catches collisions where the two merged people differ in sex; scaling by the observed 56.6%/43.4% sex split implies a true collision rate roughly double the detected one. Differing `UNDERGRAD_UNIVERSITY` alone was considered and explicitly **excluded** from this flag — repeat takers legitimately record their institution differently across sittings, so using it would over-flag 22,002 additional keys for no real signal. |
-| 50 | `IS_BEST_OBSERVABLE_RECORD` | bool | 0 | **The observable cohort, correctly defined** — one `True` row per person, selected by the same uniform rule as `IS_BEST_NMAT_RECORD` but applied *within* `Year <= 2014` only. **69,503 True.** This is deliberately a separate flag from `IS_BEST_NMAT_RECORD & (Year <= 2014)` (the "naive" combination), because the naive form picks each person's overall-best attempt first and then filters by year — silently dropping the 3,721 people whose overall-best attempt falls in 2015+ even though they also sat, and were observable, in an earlier year (65,782 people / 46.69% linkage under the naive form vs. 69,503 / 45.44% under this flag). **Use `IS_BEST_OBSERVABLE_RECORD` for every PLE-linked, person-level analysis.** |
+| 50 | `IS_BEST_OBSERVABLE_RECORD` | bool | 0 | **The observable cohort, correctly defined** — one `True` row per person, selected by the same uniform rule as `IS_BEST_NMAT_RECORD` but applied *within* `Year <= 2014` only. **69,503 True.** This is deliberately a separate flag from `IS_BEST_NMAT_RECORD & (Year <= 2014)` (the "naive" combination), because the naive form picks each person's overall-best attempt first and then filters by year — silently dropping the 3,721 people whose overall-best attempt falls in 2015+ even though they also sat, and were observable, in an earlier year (65,782 people / 46.69% linkage under the naive form vs. 69,503 / 43.31% under this flag). **Use `IS_BEST_OBSERVABLE_RECORD` for every PLE-linked, person-level analysis.** |
 
 ### PLE Match Provenance (51-52)
 
@@ -219,8 +219,8 @@ candidate match was or wasn't counted, instead of silently showing a smaller pas
 
 | # | Column | Type | Nulls | Description |
 |---|--------|------|------:|-------------|
-| 51 | `PLE_MATCH_OUTCOME` | string | 0 | `no_match` (121,623) / `accepted` (49,086, == `IS_PLE_PASSER`) / `rejected_ambiguous_person` (8,216 — 2+ candidates survived every identity check, so no single match could be accepted) / `rejected` (2). |
-| 52 | `PLE_YEAR_UNCERTAIN` | bool | 0 | `True` for 110 rows — an accepted passer (`IS_PLE_PASSER == True`) whose specific PLE *year* could not be disambiguated because their matched application number was independently claimed by 2+ distinct PLE name records after per-name deduplication (85 such application numbers). Passer status is certain; the year attached to it is not. |
+| 51 | `PLE_MATCH_OUTCOME` | string | 0 | `no_match` (123,233) / `accepted` (47,485, == `IS_PLE_PASSER`) / `rejected_ambiguous_person` (8,207 — 2+ candidates survived every identity check, so no single match could be accepted) / `rejected` (2). |
+| 52 | `PLE_YEAR_UNCERTAIN` | bool | 0 | `True` for 79 rows — an accepted passer (`IS_PLE_PASSER == True`) whose specific PLE *year* could not be disambiguated because their matched application number was independently claimed by 2+ distinct PLE name records after per-name deduplication (85 such application numbers). Passer status is certain; the year attached to it is not. |
 
 ## Interpretation Guide
 
@@ -237,7 +237,7 @@ df_observable = df[df["IS_BEST_OBSERVABLE_RECORD"]]   # 69,503 rows, correct
 
 ### Linkage rate (never call this a "pass rate")
 ```python
-linkage_rate = df_observable["IS_PLE_PASSER"].mean()   # 45.44%
+linkage_rate = df_observable["IS_PLE_PASSER"].mean()   # 43.31%
 ```
 
 ### Percentile bins — always order explicitly

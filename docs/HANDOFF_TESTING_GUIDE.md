@@ -12,14 +12,14 @@ guide):
 
 ```
 sittings 178,927 | unique examinees 134,869 | observable cohort (people) 69,503
-observable linkage 45.44% | confirmed PLE passers (IS_PLE_PASSER) 49,086
-ambiguous PERSON_KEYs 6,148 | PLE_YEAR_UNCERTAIN 110
+observable linkage 43.31% | confirmed PLE passers (IS_PLE_PASSER) 47,485
+ambiguous PERSON_KEYs 6,148 | PLE_YEAR_UNCERTAIN 79
 stored-total mismatch 56,065 / 99,316 = 56.45%  ("42.2%" = same mismatch over the whole
                        CEM file, 107,422/254,308 -- a different population, also correct)
 repeat takers 33,713 (25.0%) -- NOT 33,714; see the Known Issues note below
-linkage by bin: B1 11.6  B2 22.7  B3 29.3  B4 36.0  B5 45.6
-                B6 50.4  B7 53.6  B8 55.0  B9 61.6  B10 71.0
-parquet md5 28b85ac53af13b4a2ef3ee93527c97c1 (all 3 copies + EXODUS_MANIFEST.json)
+linkage by bin: B1 10.8  B2 20.7  B3 26.7  B4 33.3  B5 43.3
+                B6 47.4  B7 50.5  B8 52.7  B9 59.5  B10 69.8
+parquet md5 72b2808bb8bb9c3594980c5735f814e1 (all 3 copies + EXODUS_MANIFEST.json)
 ```
 
 **Repeat-taker count note:** `RESUME.md` says 33,714; the currently-running code in both dashboards
@@ -95,7 +95,7 @@ something regressed.
 
 | # | Tab | Sub-tab | What should appear | Numbers to read off screen |
 |---|---|---|---|---|
-| 1 | Executive Summary | Overview | Figure 1: 2×2 subplot (median raw score, Part I vs II, median percentile, volume bar) by year | Top metrics: **Examinees (best-record) 134,869**; Years covered 13; Median TRUE raw score **122.0**; Median percentile rank **50.0**; Repeat takers **33,713 (25.0%)**; Observable cohort **69,503**; PLE linkage rate, observable cohort **45.44%** |
+| 1 | Executive Summary | Overview | Figure 1: 2×2 subplot (median raw score, Part I vs II, median percentile, volume bar) by year | Top metrics: **Examinees (best-record) 134,869**; Years covered 13; Median TRUE raw score **122.0**; Median percentile rank **51.0**; Repeat takers **33,713 (25.0%)**; Observable cohort **69,503**; PLE linkage rate, observable cohort **43.31%** |
 | 1 | Executive Summary | Composition | Two pie charts: course-group and university-type composition | Pie slice counts must sum to 134,869 |
 | 1 | Executive Summary | Quick Tables | Table 1: 6-row summary (median scores, top/bottom-bin share) | Top-bin share (B8–B10) and bottom-bin share (B1–B3) — cross-check against Tab 4's heatmap |
 | 2 | Data Integrity | — | Cohort-definition tables, raw-score validation, uni-type/course-group counts, PLE match-outcome breakdown | Metrics: **All NMAT rows 178,927**; Best-record rows **134,869**; Rows with TRUE raw scores **178,882**; Observable best-record rows **69,503**; Stored-vs-derived mismatch rate **56.45%**; Universities checked **2,907**; University pairing conflicts **0**. Caption states 56,065/99,316 mismatch explicitly; "42.2%" is the same mismatch over the whole CEM file (107,422/254,308), a different denominator rather than an error |
@@ -123,7 +123,7 @@ something regressed.
 | 11 | Statistical Tests | Chi-square tests | Observed-counts table, chi-square summary (chi2/p/df/n/Cramér's V), heatmap, expected-counts table | No metrics |
 | 11 | Statistical Tests | Post hoc | Dunn post-hoc matrix (Bonferroni-adjusted), heatmap | Only renders if `scikit-posthocs` is installed and ≥3 years are in the current filter |
 | 12 | Policy Tables & Export | — | 4 tables (year/course/university/survival) identical in construction to Tab 7's 28/29/30 + survival, 4 CSV download buttons | Table values must equal Tab 7's — cross-check |
-| 13 | CHED Compliance | — | Section A: cut-off scenario table + grouped bar; Section B: Foreign/Filipino composition; Section C: linkage gradient by bin | Section C table/chart must read **B1 11.6% (795/6,853), B2 22.7%, B3 29.3%, B4 36.0%, B5 45.6%, B6 50.4%, B7 53.6%, B8 55.0%, B9 61.6%, B10 71.0%** — these are the corrected, post-fix numbers (see the manuscript guides for what "corrected" means here) |
+| 13 | CHED Compliance | — | Section A: cut-off scenario table + grouped bar; Section B: Foreign/Filipino composition; Section C: linkage gradient by bin | Section C table/chart must read **B1 10.8% (740/6,853), B2 20.7%, B3 26.7%, B4 33.3%, B5 43.3%, B6 47.4%, B7 50.5%, B8 52.7%, B9 59.5%, B10 69.8%** — these are the corrected, post-fix numbers (see the manuscript guides for what "corrected" means here) |
 
 **Known quirks worth knowing, not bugs to chase:**
 - "Table 9" is used twice (Tab 2's PLE match-outcome table and Tab 3's Kruskal-Wallis table) — a
@@ -142,15 +142,15 @@ dataset split into best-record/observable subsets internally), values from live 
 
 | # | Tab | What should appear | Numbers to read off screen |
 |---|---|---|---|
-| 1 | National Profile | Two-panel volume+percentile trend, uni-type/course pies, bin-reference table, repeat-taker note | Metrics: **Best-record examinees 134,869**; **Unique persons (PERSON_KEY) 134,869** (equal by construction, do not read as two different counts); NMAT years covered **13**; Median NMAT percentile **50.0** |
+| 1 | National Profile | Two-panel volume+percentile trend, uni-type/course pies, bin-reference table, repeat-taker note | Metrics: **Best-record examinees 134,869**; **Unique persons (PERSON_KEY) 134,869** (equal by construction, do not read as two different counts); NMAT years covered **13**; Median NMAT percentile **51.0** |
 | 2 | B4+ vs B5+ Thresholds | Bin heatmap by year, threshold-scenario table, threshold-by-uni-type table, B4-group profile, top/bottom trend, yearly-threshold table, B5+ PLE-status stacked bars (count + %) | Metrics: **Public examinees meeting B5+ 17,752 (65.2%)**; **Public examinees in B4-only 2,247 (8.3%)**; **Private examinees meeting B5+ 60,184 (59.4%)**; **B4 examinees (best record) 12,589**; Median total raw score **109.0**; Public-institution share **17.8%**. The B5+ stacked bars must show a visible red "No confirmed PLE match" slice in most years — if it is flat zero in every year, the C-01 tautology bug (§6 below) has regressed |
 | 3 | PLE-Passer Linkage | Linkage-by-bin bar (with 50% reference line), score-profile-by-status table, linkage-by-year/course/university-type charts, stress-test section | Metrics: **B5+ Filipino population 41,289**; **Confirmed under strict criteria 23,128**; **Strict-criteria linkage rate 56.0%**; Median PLE year gap **6 yrs**. The strict-criteria line chart must show values **below** 100% in at least some years — a flat 100% line is the C-01 regression (this is the "stress test," it exists specifically to NOT be tautological) |
 | 4 | Institution and Foreign Context | Score-summary-by-uni-type table, box plot, bin heatmap, top-bin-share bar, foreign-examinee metrics, top-10-nationality bar | Metrics: **Verified Foreign NMAT examinees (best record) 24,069**; **Filipino examinees 110,787**; **Distinct foreign nationalities 89**. Score summary table: Public median %ile **57**, Private **49**, Foreign **52**. Top nationality **India, 19,090, 79.3%** of the 24,069 verified-foreign denominator (never against the top-10 subtotal — see caption) |
-| 5 | Key Evidence for Policy Review | 8 narrative findings, no tables/charts | Read the "40th-Percentile Floor Was Not Uniformly Binding" finding — it must cite the live B1/B4 linkage numbers (11.6%/36.0%) and the 795-passer B1 figure, not the withdrawn 21-point-discontinuity framing |
+| 5 | Key Evidence for Policy Review | 8 narrative findings, no tables/charts | Read the "40th-Percentile Floor Was Not Uniformly Binding" finding — it must cite the live B1/B4 linkage numbers (10.8%/33.3%) and the 740-passer B1 figure, not the withdrawn 21-point-discontinuity framing |
 | 6 | Data, Methods, and Limitations | Dataset overview, 5 methodology expanders, 9 limitation cards | 1 metric: **Stored-vs-derived mismatches — "56,065 of 99,316 rows with a stored total (56.5%)"**. Card 6 ("PHEI Accountability and Sanctions") must state plainly that no medical-school identifier exists at all. Card 9 must describe the corrected PLE-matcher disclosure (the 40th-percentile hard-filter bug, now fixed) |
 
 **Both dashboards must agree where they overlap.** Both show 134,869 examinees, 69,503/observable
-figures consistent with 45.44% linkage, and the same B1–B10 linkage gradient. A discrepancy between
+figures consistent with 43.31% linkage, and the same B1–B10 linkage gradient. A discrepancy between
 the two on any of these is a regression, not a legitimate difference in scope.
 
 ---
@@ -177,7 +177,7 @@ generated file:
 ```markdown
 | check | result |
 |---|---|
-| Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
+| Source parquet md5 | 72b2808bb8bb9c3594980c5735f814e1 |
 | Rows / cols | 178,927 / 53 |
 | Tabs exported | 6 / 6 |
 | Charts exported as data | 15 / 15 |
@@ -217,7 +217,7 @@ whatever the sidebar happens to be set to — it says so in its own header.
 
 | line | expected |
 |---|---|
-| Source parquet md5 | `28b85ac53af13b4a2ef3ee93527c97c1` |
+| Source parquet md5 | `72b2808bb8bb9c3594980c5735f814e1` |
 | Rows / cols (source parquet on disk) | `178,927 / 53` — the file, not the 58-column in-memory frame |
 | Derived columns added at load time | 5 (`YEAR_INT`, `SEX_CLEAN`, `IS_BOARD_OBSERVABLE_COHORT`, `HAS_CONFIRMED_PLE`, `PLE_STATUS_LABEL`) |
 | Tabs exported | 13 / 13 |
@@ -250,7 +250,7 @@ per-tab CSVs do not, so check them by hand):
 2. Compare its row count and column headers to the `st.dataframe` immediately above the download
    button on screen.
 3. Spot-check 2–3 cell values. For `ched_linkage_gradient_by_bin.csv` under default filters, the B1
-   row must read `n=6853, linked_n=795, linkage_rate_pct=11.6` — the same number in §3's Tab 13 row.
+   row must read `n=6853, linked_n=740, linkage_rate_pct=10.8` — the same number in §3's Tab 13 row.
 4. If a count is short (fewer rows than the on-screen table, or a filtered subset when you expected
    the full one), re-check the sidebar filter state before downloading — the policy tables in Tab 12
    are filter-sensitive by design; the Tab 8 and Tab 13 CSVs are not.

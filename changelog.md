@@ -4,6 +4,45 @@ All notable changes to this project are documented below.
 
 ---
 
+## [2026-08-14] — PLE Identity-Propagation & Sentinel-Value Fix (chain 1→2→4→5 re-run)
+
+A follow-on pass found five further defects in the matcher and pipeline that the RC-0/O-24
+remediation below did not catch, and re-ran the chain 1→2→4→5 against the live parquet.
+
+**Fixes:**
+- **`get_ple_info()` name-only fallback** (the most consequential): it re-applied a name-only match
+  to *every* row sharing that name, even after `disambiguate()` had already adjudicated a single
+  `MATCHED_APPNO` for that name — silently undoing the disambiguator and crediting one PLE passer
+  record to multiple distinct people. Restricted the fallback to rows with no `MATCHED_APPNO`.
+  Effect: names with 2+ distinct passer `PERSON_KEY`s fell **1,624 → 4**; people involved
+  **3,256 → 8**; those with conflicting birthdates among them **232 → 1**.
+- Person-level `IS_PLE_PASSER` propagation now keys on `PERSON_KEY` (name+DOB), not name alone.
+- **`NMS_PER_num`'s `-1` sentinel (2,866 rows) fixed at source** in Pipeline 1 — now `NaN` instead
+  of silently passing every `< 40` predicate (`-1 < 40` is `True`). `NMS_PER_num` nulls: 1,275 → 4,141.
+- **University merge now keys on `(NMA_College, School Type_rec2_FINAL)`**, fixing 416 rows whose
+  assigned `UNDERGRAD_UNI_TYPE` contradicted their own source hint (233 of them hinted Private but
+  were counted Public).
+- **`FUZZY`-derived rows dropped from the fossil `PLE_STILL_UNMATCHED.csv`**, so the
+  deterministic-only matching guarantee holds for the full lineage, not just the current source.
+  Real historical exposure was 269 usable AppNos, not the 4,810 raw `FUZZY` rows.
+- Combined effect: confirmed PLE passers moved from **49,086 to 47,485** (37,420 → **35,746**
+  distinct people); observable linkage 45.44% → **43.31%**; linkage by bin reshaped again
+  (B1 11.6%→**10.8%**, B4 36.0%→**33.3%**, B10 71.0%→**69.8%**); median percentile (best-record)
+  50.0 → **51.0**; `PLE_YEAR_UNCERTAIN` 110 → **79**; `rejected_ambiguous_person` 8,216 → **8,207**;
+  non-nested counts (8,218 / 2,775) → **(8,209 / 3,005)**; `UNDERGRAD_UNI_TYPE` Public 37,304 →
+  **36,890**, Private 137,476 → **137,711**, Not Specified 1,832 → **2,011**.
+- **The below-40th-percentile headline finding is re-quantified, not overturned:** 5,665 of 25,023
+  below-40 observable examinees (**22.6%**, was 24.1% of 6,173/25,596) are confirmed PLE passers —
+  **740** in the lowest decile (was 795). Ambiguous-key rate among them is **3.3%** (was 3.0%),
+  still close to the 3.5% cohort base rate; **5,645 of 5,665** are Filipino (was 6,152 of 6,173).
+  The gradient stays monotone (B1 10.8% → B10 69.8%) and the lowest-decile confirmed passers remain
+  incompatible with a uniformly enforced 40th-percentile floor.
+- **Equal-exposure figures** (accounting for `PLE_DATA.csv`'s 2011–2022 coverage window):
+  observable linkage at a fixed 8-year horizon is **38.0%**; below-40 linkage at 8 years is
+  **18.3%**.
+
+---
+
 ## [2026-08] — Schema & Matcher Remediation (chain 1→5, RC-0/O-24 fixes, docs rewrite)
 
 A full-repo audit (12 specialist agents + orchestrator verification) found that the shipped
@@ -50,7 +89,7 @@ corrected data. Full detail: `docs/pipeline_architecture.md` §7, `.claude/audit
   carry a stored total** (31.33% of all rows) — the old figure divided the mismatch count by the
   wrong (and separately wrong) denominator.
 - Result: `dataset/NMAT_Exodus.parquet`, 178,927 rows × **53 columns**, md5
-  `28b85ac53af13b4a2ef3ee93527c97c1`, shipped as 3 byte-identical copies (`dataset/` + both live
+  `72b2808bb8bb9c3594980c5735f814e1`, shipped as 3 byte-identical copies (`dataset/` + both live
   dashboard folders), verified by `pytest tests/` (36 passed).
 
 **Dataset hygiene:** removed 3 confirmed-dead files with zero readers anywhere in the

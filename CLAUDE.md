@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **NMAT Analysis** is a research/policy analytics pipeline analyzing the Philippine National Medical Admissions Test (2006–2018) with linkage to Philippine Licensure Examination (PLE) outcomes and citizenship data.
 
 **Key deliverable:** `dataset/NMAT_Exodus.parquet` (178,927 rows × **53 columns**, md5
-`28b85ac53af13b4a2ef3ee93527c97c1`, shipped as 3 byte-identical copies) consumed by:
+`72b2808bb8bb9c3594980c5735f814e1`, shipped as 3 byte-identical copies) consumed by:
 1. `streamlit_dashboard/main_dashboard/dashboard.py` — Streamlit, **live, source of truth**
 2. `streamlit_dashboard/CHED_relevant_dashboard/dashboard.py` — CHED-specific Streamlit variant, **live**
 3. `data_aggregator/` — static markdown report generator, **live**
@@ -179,7 +179,7 @@ observable-cohort person filter** — do not substitute `IS_BEST_NMAT_RECORD & (
 drops 3,721 people), `PERSON_KEY_AMBIGUOUS` (6,148 keys with contradictory SEX — a name-collision
 signal for the weak `PERSON_KEY`)
 
-**PLE linking:** `IS_PLE_PASSER` (**the only authoritative passer flag, 49,086 — not 49,986**),
+**PLE linking:** `IS_PLE_PASSER` (**the only authoritative passer flag, 47,485 — not 49,986 or 49,086**),
 `PLE_MATCH_METHOD`, `PLE_MATCH_CONFIDENCE`, `PLE_MATCH_OUTCOME`
 (`accepted`/`rejected`/`rejected_ambiguous_person`/`no_match`), `PLE_YEAR_UNCERTAIN`. There is
 **no** `PLE_MATCH_STATUS` column in the shipped file — use `PLE_MATCH_OUTCOME`.
@@ -344,7 +344,7 @@ Older references to `forensic_audit_v5_final.py`, `audit_per_bin_report.py`,
 ### CHED-Relevant Dashboard
 - **Entry:** `cd streamlit_dashboard/CHED_relevant_dashboard && streamlit run dashboard.py`
 - Focused on the CMO §IV.B.1 cut-off question — includes the below-40th-percentile linkage finding
-  (`docs/pipeline_architecture.md` §7): 6,173 of 25,596 below-40 observable examinees (24.1%) are
+  (`docs/pipeline_architecture.md` §7): 5,665 of 25,023 below-40 observable examinees (22.6%) are
   confirmed PLE passers.
 
 ### Data Aggregator (Static Markdown)

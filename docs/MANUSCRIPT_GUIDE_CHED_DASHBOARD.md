@@ -5,7 +5,7 @@ CHED-dashboard tab/table/figure supplies the evidence, the specific numbers to c
 that must travel with the claim. Evidence source is
 `streamlit_dashboard/CHED_relevant_dashboard/dashboard.py` (6 tabs) and its shared compute layer
 `ched_common.py`, unless stated otherwise. All numbers were verified against
-`dataset/NMAT_Exodus.parquet` (md5 `28b85ac53af13b4a2ef3ee93527c97c1`) on 2026-08-14; see
+`dataset/NMAT_Exodus.parquet` (md5 `72b2808bb8bb9c3594980c5735f814e1`) on 2026-08-14; see
 `docs/HANDOFF_TESTING_GUIDE.md` for the verification commands. The CMO text itself is
 `docs/CHED_CMO.md`.
 
@@ -21,8 +21,8 @@ medical-school identifier anywhere** — `UNDERGRAD_UNIVERSITY`, `UNDERGRAD_UNI_
 not the medical school that later trained them.
 
 **Proof, not assertion:** UP Diliman has no College of Medicine — UP's MD program is run out of UP
-Manila. Yet `UNDERGRAD_UNIVERSITY == "UNIVERSITY OF THE PHILIPPINES - DILIMAN"` appears on **4,421
-rows, 1,914 of them confirmed PLE passers**. Those 1,914 people cannot have earned their MD at an
+Manila. Yet `UNDERGRAD_UNIVERSITY == "UNIVERSITY OF THE PHILIPPINES - DILIMAN"` appears on **4,454
+rows, 1,638 of them confirmed PLE passers**. Those 1,638 people cannot have earned their MD at an
 institution that does not run the program. `CourseGroup` for these rows confirms the mechanism —
 Education (316), Engineering & Technology (37), Social & Behavioral Sciences (819): bachelor's
 fields, sat before medical school, not medical curricula.
@@ -84,10 +84,14 @@ unintended work.
 
 **Both are now fixed.** Confirmed passers moved **49,986 → 49,086** — some previous winners are now
 correctly flagged ambiguous and dropped, while others whose entire name-collision group scored below
-40 are newly matched. **Every number in this brief reflects the corrected matcher.** State this
-explicitly wherever a below-threshold linkage number appears, so a reader understands the number is
-not merely "low because of admission policy" but specifically "low despite a matching-pipeline
-correction that, if anything, raised it."
+40 are newly matched. **A further remediation pass on 2026-08-14 found three more identity-resolution
+and data-hygiene defects** (most significantly a `get_ple_info()` name-only fallback that had been
+re-crediting one passer record to every same-named row, undoing the disambiguator — see
+`docs/pipeline_architecture.md` §7) and moved the count again, to **47,485. Every number in this
+brief reflects the fully corrected matcher (47,485).** State this explicitly wherever a
+below-threshold linkage number appears, so a reader understands the number is not merely "low
+because of admission policy" but specifically "low despite matching-pipeline corrections that, if
+anything, raised it."
 
 **Identity-key caveat, always disclosed with any person-level count:** `PERSON_KEY` merges surname +
 given names + a coarse birthdate field; **6,148 keys (4.56%) carry contradictory SEX**, the minimum
@@ -135,7 +139,7 @@ later section assumes the reader already understands (**B1 = lowest decile 0–9
 90–99**, B4+ = the CMO exception floor (30th–39th), B5+ = the current SUC standard floor (40th–49th)).
 
 **Numbers:** best-record examinees 134,869 (unique persons, equal by construction); 13 years covered;
-median NMAT percentile 50.0; repeat takers 33,713 (25.0% of unique examinees, with the identity-key
+median NMAT percentile 51.0; repeat takers 33,713 (25.0% of unique examinees, with the identity-key
 caveat from §1.2 attached).
 
 **Caveat:** none beyond the identity-key note already stated.
@@ -164,10 +168,10 @@ can be supported here — that field does not exist.
 dataset can speak to most directly and honestly — plus the stress-test subset that exists specifically
 to prove the linkage figures are not tautological.
 
-**Numbers (corrected, post RC-0/O-24 fix):**
+**Numbers (corrected, post RC-0/O-24 fix and the 2026-08-14 follow-on fixes):**
 ```
-B1 11.6%  B2 22.7%  B3 29.3%  B4 36.0%  B5 45.6%
-B6 50.4%  B7 53.6%  B8 55.0%  B9 61.6%  B10 71.0%
+B1 10.8%  B2 20.7%  B3 26.7%  B4 33.3%  B5 43.3%
+B6 47.4%  B7 50.5%  B8 52.7%  B9 59.5%  B10 69.8%
 ```
 Stress test: restricting to confirmed passer + PLE year gap ≥5 years + Filipino nationals + B5+ band
 gives **56.0% (23,128 of 41,289)** — genuinely below 100%, which is the point: a tautological check
@@ -175,7 +179,7 @@ cannot show anything but 100%, and this one doesn't.
 
 **Caveat — the selection-effect confound, mandatory every time this gradient supports a policy
 argument:** the gradient rises smoothly with no sharp step at either the 30th or 40th percentile
-boundary — corrected step sizes are B4→B5 +9.6, comparable to B1→B2 (+11.1) and B9→B10 (+9.4), not an
+boundary — corrected step sizes are B4→B5 +10.0, comparable to B1→B2 (+9.9) and B9→B10 (+10.3), not an
 outlier. But low-bin examinees were also **partly never admitted** to medical school under the
 historical non-uniform school-level cutoffs actually applied 2006–2014 — their low linkage rate is
 confounded with non-admission, not purely with post-admission outcome. **This gradient cannot be used
@@ -225,7 +229,7 @@ at all.
 
 ## 3. The supportable headline finding
 
-**6,173 of 25,596 below-40th-percentile observable examinees (24.1%) are confirmed PLE passers — 795
+**5,665 of 25,023 below-40th-percentile observable examinees (22.6%) are confirmed PLE passers — 740
 of them in B1, the lowest decile.** This is the most direct evidence this dataset can offer on the
 CMO §IV.B.1 question of whether the floor should drop from 40 to 30: under the *existing* 40th-percentile
 rule, a substantial number of people scored below it anyway and went on to pass licensure.
@@ -235,12 +239,12 @@ defensible:**
 
 | Objection | Check | Result |
 |---|---|---|
-| "Name-collision artefacts" | `PERSON_KEY_AMBIGUOUS` rate among the 6,173 | **3.0%** — *below* the 3.5% cohort base rate |
-| "Foreign students under different rules" | citizenship | **6,152 of 6,173 are Filipino** |
+| "Name-collision artefacts" | `PERSON_KEY_AMBIGUOUS` rate among the 5,665 | **3.3%** — still *below* the 3.5% cohort base rate |
+| "Foreign students under different rules" | citizenship | **5,645 of 5,665 are Filipino** |
 | "One anomalous year" | year spread | present in **all nine** observable years (2006–2014) |
 
 **Caveats that must travel with this number every time it is cited:**
-1. **Linkage, not pass rate.** 24.1% is the share confirmed-linked to a passer record; the PLE source
+1. **Linkage, not pass rate.** 22.6% is the share confirmed-linked to a passer record; the PLE source
    is passers-only, so this is a floor on the true rate, not a completion rate. "Not linked" is never
    "failed."
 2. **"Below 40" means at the best attempt within the observable window** — some of these people may
@@ -263,9 +267,10 @@ table, or cite this guide's verified figure directly). Tab 5 finding 4 and Tab 6
 An earlier draft of this brief's flagship finding was a **21-point "policy discontinuity"** between
 bin B4 and bin B5 in the linkage gradient — precisely at the 40th percentile — used to justify a
 regression-discontinuity design as the headline recommendation for further work. **This finding was
-withdrawn.** After the RC-0 fix (§1.2) removed the matcher's own hard 40th-percentile floor, the
-corrected B4→B5 step is **9.6 points**, statistically unremarkable against the other eight bin-to-bin
-steps (B1→B2 is +11.1, B9→B10 is +9.4). The sharp discontinuity that motivated the regression-
+withdrawn.** After the RC-0 fix (§1.2) removed the matcher's own hard 40th-percentile floor, and after
+the 2026-08-14 follow-on fixes, the corrected B4→B5 step is **10.0 points**, statistically
+unremarkable against the other eight bin-to-bin steps (B1→B2 is +9.9, B9→B10 is +10.3). The sharp
+discontinuity that motivated the regression-
 discontinuity recommendation was **largely an artefact of the project's own matching code**, not
 evidence of a real admission-policy break at the threshold.
 
