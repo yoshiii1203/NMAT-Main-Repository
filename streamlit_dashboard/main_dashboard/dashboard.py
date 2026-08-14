@@ -1,6 +1,10 @@
+import os
+import sys
 from pathlib import Path
 import warnings
 import concurrent.futures
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     import cudf.pandas
@@ -18,11 +22,14 @@ import duckdb
 import streamlit as st
 from scipy import stats
 
+import main_common as mc
+from export_markdown import build_full_markdown
+
 warnings.filterwarnings("ignore")
 
 try:
     import scikit_posthocs as sp
-    HAS_POSTHOCS = True
+    HAS_POSTHOCS = mc.HAS_POSTHOCS
 except Exception:
     HAS_POSTHOCS = False
 
@@ -37,323 +44,31 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-BIN_ORDER = [f"B{i}" for i in range(1, 11)]
-PLE_ORDER = ["Confirmed PLE passer", "No confirmed PLE match"]
+# Constants below are the SAME objects main_common.py uses -- aliased here
+# (not redefined) so dashboard.py and export_markdown.py can never drift.
+BIN_ORDER = mc.BIN_ORDER
+PLE_ORDER = mc.PLE_ORDER
+TOP_BINS = mc.TOP_BINS
+BOTTOM_BINS = mc.BOTTOM_BINS
+PALETTE_UNI = mc.PALETTE_UNI
+PALETTE_COURSE = mc.PALETTE_COURSE
+PALETTE_PLE = mc.PALETTE_PLE
+BIN_COLORS = mc.BIN_COLORS
+NUMERIC_COLS = mc.NUMERIC_COLS
+BOOL_COLS = mc.BOOL_COLS
+REQUIRED_PIPELINE_COLS = mc.REQUIRED_PIPELINE_COLS
 
-PALETTE_UNI = {
-    "Public": "#1f77b4",
-    "Private": "#ff7f0e",
-    "Foreign": "#9467bd",
-    "Not Specified": "#7f7f7f",
-}
-PALETTE_COURSE = {
-    "Medical & Allied": "#d62728",
-    "Natural Sciences": "#2ca02c",
-    "Social & Behavioral Sciences": "#ff9800",
-    "Education": "#17becf",
-    "Engineering & Technology": "#8c564b",
-    "Other": "#7f7f7f",
-}
-PALETTE_PLE = {
-    "Confirmed PLE passer": "#2e7d32",
-    "No confirmed PLE match": "#c62828",
-}
-BIN_COLORS = {
-    "B1": "#8B0000",
-    "B2": "#B22222",
-    "B3": "#D9534F",
-    "B4": "#F0AD4E",
-    "B5": "#FFD166",
-    "B6": "#A0D468",
-    "B7": "#66C2A5",
-    "B8": "#41B6C4",
-    "B9": "#2C7FB8",
-    "B10": "#253494",
-}
-
-NUMERIC_COLS = [
-    "Year", "NMS_PER_num", "NMS_GPS", "NMS_APT", "NMS_SA",
-    "NMS_VCss","NMS_IRss","NMS_Qss","NMS_PAss",
-    "NMS_BIOss","NMS_PHYss","NMS_SSCss","NMS_CHEMss",
-    "TotalRawScoreTRUE","PartIRawScoreTRUE","PartIIRawScoreTRUE",
-    "Raw_Verbal","Raw_InductiveReasoning","Raw_Quantitative","Raw_PerceptualAcuity",
-    "Raw_Biology","Raw_Physics","Raw_SocialScience","Raw_Chemistry",
-    "StoredRawTotal","CalculatedRawTotal_Source",
-    "APT_CEM","SA_CEM","GPS_CEM","Percentile_CEM",
-    "PLE_YEAR_PASSED","PLE_YEAR_GAP","PLE_MATCH_CONFIDENCE"
-]
-BOOL_COLS = [
-    "IS_PLE_PASSER","IS_BEST_NMAT_RECORD",
-    "HasTRUErawScores","StoredVsDerivedMismatch",
-    "IS_OBSERVABLE_COHORT","IS_BEST_OBSERVABLE_RECORD","PERSON_KEY_AMBIGUOUS",
-]
-
-REQUIRED_PIPELINE_COLS = [
-    "APPNO_CLEAN",
-    "PERSON_KEY",
-    "UNDERGRAD_UNI_TYPE",
-    "UNDERGRAD_UNI_LOCATION",
-    "UNDERGRAD_COURSE_GROUP",
-    "IS_BEST_NMAT_RECORD",
-    "IS_PLE_PASSER",
-    "IS_OBSERVABLE_COHORT",
-    "IS_BEST_OBSERVABLE_RECORD",
-    "HasTRUErawScores",
-    "PLE_MATCH_METHOD",
-]
+# Pure-compute helpers (find_data_path, to_bool_series, classify_course,
+# count_true_flags, ensure_required_columns, load_data_and_subsets,
+# filter_df, pct_table, make_flow, kruskal_table, mc.mann_whitney_ple,
+# chi_square_unitype_bin, get_yearly_summary, mc.subtest_mean_table,
+# radar_for_group) all live in main_common.py now -- call as mc.<name>.
+# Only chart-DRAWING functions (figure out, no new aggregation) stay below.
 
 
 # -----------------------------------------------------------------------------
-# HELPERS
+# CHART-DRAWING HELPERS (data comes from main_common; these only plot it)
 # -----------------------------------------------------------------------------
-def find_data_path() -> Path:
-    candidates = [
-        Path("NMAT_Exodus.parquet"),
-        Path("dataset/NMAT_Exodus.parquet"),
-        Path("dataset/NMAT_Ultima.parquet"),
-        Path("NMAT_Ultima.parquet"),
-    ]
-    for p in candidates:
-        if p.exists():
-            return p
-    raise FileNotFoundError(
-        "Could not find NMAT_Exodus.parquet. "
-        "Place it in ./dataset/ or in the app root."
-    )
-
-
-def to_bool_series(s: pd.Series) -> pd.Series:
-    if str(s.dtype) == "boolean":
-        return s
-    if pd.api.types.is_bool_dtype(s):
-        return s.astype("boolean")
-
-    mapping = {
-        "TRUE": True, "1": True, "1.0": True, "YES": True, "Y": True,
-        "FALSE": False, "0": False, "0.0": False, "NO": False, "N": False,
-    }
-    s_norm = s.astype(str).str.strip().str.upper()
-
-    out = s_norm.map(mapping)
-    missing_mask = s.isna() | s_norm.isin(["", "NAN", "<NA>", "NONE"])
-    out = out.mask(missing_mask, pd.NA)
-    return out.astype("boolean")
-
-
-def classify_course(text: str) -> str:
-    text = str(text).upper()
-    med = ["MEDICAL", "ALLIED", "NURSING", "PHARMACY", "HEALTH", "MED TECHNOLOGY", "RADIOLOGIC", "PUBLIC HEALTH", "NUTRITION"]
-    nat = ["BIOLOGY", "NATURAL SCIENCE", "NATURAL SCIENCES", "PHYSICS", "CHEMISTRY"]
-    soc = ["SOCIAL", "BEHAVIORAL", "BEHAVIOURAL", "PSYCHOLOGY", "ECONOMICS"]
-    eng = ["ENGINEERING", "TECHNOLOGY"]
-    edu = ["EDUCATION", "TEACHER"]
-    if any(k in text for k in med):
-        return "Medical & Allied"
-    if any(k in text for k in nat):
-        return "Natural Sciences"
-    if any(k in text for k in soc):
-        return "Social & Behavioral Sciences"
-    if any(k in text for k in eng):
-        return "Engineering & Technology"
-    if any(k in text for k in edu):
-        return "Education"
-    return "Other"
-
-
-def count_true_flags(series: pd.Series) -> int:
-    if series is None:
-        return 0
-    return int((to_bool_series(series) == True).sum())
-
-
-def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-
-    def process_numeric(col):
-        if col in df.columns:
-            return col, pd.to_numeric(df[col], errors="coerce")
-        return col, None
-
-    def process_bool(col):
-        if col in df.columns:
-            return col, to_bool_series(df[col])
-        return col, None
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = []
-        for col in NUMERIC_COLS:
-            futures.append(executor.submit(process_numeric, col))
-        for col in BOOL_COLS:
-            futures.append(executor.submit(process_bool, col))
-        
-        for future in concurrent.futures.as_completed(futures):
-            col, res = future.result()
-            if res is not None:
-                df[col] = res
-
-    if "YEAR_INT" not in df.columns and "Year" in df.columns:
-        df["YEAR_INT"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
-    elif "YEAR_INT" in df.columns:
-        df["YEAR_INT"] = pd.to_numeric(df["YEAR_INT"], errors="coerce").astype("Int64")
-
-    if "Year" in df.columns:
-        df["Year"] = pd.to_numeric(df["Year"], errors="coerce").astype("Int64")
-    elif "YEAR_INT" in df.columns:
-        df["Year"] = df["YEAR_INT"]
-
-    BIN_ORDER = [f"B{i}" for i in range(1, 11)]
-    _BIN_EDGES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 101]
-    # back-compat: rename old column if present
-    if "PercentileDecile" in df.columns and "PercentileBin" not in df.columns:
-        df = df.rename(columns={"PercentileDecile": "PercentileBin"})
-    if "PercentileBin" not in df.columns:
-        df["PercentileBin"] = pd.cut(
-            pd.to_numeric(df["NMS_PER_num"], errors="coerce"),
-            bins=_BIN_EDGES,
-            labels=BIN_ORDER,
-            right=False,
-            include_lowest=True,
-        )
-    df["PercentileBin"] = pd.Categorical(
-        df["PercentileBin"], categories=BIN_ORDER, ordered=True
-    )
-
-    missing_required = [c for c in REQUIRED_PIPELINE_COLS if c not in df.columns]
-    if missing_required:
-        raise ValueError(
-            "NMAT_Exodus.parquet is missing required pipeline columns: "
-            + ", ".join(missing_required)
-        )
-
-    df["UNDERGRAD_UNI_TYPE"] = df["UNDERGRAD_UNI_TYPE"].fillna("Not Specified").astype(str).replace({"nan": "Not Specified"})
-    df["UNDERGRAD_UNI_LOCATION"] = df["UNDERGRAD_UNI_LOCATION"].fillna("Unknown")
-    df["UNDERGRAD_COURSE_GROUP"] = df["UNDERGRAD_COURSE_GROUP"].fillna("Unknown")
-
-    if "SEX_CLEAN" not in df.columns:
-        sex_source = None
-        for c in ["SEX", "NMASex"]:
-            if c in df.columns:
-                sex_source = c
-                break
-        if sex_source is not None:
-            s = df[sex_source].astype(str).str.strip().str.title()
-            s = s.replace({"1": "Male", "2": "Female"})
-            s = s.where(s.isin(["Male", "Female"]), np.nan)
-            df["SEX_CLEAN"] = s
-        else:
-            df["SEX_CLEAN"] = np.nan
-    # Same treatment as UNDERGRAD_UNI_TYPE/UNDERGRAD_COURSE_GROUP above: a missing/unmapped value
-    # must be its own visible category, not a silent NaN. Left as NaN, rows with no SEX drop out
-    # of every sidebar-filtered subset by construction (isin() never matches NaN), with no on-screen
-    # indication -- that previously undercounted every headline KPI by the null-SEX row count.
-    df["SEX_CLEAN"] = df["SEX_CLEAN"].fillna("(not specified)")
-
-    # IS_BOARD_OBSERVABLE_COHORT is an internal alias for the pipeline's IS_OBSERVABLE_COHORT
-    # (Year <= 2014). Kept as a separate name only so downstream code reads intent, not the
-    # raw column, at each call site.
-    if "IS_OBSERVABLE_COHORT" in df.columns:
-        df["IS_BOARD_OBSERVABLE_COHORT"] = df["IS_OBSERVABLE_COHORT"]
-    elif "IS_BOARD_OBSERVABLE_COHORT" not in df.columns:
-        df["IS_BOARD_OBSERVABLE_COHORT"] = df["Year"].le(2014).fillna(False)
-
-    # HAS_CONFIRMED_PLE / PLE_STATUS_LABEL describe "found in the PLE passer source list",
-    # not "passed vs failed" -- the PLE source contains passers only, so the complement
-    # ("No confirmed PLE match") means "not linked to a passer record", never "failed".
-    # Any rate built from these two is a LINKAGE rate, not a pass rate (see IS_PLE_PASSER
-    # note in the "Read this first" panel).
-    if "IS_PLE_PASSER" in df.columns:
-        df["HAS_CONFIRMED_PLE"] = (df["IS_PLE_PASSER"] == True).astype("boolean")
-    else:
-        df["HAS_CONFIRMED_PLE"] = pd.Series(pd.NA, index=df.index, dtype="boolean")
-
-    if "IS_PLE_PASSER" in df.columns:
-        df["PLE_STATUS_LABEL"] = np.where(df["IS_PLE_PASSER"] == True, "Confirmed PLE passer", "No confirmed PLE match")
-    else:
-        df["PLE_STATUS_LABEL"] = "No confirmed PLE match"
-    df["PLE_STATUS_LABEL"] = pd.Categorical(df["PLE_STATUS_LABEL"], categories=PLE_ORDER, ordered=True)
-
-    return df
-
-
-@st.cache_data(show_spinner=False)
-def load_data_and_subsets():
-    _v = "exodus_v1"  # cache bust: parquet regenerated with NMAT_Exodus + CITIZENSHIP_FINAL
-    path = find_data_path()
-    df = pd.read_parquet(path, engine="pyarrow", use_threads=True)
-    df = ensure_required_columns(df)
-    
-    dfall = df
-    dfbest = df[df["IS_BEST_NMAT_RECORD"] == True] if "IS_BEST_NMAT_RECORD" in df.columns else df
-    dftrend = dfall[dfall["Year"].between(2006, 2018, inclusive="both")]
-    dfbesttrend = dfbest[dfbest["Year"].between(2006, 2018, inclusive="both")]
-    # IMPORTANT: the observable cohort is NOT "best-record & Year<=2014" (dfbesttrend filtered
-    # by year). A person's single global-best NMAT attempt (IS_BEST_NMAT_RECORD) can fall in a
-    # later, non-observable year even if they also sat (and could have been linked) within the
-    # observable window -- that naive filter silently drops thousands of people and inflates
-    # the linkage rate. IS_BEST_OBSERVABLE_RECORD is the person's best attempt *within* Year<=2014
-    # and is the only correct cohort for person-level PLE-linked analysis.
-    if "IS_BEST_OBSERVABLE_RECORD" in df.columns:
-        dfbestobservable = df[df["IS_BEST_OBSERVABLE_RECORD"] == True]
-    else:
-        dfbestobservable = dfbesttrend[dfbesttrend["IS_BOARD_OBSERVABLE_COHORT"] == True]
-    dfuni = dfbesttrend[dfbesttrend["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-    dfuniobservable = dfbestobservable[dfbestobservable["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-    # "PLE passer" rows/persons -- IS_PLE_PASSER is the sole authoritative passer flag.
-    # Renamed from the old plesafe/plebest subsets, which were built from the now-removed passer
-    # flag that was a byte-identical duplicate of IS_PLE_PASSER.
-    dfplepasser = df[df["IS_PLE_PASSER"] == True] if "IS_PLE_PASSER" in df.columns else df.iloc[0:0]
-    dfplepasserbest = dfplepasser[dfplepasser["IS_BEST_NMAT_RECORD"] == True] if not dfplepasser.empty else df.iloc[0:0]
-
-    subsets = {
-        "all": dfall,
-        "best": dfbest,
-        "trend": dftrend,
-        "besttrend": dfbesttrend,
-        "bestobservable": dfbestobservable,
-        "uni": dfuni,
-        "uniobservable": dfuniobservable,
-        "plepasser": dfplepasser,
-        "plepasserbest": dfplepasserbest,
-    }
-    return df, subsets, str(path)
-
-
-def filter_df(
-    df: pd.DataFrame,
-    years=None,
-    unitypes=None,
-    courses=None,
-    sexes=None,
-    ple_status=None,
-):
-    mask = np.ones(len(df), dtype=bool)
-    if years is not None and len(years) > 0 and "Year" in df.columns:
-        mask &= df["Year"].isin(years).to_numpy()
-    if unitypes is not None and len(unitypes) > 0 and "UNDERGRAD_UNI_TYPE" in df.columns:
-        mask &= df["UNDERGRAD_UNI_TYPE"].isin(unitypes).to_numpy()
-    if courses is not None and len(courses) > 0 and "UNDERGRAD_COURSE_GROUP" in df.columns:
-        mask &= df["UNDERGRAD_COURSE_GROUP"].isin(courses).to_numpy()
-    if sexes is not None and len(sexes) > 0 and "SEX_CLEAN" in df.columns:
-        mask &= df["SEX_CLEAN"].isin(sexes).to_numpy()
-    if ple_status is not None and len(ple_status) > 0 and "PLE_STATUS_LABEL" in df.columns:
-        mask &= df["PLE_STATUS_LABEL"].isin(ple_status).to_numpy()
-    
-    return df[mask]
-
-
-def pct_table(df, group_col, cat_col, cat_order=None):
-    tmp = (
-        df.dropna(subset=[group_col, cat_col])
-        .groupby([group_col, cat_col], observed=True)
-        .size()
-        .unstack(fill_value=0)
-    )
-    if cat_order is not None:
-        tmp = tmp.reindex(columns=cat_order, fill_value=0)
-    pct = tmp.div(tmp.sum(axis=1).replace(0, np.nan), axis=0).mul(100).fillna(0)
-    return tmp, pct.round(2)
-
-
 def make_heatmap(table: pd.DataFrame, title: str, xlab: str, ylab: str, color_scale="Blues"):
     fig = px.imshow(
         table,
@@ -405,23 +120,6 @@ def make_top_share_bar(series: pd.Series, title: str, xlab: str, ylab: str, colo
     )
     fig.update_layout(title=title, xaxis_title=xlab, yaxis_title=ylab, height=450)
     return fig
-
-
-def make_flow(df: pd.DataFrame, source_col: str, target_col: str, source_order=None, target_order=None):
-    flow = (
-        df.dropna(subset=[source_col, target_col])
-        .groupby([source_col, target_col], observed=True)
-        .size()
-        .reset_index(name="count")
-    )
-
-    if source_order is not None:
-        flow[source_col] = pd.Categorical(flow[source_col], categories=source_order, ordered=True)
-    if target_order is not None:
-        flow[target_col] = pd.Categorical(flow[target_col], categories=target_order, ordered=True)
-
-    flow = flow.sort_values([source_col, target_col]).reset_index(drop=True)
-    return flow
 
 
 def make_sankey(flow: pd.DataFrame, source_col: str, target_col: str, title: str, source_colors=None, target_colors=None):
@@ -489,92 +187,6 @@ def make_sankey(flow: pd.DataFrame, source_col: str, target_col: str, title: str
     return fig
 
 
-def kruskal_table(df: pd.DataFrame, group_col: str, score_map: dict):
-    rows = []
-    for col, label in score_map.items():
-        if col not in df.columns or group_col not in df.columns:
-            continue
-        groups = [g[col].dropna().values for _, g in df.groupby(group_col) if g[col].dropna().shape[0] > 4]
-        if len(groups) < 2:
-            continue
-        stat, p = stats.kruskal(*groups)
-        ntotal = sum(len(g) for g in groups)
-        k = len(groups)
-        eta2 = max(0.0, (stat - k + 1) / (ntotal - k)) if ntotal > k else np.nan
-        rows.append({
-            "Score": label,
-            "H": round(stat, 3),
-            "p_value": "<0.001" if p < 0.001 else round(float(p), 4),
-            "eta_squared": round(float(eta2), 4) if pd.notna(eta2) else np.nan,
-        })
-    return pd.DataFrame(rows)
-
-
-def mann_whitney_ple(df: pd.DataFrame, cols: dict):
-    g1 = df[df["PLE_STATUS_LABEL"] == "Confirmed PLE passer"]
-    g2 = df[df["PLE_STATUS_LABEL"] == "No confirmed PLE match"]
-    rows = []
-    for col, label in cols.items():
-        if col not in df.columns:
-            continue
-        a = g1[col].dropna()
-        b = g2[col].dropna()
-        if len(a) < 5 or len(b) < 5:
-            continue
-        stat, p = stats.mannwhitneyu(a, b, alternative="two-sided")
-        r = 1 - (2 * stat / (len(a) * len(b)))
-        rows.append({
-            "Score": label,
-            "U_stat": round(float(stat), 1),
-            "p_value": "<0.001" if p < 0.001 else round(float(p), 4),
-            "effect_r": round(float(r), 4),
-            "Confirmed_median": round(float(a.median()), 2),
-            "NoMatch_median": round(float(b.median()), 2),
-        })
-    return pd.DataFrame(rows)
-
-
-def chi_square_unitype_bin(df: pd.DataFrame):
-    tmp = pd.crosstab(df["UNDERGRAD_UNI_TYPE"], df["PercentileBin"]).reindex(columns=BIN_ORDER, fill_value=0)
-    chi2, p, dof, expected = stats.chi2_contingency(tmp.values)
-    n = tmp.values.sum()
-    r, c = tmp.shape
-    cramers_v = np.sqrt(chi2 / (n * min(r - 1, c - 1))) if min(r - 1, c - 1) > 0 else np.nan
-    summary = pd.DataFrame([{
-        "chi2": round(float(chi2), 4),
-        "p_value": "<0.001" if p < 0.001 else round(float(p), 4),
-        "degrees_of_freedom": int(dof),
-        "n_observations": int(n),
-        "cramers_v": round(float(cramers_v), 4) if pd.notna(cramers_v) else np.nan,
-    }])
-    expected_df = pd.DataFrame(expected, index=tmp.index, columns=tmp.columns)
-    return tmp, expected_df, summary
-
-
-def get_yearly_summary(df: pd.DataFrame):
-    out = (
-        df.groupby("Year", observed=True)
-        .agg(
-            n=("APPNO_CLEAN", "count"),
-            raw_median=("TotalRawScoreTRUE", "median"),
-            raw_q25=("TotalRawScoreTRUE", lambda x: x.quantile(0.25)),
-            raw_q75=("TotalRawScoreTRUE", lambda x: x.quantile(0.75)),
-            part1_median=("PartIRawScoreTRUE", "median"),
-            part2_median=("PartIIRawScoreTRUE", "median"),
-            per_median=("NMS_PER_num", "median"),
-            per_q25=("NMS_PER_num", lambda x: x.quantile(0.25)),
-            per_q75=("NMS_PER_num", lambda x: x.quantile(0.75)),
-            gps_median=("NMS_GPS", "median"),
-        )
-        .reset_index()
-    )
-    if not out.empty:
-        out["iqr_raw"] = out["raw_q75"] - out["raw_q25"]
-        out["part1_share_pct"] = np.where(out["raw_median"] > 0, out["part1_median"] / out["raw_median"] * 100, np.nan)
-        out["part2_share_pct"] = np.where(out["raw_median"] > 0, out["part2_median"] / out["raw_median"] * 100, np.nan)
-    return out.round(2)
-
-
 def make_trends_figure(summary: pd.DataFrame, sittings_by_year: pd.Series = None):
     fig = make_subplots(
         rows=2,
@@ -623,63 +235,15 @@ def make_box_by_year(df: pd.DataFrame, value_col: str, title: str):
     return fig
 
 
-def subtest_mean_table(df: pd.DataFrame, group_col: str, std=True):
-    if std:
-        cols = {
-            "Verbal": "NMS_VCss",
-            "Inductive": "NMS_IRss",
-            "Quantitative": "NMS_Qss",
-            "Perceptual": "NMS_PAss",
-            "Biology": "NMS_BIOss",
-            "Physics": "NMS_PHYss",
-            "Social": "NMS_SSCss",
-            "Chemistry": "NMS_CHEMss",
-        }
-    else:
-        cols = {
-            "Verbal": "Raw_Verbal",
-            "Inductive": "Raw_InductiveReasoning",
-            "Quantitative": "Raw_Quantitative",
-            "Perceptual": "Raw_PerceptualAcuity",
-            "Biology": "Raw_Biology",
-            "Physics": "Raw_Physics",
-            "Social": "Raw_SocialScience",
-            "Chemistry": "Raw_Chemistry",
-        }
-
-    available = {k: v for k, v in cols.items() if v in df.columns}
-    if not available:
-        return pd.DataFrame()
-    out = df.groupby(group_col, observed=True)[list(available.values())].mean().round(2)
-    out.columns = list(available.keys())
-    return out
-
-
-def radar_for_group(df: pd.DataFrame, group_col: str):
-    table = subtest_mean_table(df, group_col, std=True)
-    if table.empty:
-        return go.Figure(), table
-    fig = go.Figure()
-    categories = list(table.columns)
-    if not categories:
-        return fig, table
-    for grp in table.index:
-        values = table.loc[grp, categories].fillna(0).tolist()
-        if not values:
-            continue
-        fig.add_trace(go.Scatterpolar(
-            r=values + [values[0]],
-            theta=categories + [categories[0]],
-            fill="toself",
-            name=str(grp)
-        ))
-    fig.update_layout(title=f"Subtest Profile by {group_col}", height=520)
-    return fig, table
-
 
 # -----------------------------------------------------------------------------
 # LOAD
 # -----------------------------------------------------------------------------
+@st.cache_data(show_spinner="Loading NMAT data ...")
+def load_data_and_subsets():
+    return mc.load_data_and_subsets()
+
+
 df_raw, subsets, data_path = load_data_and_subsets()
 
 # Schema-drift sanity check: the pipeline regenerates this parquet in place, so a silent shape
@@ -728,7 +292,7 @@ st.sidebar.caption(f"Source file: {data_path}")
 with concurrent.futures.ThreadPoolExecutor() as executor:
     future_to_name = {
         executor.submit(
-            filter_df,
+            mc.filter_df,
             df,
             years=selected_years,
             unitypes=selected_unitypes,
@@ -786,6 +350,28 @@ read as a statement about any medical school's teaching quality or licensure-exa
         """
     )
 
+with st.expander("Export Complete Dashboard", expanded=False):
+    st.caption(
+        "Download a complete Markdown copy of all 13 tabs, charts, tables, and notes as data. "
+        "This export always uses the FULL, UNFILTERED dataset (not the sidebar filters currently "
+        "applied above) so the document is a complete, reproducible picture of the pipeline output."
+    )
+
+    if st.button("Generate & Download", use_container_width=True, key="btn_generate_export"):
+        with st.spinner("Generating markdown export..."):
+            _md = build_full_markdown(df_raw, subsets)
+            st.session_state["_md_export"] = _md
+        st.success("Export generated. Click below to download.")
+
+    if "_md_export" in st.session_state:
+        st.download_button(
+            label="Download Complete Dashboard (Markdown)",
+            data=st.session_state["_md_export"],
+            file_name="NMAT_Main_Dashboard_Complete.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
+
 (
     tab1, tab2, tab3, tab4, tab5, tab6,
     tab7, tab8, tab9, tab10, tab11, tab12, tab13,
@@ -818,18 +404,18 @@ with tab1:
     # Exactly one examinee-count KPI: IS_BEST_NMAT_RECORD is one row per PERSON_KEY system-wide,
     # so len(base) == base['PERSON_KEY'].nunique() by construction -- do not show both as if they
     # could disagree (that was the old F10 defect; the old two-KPI framing implied they might not).
+    _t1_kpis = mc.compute_tab1_kpis(base, observable, F["trend"])
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Examinees (best-record)", f"{len(base):,}", help="One row per unique PERSON_KEY: the person's single best NMAT attempt under the current filters.")
-    col2.metric("Years covered", f"{base['Year'].nunique():,}", help="Distinct NMAT years represented after filters are applied.")
-    col3.metric("Median TRUE raw score", f"{base['TotalRawScoreTRUE'].median():.1f}", help="Median of TotalRawScoreTRUE in the filtered best-record trend cohort.")
-    col4.metric("Median percentile rank", f"{base['NMS_PER_num'].median():.1f}", help="Median of NMS_PER_num in the filtered best-record trend cohort.")
+    col1.metric("Examinees (best-record)", f"{_t1_kpis['n_best']:,}", help="One row per unique PERSON_KEY: the person's single best NMAT attempt under the current filters.")
+    col2.metric("Years covered", f"{_t1_kpis['n_years']:,}", help="Distinct NMAT years represented after filters are applied.")
+    col3.metric("Median TRUE raw score", f"{_t1_kpis['median_raw']:.1f}", help="Median of TotalRawScoreTRUE in the filtered best-record trend cohort.")
+    col4.metric("Median percentile rank", f"{_t1_kpis['median_pct']:.1f}", help="Median of NMS_PER_num in the filtered best-record trend cohort.")
 
     col1, col2, col3, col4 = st.columns(4)
-    _repeat_n = (F['trend'].groupby('PERSON_KEY')['APPNO_CLEAN'].nunique() > 1).sum()
-    col1.metric("Repeat takers", f"{_repeat_n:,}", help="People with more than one distinct NMAT application (APPNO_CLEAN) linked to the same PERSON_KEY, counted over all sittings, not the best-record cohort.")
-    col2.metric("Repeat-taker share", f"{_repeat_n / base['PERSON_KEY'].nunique() * 100:.1f}%" if base['PERSON_KEY'].nunique() else "N/A", help="Repeat takers as a share of examinees in this KPI row's cohort.")
-    col3.metric("Observable cohort (IS_BEST_OBSERVABLE_RECORD)", f"{len(observable):,}", help="One row per person: their best attempt among sittings with Year <= 2014. Used for all person-level PLE-linked pages.")
-    col4.metric("PLE linkage rate, observable cohort", f"{observable['HAS_CONFIRMED_PLE'].mean() * 100:.2f}%", help="Share of the observable cohort found in the PLE passer source list (IS_PLE_PASSER). This is a LINKAGE rate, not a pass rate -- see 'Read this first' above.")
+    col1.metric("Repeat takers", f"{_t1_kpis['n_repeat']:,}", help="People with more than one distinct NMAT application (APPNO_CLEAN) linked to the same PERSON_KEY, counted over all sittings, not the best-record cohort.")
+    col2.metric("Repeat-taker share", f"{_t1_kpis['repeat_share_pct']:.1f}%" if _t1_kpis['repeat_share_pct'] is not None else "N/A", help="Repeat takers as a share of examinees in this KPI row's cohort.")
+    col3.metric("Observable cohort (IS_BEST_OBSERVABLE_RECORD)", f"{_t1_kpis['n_observable']:,}", help="One row per person: their best attempt among sittings with Year <= 2014. Used for all person-level PLE-linked pages.")
+    col4.metric("PLE linkage rate, observable cohort", f"{_t1_kpis['ple_linkage_pct']:.2f}%" if _t1_kpis['ple_linkage_pct'] is not None else "N/A", help="Share of the observable cohort found in the PLE passer source list (IS_PLE_PASSER). This is a LINKAGE rate, not a pass rate -- see 'Read this first' above.")
 
     st.markdown("""
     📚 **Course Group Distribution**
@@ -853,8 +439,8 @@ with tab1:
             "The volume panel shows best-record examinees alongside total sittings (all attempts, undeduped) "
             "because a repeat taker's earlier attempts are otherwise invisible in the year they occurred."
         )
-        summary = get_yearly_summary(base)
-        _sittings_by_year = F["trend"].groupby("Year", observed=True)["APPNO_CLEAN"].count()
+        summary = mc.get_yearly_summary(base)
+        _sittings_by_year = mc.compute_sittings_by_year(F["trend"])
         st.plotly_chart(make_trends_figure(summary, _sittings_by_year), use_container_width=True, key="fig_t1_trends")
 
     with exec_tab2:
@@ -862,39 +448,20 @@ with tab1:
         with c1:
             st.markdown("**Figure 2. Course-group composition of best-record examinees**")
             st.caption("Values are counts of filtered best-record examinees by category.")
-            course_dist = base["UNDERGRAD_COURSE_GROUP"].value_counts().rename_axis("UNDERGRAD_COURSE_GROUP").reset_index(name="Count")
+            course_dist = mc.compute_composition(base, "UNDERGRAD_COURSE_GROUP")
             fig = px.pie(course_dist, names="UNDERGRAD_COURSE_GROUP", values="Count")
             st.plotly_chart(fig, use_container_width=True, key="fig_t1_course_pie")
         with c2:
             st.markdown("**Figure 3. University-type composition of best-record examinees**")
             st.caption("Percent shares refer to the current filtered cohort only.")
-            uni_dist = base["UNDERGRAD_UNI_TYPE"].value_counts().rename_axis("UNDERGRAD_UNI_TYPE").reset_index(name="Count")
+            uni_dist = mc.compute_composition(base, "UNDERGRAD_UNI_TYPE")
             fig = px.pie(uni_dist, names="UNDERGRAD_UNI_TYPE", values="Count")
             st.plotly_chart(fig, use_container_width=True, key="fig_t1_uni_pie")
 
     with exec_tab3:
-        top_bin = base["PercentileBin"].isin(["B8", "B9", "B10"]).mean() * 100
-        bottom_bin = base["PercentileBin"].isin(["B1", "B2", "B3"]).mean() * 100
         st.markdown("**Table 1. Executive summary indicators**")
         st.caption("This table reports central score levels and the shares of examinees in the upper and lower bins. Top-bin share refers to B8-B10, while bottom-bin share refers to B1-B3.")
-        summary_tbl = pd.DataFrame({
-            "Indicator": [
-                "Median Total Raw Score",
-                "Median Part I Raw Score",
-                "Median Part II Raw Score",
-                "Median Percentile Rank",
-                "Top-bin share (B8-B10)",
-                "Bottom-bin share (B1-B3)",
-            ],
-            "Value": [
-                round(base["TotalRawScoreTRUE"].median(), 2),
-                round(base["PartIRawScoreTRUE"].median(), 2),
-                round(base["PartIIRawScoreTRUE"].median(), 2),
-                round(base["NMS_PER_num"].median(), 2),
-                round(top_bin, 2),
-                round(bottom_bin, 2),
-            ]
-        })
+        summary_tbl = mc.compute_tab1_summary_table(base)
         st.dataframe(summary_tbl, use_container_width=True)
 
 # -----------------------------------------------------------------------------
@@ -909,11 +476,12 @@ with tab2:
     plepasser_filtered = F["plepasser"]
     plepasserbest_filtered = F["plepasserbest"]
 
+    _t2_kpis = mc.compute_tab2_kpis(df, best_filtered, best_observable_filtered)
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("All NMAT rows", f"{len(df):,}", help="All cleaned NMAT_Exodus rows that are loaded into the app.")
-    col2.metric("Best-record rows", f"{len(best_filtered):,}", help="Number of best-record rows in the pipeline (one per examinee after best-record flag applied).")
-    col3.metric("Rows with TRUE raw scores", f"{int((df['HasTRUErawScores'] == True).sum()):,}", help="Rows where HasTRUErawScores == True.")
-    col4.metric("Observable best-record rows (IS_BEST_OBSERVABLE_RECORD)", f"{len(best_observable_filtered):,}", help="One row per person: their best NMAT attempt among sittings with Year <= 2014. This is the only correct person-level PLE-linked cohort -- it is NOT the same as 'best-record & Year<=2014' (see caption below).")
+    col1.metric("All NMAT rows", f"{_t2_kpis['n_all']:,}", help="All cleaned NMAT_Exodus rows that are loaded into the app.")
+    col2.metric("Best-record rows", f"{_t2_kpis['n_best']:,}", help="Number of best-record rows in the pipeline (one per examinee after best-record flag applied).")
+    col3.metric("Rows with TRUE raw scores", f"{_t2_kpis['n_true_raw']:,}", help="Rows where HasTRUErawScores == True.")
+    col4.metric("Observable best-record rows (IS_BEST_OBSERVABLE_RECORD)", f"{_t2_kpis['n_best_observable']:,}", help="One row per person: their best NMAT attempt among sittings with Year <= 2014. This is the only correct person-level PLE-linked cohort -- it is NOT the same as 'best-record & Year<=2014' (see caption below).")
 
     st.subheader("Table 2. Analysis cohorts used in the dashboard")
     st.caption(
@@ -924,41 +492,12 @@ with tab2:
         "people whose single best NMAT sitting happened after 2014 even though they also sat, and could "
         "have been linked, within the observable window."
     )
-    cohort_tbl = pd.DataFrame({
-        "Analytic subset": [
-            "All cleaned NMAT rows",
-            "One best NMAT record per person",
-            "Best-record rows within 2006-2018",
-            "Best-record rows in the observable PLE window",
-            "Confirmed PLE-passer NMAT rows",
-            "Confirmed PLE-passer best-record persons",
-        ],
-        "Row count": [
-            len(F["all"]),
-            len(F["best"]),
-            len(F["besttrend"]),
-            len(F["bestobservable"]),
-            len(plepasser_filtered),
-            len(plepasserbest_filtered),
-        ],
-        "Interpretation": [
-            "Every cleaned NMAT sitting, any year, all applicants.",
-            "One row per unique PERSON_KEY -- their single best NMAT attempt (highest percentile, latest year, lowest APPNO_CLEAN tiebreak).",
-            "Best-record rows restricted to NMAT years 2006-2018 (the trend window).",
-            "One row per person: their best attempt among sittings with Year <= 2014 (IS_BEST_OBSERVABLE_RECORD) -- the correct PLE-linked person-level cohort.",
-            "All rows (any year) flagged IS_PLE_PASSER == True -- found in the PLE passer source list. This is a linkage flag, not evidence of failure for the rest.",
-            "Rows above further restricted to IS_BEST_NMAT_RECORD == True (one row per passer).",
-        ],
-    })
+    cohort_tbl = mc.compute_cohort_table(F)
     st.dataframe(cohort_tbl, use_container_width=True)
 
     st.subheader("Table 3. TRUE raw-score validation checks")
     st.caption("These checks confirm whether TRUE total raw score is internally consistent with its Part I and Part II components, and whether the stored-vs-derived mismatch flag remains zero.")
-    eq_mask = df[["TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE"]].notna().all(axis=1)
-    mismatch = (df.loc[eq_mask, "TotalRawScoreTRUE"] - df.loc[eq_mask, "PartIRawScoreTRUE"] - df.loc[eq_mask, "PartIIRawScoreTRUE"]).round(6) != 0
-    _stored_nonnull = df["StoredRawTotal"].notna() if "StoredRawTotal" in df.columns else pd.Series(dtype=bool)
-    _mismatch_flag_n = count_true_flags(df["StoredVsDerivedMismatch"]) if "StoredVsDerivedMismatch" in df.columns else 0
-    _mismatch_rate_pct = (_mismatch_flag_n / _stored_nonnull.sum() * 100) if _stored_nonnull.sum() > 0 else float("nan")
+    _rv = mc.compute_raw_validation_checks(df)
     raw_tbl = pd.DataFrame({
         "Validation check": [
             "Rows with complete Total + Part I + Part II",
@@ -967,37 +506,21 @@ with tab2:
             "Stored-vs-derived mismatch flag count (of rows with a stored total)",
         ],
         "Count of rows": [
-            int(eq_mask.sum()),
-            int(mismatch.sum()),
-            int(_stored_nonnull.sum()),
-            int(_mismatch_flag_n),
+            _rv["eq_mask_n"],
+            _rv["mismatch_n"],
+            _rv["stored_nonnull_n"],
+            _rv["mismatch_flag_n"],
         ],
     })
     st.dataframe(raw_tbl, use_container_width=True)
+    _mismatch_rate_pct = _rv["mismatch_rate_pct"]
     st.metric("Stored-vs-derived mismatch rate (of rows with a stored total)", f"{_mismatch_rate_pct:.2f}%" if pd.notna(_mismatch_rate_pct) else "N/A")
     st.caption("Reference: 56,065 of the 99,316 rows carrying a stored total disagree with the recalculated TotalRawScoreTRUE (56.45% of that denominator, 31.33% of all rows) in the unfiltered dataset. Never state this as \"42.2%\" -- that figure divided the mismatch count by the wrong (unique-examinee) denominator.")
 
     st.subheader("Table 4. UNDERGRAD_UNIVERSITY to UNDERGRAD_UNI_TYPE / UNDERGRAD_UNI_LOCATION pairing audit")
     st.caption("Checks whether each standardized undergraduate-university name maps consistently to one university type and one location in the cleaned pipeline. This describes the examinee's undergraduate (pre-NMAT) institution, not a medical school.")
-    if "UNDERGRAD_UNIVERSITY" in df.columns:
-        university_pairing = (
-            df[["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]]
-            .dropna(subset=["UNDERGRAD_UNIVERSITY"])
-            .groupby("UNDERGRAD_UNIVERSITY", observed=True)
-            .agg(
-                records=("UNDERGRAD_UNI_TYPE", "size"),
-                n_uni_types=("UNDERGRAD_UNI_TYPE", "nunique"),
-                n_locations=("UNDERGRAD_UNI_LOCATION", "nunique"),
-                uni_types=("UNDERGRAD_UNI_TYPE", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x))))),
-                locations=("UNDERGRAD_UNI_LOCATION", lambda s: " | ".join(sorted(set(str(x) for x in s if pd.notna(x)))))
-            )
-            .reset_index()
-            .sort_values(["n_uni_types", "n_locations", "records"], ascending=[False, False, False])
-        )
-        pairing_conflicts = university_pairing[
-            (university_pairing["n_uni_types"] > 1) | (university_pairing["n_locations"] > 1)
-        ]
-
+    university_pairing, pairing_conflicts = mc.compute_university_pairing_audit(df)
+    if university_pairing is not None:
         c3, c4 = st.columns(2)
         c3.metric("Universities checked", f"{university_pairing.shape[0]:,}")
         c4.metric("University pairing conflicts", f"{pairing_conflicts.shape[0]:,}")
@@ -1012,10 +535,10 @@ with tab2:
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("**Table 6. Distribution of university type in the filtered rows**")
-        st.dataframe(df["UNDERGRAD_UNI_TYPE"].value_counts(dropna=False).rename_axis("UNDERGRAD_UNI_TYPE").reset_index(name="Count"), use_container_width=True)
+        st.dataframe(mc.compute_composition(df, "UNDERGRAD_UNI_TYPE", dropna=False), use_container_width=True)
     with c2:
         st.markdown("**Table 7. Distribution of course group in the filtered rows**")
-        st.dataframe(df["UNDERGRAD_COURSE_GROUP"].value_counts(dropna=False).rename_axis("UNDERGRAD_COURSE_GROUP").reset_index(name="Count"), use_container_width=True)
+        st.dataframe(mc.compute_composition(df, "UNDERGRAD_COURSE_GROUP", dropna=False), use_container_width=True)
     with c3:
         st.markdown("**Table 8. Distribution of PLE status label, observable cohort only**")
         st.caption(
@@ -1023,13 +546,12 @@ with tab2:
             "too recent to have a confirmed PLE outcome yet, so including them here would inflate the "
             "apparent 'no match' share as a recency artifact rather than a real linkage gap."
         )
-        _obs_status = df[df["IS_BOARD_OBSERVABLE_COHORT"] == True]
-        st.dataframe(_obs_status["PLE_STATUS_LABEL"].value_counts(dropna=False).rename_axis("PLE_STATUS_LABEL").reset_index(name="Count"), use_container_width=True)
-        _non_obs_n = int((df["IS_BOARD_OBSERVABLE_COHORT"] == False).sum())
-        _non_obs_pct = (_non_obs_n / len(df) * 100) if len(df) else 0.0
+        _status_counts, _non_obs_n, _non_obs_pct = mc.compute_ple_status_observable(df)
+        st.dataframe(_status_counts, use_container_width=True)
         st.caption(f"{_non_obs_n:,} of {len(df):,} filtered rows ({_non_obs_pct:.1f}%) are Year > 2014 and excluded from this table for that reason.")
 
-    if "PLE_MATCH_OUTCOME" in df.columns:
+    _outcome_tbl, _yr_uncertain_n = mc.compute_ple_match_outcome(df)
+    if _outcome_tbl is not None:
         st.subheader("Table 9. PLE match-outcome breakdown")
         st.caption(
             "IS_PLE_PASSER (the sole authoritative passer flag) is True only for PLE_MATCH_OUTCOME == "
@@ -1038,11 +560,8 @@ with tab2:
             "'rejected_ambiguous_person' means a candidate was found but the person-key match could not "
             "be disambiguated with confidence; a small residual 'rejected' bucket covers other rejections."
         )
-        _outcome_tbl = df["PLE_MATCH_OUTCOME"].value_counts(dropna=False).rename_axis("PLE_MATCH_OUTCOME").reset_index(name="Count")
-        _outcome_tbl["Percent"] = (_outcome_tbl["Count"] / _outcome_tbl["Count"].sum() * 100).round(2)
         st.dataframe(_outcome_tbl, use_container_width=True, hide_index=True)
-        if "PLE_YEAR_UNCERTAIN" in df.columns:
-            _yr_uncertain_n = count_true_flags(df["PLE_YEAR_UNCERTAIN"])
+        if _yr_uncertain_n is not None:
             st.caption(f"Additionally, {_yr_uncertain_n:,} confirmed passers have PLE_YEAR_UNCERTAIN == True: they are counted in IS_PLE_PASSER, but the specific year they passed could not be disambiguated (affects PLE_YEAR_GAP-based analyses, not the passer count itself).")
 
 # -----------------------------------------------------------------------------
@@ -1052,7 +571,7 @@ with tab3:
     st.subheader("Performance Trends and Year-to-Year Stability")
     st.caption("This page summarizes how NMAT score levels and score distributions changed across test years using the filtered best-record trend cohort.")
     df = F["besttrend"]
-    summary = get_yearly_summary(df)
+    summary = mc.get_yearly_summary(df)
 
     st.markdown("**Figure 4. Annual score trends and examinee volume**")
     st.caption(
@@ -1062,7 +581,7 @@ with tab3:
         "(92.6%) -- a non-uniform pattern that can misread as a volume dip/surge if shown alone. "
         "The score/boxplot panels below inherit the same best-record-per-year composition caveat."
     )
-    _sittings_by_year_t3 = F["trend"].groupby("Year", observed=True)["APPNO_CLEAN"].count()
+    _sittings_by_year_t3 = mc.compute_sittings_by_year(F["trend"])
     st.plotly_chart(make_trends_figure(summary, _sittings_by_year_t3), use_container_width=True, key="fig_t3_trends")
 
     c1, c2 = st.columns(2)
@@ -1083,7 +602,7 @@ with tab3:
 
     st.markdown("**Table 9. Kruskal-Wallis tests for year-to-year score differences**")
     st.caption("This table tests whether score distributions differ significantly across NMAT years. Eta-squared is included as an effect-size indicator, so statistical significance is not mistaken for practical importance.")
-    ktable = kruskal_table(
+    ktable = mc.kruskal_table(
         df,
         "Year",
         {
@@ -1109,7 +628,7 @@ with tab4:
 
     with dec_tab1:
         st.caption("Use this tab to see whether later cohorts became more concentrated in higher bins, lower bins, or the middle of the distribution.")
-        count, pct = pct_table(df, "Year", "PercentileBin", BIN_ORDER)
+        count, pct = mc.pct_table(df, "Year", "PercentileBin", BIN_ORDER)
         pct.index.name = "Year"
         # Transpose for deciles on y-axis, years on x-axis
         pct_transposed = pct.T
@@ -1132,11 +651,10 @@ with tab4:
         st.caption("This figure shows within-year percentile-bin composition (percent). B8-B10 is the upper segment and B1-B3 the lower segment.")
         st.plotly_chart(make_stacked_pct_bar(pct, "Bin Composition by Year", "Year", "Percent", BIN_COLORS), use_container_width=True, key="fig_t4_stacked_year")
 
-        top = pct[["B8", "B9", "B10"]].sum(axis=1)
-        bottom = pct[["B1", "B2", "B3"]].sum(axis=1)
+        _topbot_year = mc.compute_top_bottom_by(pct)
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=top.index.astype(str), y=top.values, mode="lines+markers", name="Top B8-B10", line=dict(color="#2e7d32", width=3)))
-        fig.add_trace(go.Scatter(x=bottom.index.astype(str), y=bottom.values, mode="lines+markers", name="Bottom B1-B3", line=dict(color="#c62828", width=3)))
+        fig.add_trace(go.Scatter(x=_topbot_year["Year"], y=_topbot_year["Top B8-B10 (%)"], mode="lines+markers", name="Top B8-B10", line=dict(color="#2e7d32", width=3)))
+        fig.add_trace(go.Scatter(x=_topbot_year["Year"], y=_topbot_year["Bottom B1-B3 (%)"], mode="lines+markers", name="Bottom B1-B3", line=dict(color="#c62828", width=3)))
         fig.update_layout(title="Top vs Bottom Bin Share by Year", xaxis_title="Year", yaxis_title="Percent", height=420)
         st.markdown("**Figure 7. Top-bin versus bottom-bin share by NMAT year**")
         st.caption("This chart compares combined B8-B10 (top) versus B1-B3 (bottom) shares by year.")
@@ -1144,7 +662,7 @@ with tab4:
 
     with dec_tab2:
         st.caption("Insight: Compare which university types are overrepresented in higher bins.")
-        _, uni_pct = pct_table(dfuni, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
+        _, uni_pct = mc.pct_table(dfuni, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
         uni_pct.index.name = "UNDERGRAD_UNI_TYPE"
         st.markdown("**Figure 8. Percentile-bin distribution by university type**")
         st.caption("Heatmap values are within-type percentages.")
@@ -1155,7 +673,7 @@ with tab4:
         st.caption("The bar chart highlights representation in the top three bins (B8-B10) by university type.")
         st.plotly_chart(make_top_share_bar(top_uni, "Top Bin Share by University Type", "Percent in B8-B10", "University type", PALETTE_UNI), use_container_width=True, key="fig_t4_top_uni")
 
-        contingency, expected, chi_summary = chi_square_unitype_bin(dfuni.dropna(subset=["UNDERGRAD_UNI_TYPE", "PercentileBin"]))
+        contingency, expected, chi_summary = mc.chi_square_unitype_bin(dfuni.dropna(subset=["UNDERGRAD_UNI_TYPE", "PercentileBin"]))
         st.markdown("**Table 11. Chi-square test for association between university type and percentile bin**")
         st.caption("The chi-square table tests whether bin composition differs by university type beyond random variation.")
         st.dataframe(chi_summary, use_container_width=True)
@@ -1164,30 +682,12 @@ with tab4:
         st.subheader("Bin distribution per year by university type")
         st.caption("Each facet shows one university type. Bars are stacked by percentile bin so you can see how Foreign, Public, and Private examinees are distributed each year.")
 
-        _dq_con = duckdb.connect()
-        _dq_con.register("_yr_uni_src", dfuni)
-        _yr_uni_dec = _dq_con.execute("""
-            SELECT
-                CAST(Year AS INTEGER) AS Year,
-                UNDERGRAD_UNI_TYPE,
-                PercentileBin,
-                COUNT(*) AS n
-            FROM _yr_uni_src
-            WHERE UNDERGRAD_UNI_TYPE IN ('Public', 'Private', 'Foreign')
-              AND PercentileBin IS NOT NULL
-              AND Year IS NOT NULL
-            GROUP BY Year, UNDERGRAD_UNI_TYPE, PercentileBin
-            ORDER BY Year, UNDERGRAD_UNI_TYPE, PercentileBin
-        """).df()
-        _dq_con.close()
+        _yr_uni_dec = mc.compute_bin_by_year_and_unitype(dfuni)
 
         if _yr_uni_dec.empty:
             st.info("No data available for this chart under the current filters.")
         else:
-            _yr_uni_dec["PercentileBin"] = pd.Categorical(
-                _yr_uni_dec["PercentileBin"], categories=BIN_ORDER, ordered=True
-            )
-            _yr_uni_dec = _yr_uni_dec.sort_values(["Year", "UNDERGRAD_UNI_TYPE", "PercentileBin"])
+            _yr_uni_dec = _yr_uni_dec.copy()
             _yr_uni_dec["Year"] = _yr_uni_dec["Year"].astype(str)
 
             _fig_yr_uni = px.bar(
@@ -1322,31 +822,24 @@ with tab4:
                 "(Settings > Clear Cache) and reload."
             )
         else:
-            _pc_base = _uniobs_pc[
-                (_uniobs_pc["PLE_STATUS_LABEL"] == "No confirmed PLE match")
-                & (_uniobs_pc["CITIZENSHIP_FINAL"].notna())
-            ].copy()
+            _cp = mc.compute_citizenship_profile(_uniobs_pc)
 
-            if _pc_base.empty:
+            if _cp.get("empty"):
                 st.info("No profiled no-PLE-match records match the current filters.")
             else:
-                _pc_foreigners = int((_pc_base["FOREIGNER_STATUS"] == "Verified Foreigner").sum())
-                _pc_filipinos = int((_pc_base["CITIZENSHIP_FINAL"] == "Filipino").sum())
-                _pc_distinct = int(_pc_base["CITIZENSHIP_FINAL"].nunique())
+                _pc_base = _cp["records"]
+                _pc_foreigners = _cp["kpis"]["n_foreigners"]
+                _pc_filipinos = _cp["kpis"]["n_filipinos"]
+                _pc_distinct = _cp["kpis"]["n_distinct"]
 
                 _pm1, _pm2, _pm3, _pm4 = st.columns(4)
-                _pm1.metric("Profiled no-PLE-match records", f"{len(_pc_base):,}")
+                _pm1.metric("Profiled no-PLE-match records", f"{_cp['kpis']['n_profiled']:,}")
                 _pm2.metric("Foreigners", f"{_pc_foreigners:,}")
                 _pm3.metric("Filipinos", f"{_pc_filipinos:,}")
                 _pm4.metric("Distinct citizenship labels", f"{_pc_distinct:,}")
 
                 # -- citizenship counts (reused in multiple charts) ----------
-                _pc_counts = (
-                    _pc_base["CITIZENSHIP_FINAL"]
-                    .value_counts()
-                    .reset_index()
-                )
-                _pc_counts.columns = ["CITIZENSHIP_FINAL", "n"]
+                _pc_counts = _cp["counts"]
 
                 # Pie charts side-by-side -------------------------------------
                 _pp1, _pp2 = st.columns(2)
@@ -1401,11 +894,9 @@ with tab4:
 
                 # Stacked % bar: decile composition by citizenship ------------
                 st.markdown("**Bin composition by citizenship (top 15 groups)**")
-                _pc_top_grps = _pc_counts.head(15)["CITIZENSHIP_FINAL"].tolist()
-                _pc_dec_base = _pc_base[_pc_base["CITIZENSHIP_FINAL"].isin(_pc_top_grps)].copy()
-                if not _pc_dec_base.empty and "PercentileBin" in _pc_dec_base.columns:
-                    _, _pc_dec_pct = pct_table(_pc_dec_base, "CITIZENSHIP_FINAL", "PercentileBin", BIN_ORDER)
-                    _pc_dec_pct.index.name = "CITIZENSHIP_FINAL"
+                _pc_top_grps = _cp["top15"]
+                _pc_dec_pct = _cp["bin_dist_top15"]
+                if _pc_dec_pct is not None:
                     _fig_pc_dec = make_stacked_pct_bar(
                         _pc_dec_pct,
                         "Bin composition by citizenship",
@@ -1439,18 +930,8 @@ with tab4:
                 with _pb1:
                     st.markdown("**Top-bin share (B8-B10) by citizenship**")
                     if "PercentileBin" in _pc_base.columns:
-                        _pc_top_dec = (
-                            _pc_base
-                            .assign(_is_top=_pc_base["PercentileBin"].isin(["B8", "B9", "B10"]))
-                            .groupby("CITIZENSHIP_FINAL", observed=True)
-                            .agg(n=("_is_top", "size"), top_n=("_is_top", "sum"))
-                            .reset_index()
-                        )
-                        _pc_top_dec["top_dec_pct"] = (
-                            _pc_top_dec["top_n"] / _pc_top_dec["n"].replace(0, np.nan) * 100
-                        ).fillna(0).round(1)
-                        _pc_top_dec = _pc_top_dec[_pc_top_dec["n"] >= 3].sort_values("top_dec_pct")
-                        if not _pc_top_dec.empty:
+                        _pc_top_dec = _cp["topbin_share"]
+                        if _pc_top_dec is not None and not _pc_top_dec.empty:
                             _fig_pc_topdec = go.Figure(go.Bar(
                                 x=_pc_top_dec["top_dec_pct"],
                                 y=_pc_top_dec["CITIZENSHIP_FINAL"],
@@ -1506,79 +987,22 @@ with tab4:
 
                 # -- Summary tables --------------------------------------------
                 st.markdown("**Summary by citizenship**")
-                _pc_base["_is_top_d"] = _pc_base["PercentileBin"].isin(["B8", "B9", "B10"]) if "PercentileBin" in _pc_base.columns else False
-                _pc_base["_is_bot_d"] = _pc_base["PercentileBin"].isin(["B1", "B2", "B3"]) if "PercentileBin" in _pc_base.columns else False
-                _pc_summary = (
-                    _pc_base
-                    .groupby("CITIZENSHIP_FINAL", observed=True)
-                    .agg(
-                        n_examinees=("APPNO_CLEAN", "count"),
-                        median_percentile_rank=("NMS_PER_num", "median"),
-                        median_true_raw_score=("TotalRawScoreTRUE", "median"),
-                        top_decile_n=("_is_top_d", "sum"),
-                        bottom_decile_n=("_is_bot_d", "sum"),
-                    )
-                    .round(2)
-                    .reset_index()
-                )
-                _pc_summary["top_decile_pct"] = (
-                    _pc_summary["top_decile_n"] / _pc_summary["n_examinees"].replace(0, np.nan) * 100
-                ).fillna(0).round(2)
-                _pc_summary["bottom_decile_pct"] = (
-                    _pc_summary["bottom_decile_n"] / _pc_summary["n_examinees"].replace(0, np.nan) * 100
-                ).fillna(0).round(2)
-                _pc_summary["top_decile_n"] = _pc_summary["top_decile_n"].astype(int)
-                _pc_summary["bottom_decile_n"] = _pc_summary["bottom_decile_n"].astype(int)
-                _pc_summary = _pc_summary[
-                    ["CITIZENSHIP_FINAL", "n_examinees", "median_percentile_rank",
-                     "median_true_raw_score", "top_decile_n", "top_decile_pct",
-                     "bottom_decile_n", "bottom_decile_pct"]
-                ].sort_values(["n_examinees", "median_percentile_rank"], ascending=[False, False])
-                st.dataframe(_pc_summary, use_container_width=True, hide_index=True)
+                st.dataframe(_cp["summary"], use_container_width=True, hide_index=True)
 
                 _pt1, _pt2 = st.columns(2)
                 with _pt1:
                     st.markdown("**Summary by citizenship and university type**")
-                    if "UNDERGRAD_UNI_TYPE" in _pc_base.columns:
-                        _pc_uni_sum = (
-                            _pc_base
-                            .groupby(["CITIZENSHIP_FINAL", "UNDERGRAD_UNI_TYPE"], observed=True)
-                            .agg(
-                                n=("APPNO_CLEAN", "count"),
-                                median_percentile_rank=("NMS_PER_num", "median"),
-                                median_true_raw_score=("TotalRawScoreTRUE", "median"),
-                            )
-                            .round(2)
-                            .reset_index()
-                        )
-                        st.dataframe(_pc_uni_sum, use_container_width=True, hide_index=True)
+                    if _cp["by_unitype"] is not None:
+                        st.dataframe(_cp["by_unitype"], use_container_width=True, hide_index=True)
 
                 with _pt2:
                     st.markdown("**Summary by citizenship and course group**")
-                    if "UNDERGRAD_COURSE_GROUP" in _pc_base.columns:
-                        _pc_course_sum = (
-                            _pc_base
-                            .groupby(["CITIZENSHIP_FINAL", "UNDERGRAD_COURSE_GROUP"], observed=True)
-                            .agg(
-                                n=("APPNO_CLEAN", "count"),
-                                median_percentile_rank=("NMS_PER_num", "median"),
-                                median_true_raw_score=("TotalRawScoreTRUE", "median"),
-                            )
-                            .round(2)
-                            .reset_index()
-                        )
-                        st.dataframe(_pc_course_sum, use_container_width=True, hide_index=True)
+                    if _cp["by_course"] is not None:
+                        st.dataframe(_cp["by_course"], use_container_width=True, hide_index=True)
 
                 st.markdown("**Year distribution by citizenship**")
-                if "Year" in _pc_base.columns:
-                    _pc_year_tbl = (
-                        _pc_base
-                        .groupby(["CITIZENSHIP_FINAL", "Year"], observed=True)
-                        .size()
-                        .unstack(fill_value=0)
-                    )
-                    _pc_year_tbl.index.name = "CITIZENSHIP_FINAL"
-                    st.dataframe(_pc_year_tbl.reset_index(), use_container_width=True, hide_index=True)
+                if _cp["by_year"] is not None:
+                    st.dataframe(_cp["by_year"], use_container_width=True, hide_index=True)
 
                 st.markdown("**Matched no-PLE-match records with citizenship**")
                 _pc_rec_cols = [c for c in [
@@ -1618,43 +1042,12 @@ with tab4:
                     "linkage-rate differences below cannot be attributed to medical-school quality."
                 )
 
-                _cmp_parts = []
+                _cmp = mc.compute_comparative_groups(_uniobs_pc, F["bestobservable"])
 
-                _g_for = _uniobs_pc[_uniobs_pc["FOREIGNER_STATUS"] == "Verified Foreigner"].copy()
-                if not _g_for.empty:
-                    _g_for["_cmp_group"] = "Foreigners (non-Filipino)"
-                    _cmp_parts.append(_g_for)
-
-                _g_fil_for = _uniobs_pc[
-                    (_uniobs_pc["CITIZENSHIP_FINAL"] == "Filipino") &
-                    (_uniobs_pc["UNDERGRAD_UNI_TYPE"] == "Foreign")
-                ].copy()
-                if not _g_fil_for.empty:
-                    _g_fil_for["_cmp_group"] = "Filipinos (foreign undergrad)"
-                    _cmp_parts.append(_g_fil_for)
-
-                _g_pub = F["bestobservable"][F["bestobservable"]["UNDERGRAD_UNI_TYPE"] == "Public"].copy()
-                if not _g_pub.empty:
-                    _g_pub["_cmp_group"] = "Filipinos (public undergrad)"
-                    _cmp_parts.append(_g_pub)
-
-                _g_prv = F["bestobservable"][F["bestobservable"]["UNDERGRAD_UNI_TYPE"] == "Private"].copy()
-                if not _g_prv.empty:
-                    _g_prv["_cmp_group"] = "Filipinos (private undergrad)"
-                    _cmp_parts.append(_g_prv)
-
-                if not _cmp_parts:
+                if _cmp is None:
                     st.info("No comparative data available under the current filters. Ensure Public and/or Private university types are included.")
                 else:
-                    _cmp_score_cols = [
-                        "_cmp_group", "NMS_PER_num", "TotalRawScoreTRUE",
-                        "PartIRawScoreTRUE", "PartIIRawScoreTRUE",
-                        "PercentileBin", "HAS_CONFIRMED_PLE",
-                    ]
-                    _cmp_df = pd.concat(
-                        [p[[c for c in _cmp_score_cols if c in p.columns]] for p in _cmp_parts],
-                        ignore_index=True,
-                    )
+                    _cmp_df = _cmp["cmp_df"]
 
                     # Summary table -------------------------------------------
                     st.markdown("**Summary: key score indicators by comparison group**")
@@ -1665,30 +1058,7 @@ with tab4:
                         "Verified-foreigner linkage in the observable cohort is low (~2.5%) but not "
                         "exactly 0%, mainly because foreign nationals rarely sit Philippine licensure exams."
                     )
-                    _cmp_agg = (
-                        _cmp_df.groupby("_cmp_group", observed=True)
-                        .agg(
-                            n=("NMS_PER_num", "count"),
-                            median_percentile_rank=("NMS_PER_num", "median"),
-                            q25_pct=("NMS_PER_num", lambda x: x.quantile(0.25)),
-                            q75_pct=("NMS_PER_num", lambda x: x.quantile(0.75)),
-                            median_raw_score=("TotalRawScoreTRUE", "median"),
-                        )
-                        .round(2)
-                        .reset_index()
-                        .rename(columns={"_cmp_group": "Group"})
-                    )
-                    if "HAS_CONFIRMED_PLE" in _cmp_df.columns:
-                        _cmp_df["_ple_num"] = (_cmp_df["HAS_CONFIRMED_PLE"] == True).astype(float)
-                        _ple_rates = (
-                            _cmp_df.groupby("_cmp_group", observed=True)["_ple_num"]
-                            .mean()
-                            .mul(100)
-                            .round(2)
-                            .reset_index()
-                            .rename(columns={"_cmp_group": "Group", "_ple_num": "PLE linkage rate %"})
-                        )
-                        _cmp_agg = _cmp_agg.merge(_ple_rates, on="Group", how="left")
+                    _cmp_agg = _cmp["agg"]
                     st.dataframe(_cmp_agg, use_container_width=True, hide_index=True)
 
                     # Boxplots -------------------------------------------------
@@ -1726,15 +1096,8 @@ with tab4:
                             st.plotly_chart(_fig_cmp_raw, use_container_width=True, key="fig_cmp_raw_box")
 
                     # Full bin heatmap -----------------------------------------
-                    if "PercentileBin" in _cmp_df.columns:
-                        _cmp_bin_cnt, _cmp_bin_pct = pct_table(
-                            _cmp_df.dropna(subset=["_cmp_group", "PercentileBin"]),
-                            "_cmp_group",
-                            "PercentileBin",
-                            BIN_ORDER,
-                        )
-                        _cmp_bin_pct.index.name = "_cmp_group"
-
+                    _cmp_bin_pct = _cmp["bin_pct"]
+                    if _cmp_bin_pct is not None:
                         st.markdown("**Full bin heatmap: foreigners vs Filipino groups (all bins B1-B10)**")
                         st.caption(
                             "Row percentages show the full distribution of each group across all ten "
@@ -1768,11 +1131,7 @@ with tab4:
 
                         # Top vs bottom grouped bar
                         st.markdown("**Top-bin (B8-B10) vs bottom-bin (B1-B3) share by group**")
-                        _cmp_topbot = pd.DataFrame({
-                            "Group": _cmp_bin_pct.index.tolist(),
-                            "Top B8-B10 (%)": _cmp_bin_pct[["B8", "B9", "B10"]].sum(axis=1).values,
-                            "Bottom B1-B3 (%)": _cmp_bin_pct[["B1", "B2", "B3"]].sum(axis=1).values,
-                        })
+                        _cmp_topbot = _cmp["topbot"]
                         _cmp_topbot_long = _cmp_topbot.melt(
                             id_vars="Group", var_name="Segment", value_name="Percent"
                         )
@@ -1801,7 +1160,7 @@ with tab4:
 
     with dec_tab3:
         st.caption("Insight: Compare bin profiles across pre-med backgrounds.")
-        _, course_pct = pct_table(df, "UNDERGRAD_COURSE_GROUP", "PercentileBin", BIN_ORDER)
+        _, course_pct = mc.pct_table(df, "UNDERGRAD_COURSE_GROUP", "PercentileBin", BIN_ORDER)
         course_pct.index.name = "UNDERGRAD_COURSE_GROUP"
         st.markdown("**Figure 10. Percentile-bin distribution by course group**")
         st.caption("Heatmap values are within-course-group percentages.")
@@ -1812,12 +1171,7 @@ with tab4:
         st.caption("The bar chart highlights representation in the top three bins by course group.")
         st.plotly_chart(make_top_share_bar(top_course, "Top Bin Share by Course Group", "Percent in B8-B10", "Course group", PALETTE_COURSE), use_container_width=True, key="fig_t4_top_course")
 
-        course_desc = (
-            df.groupby("UNDERGRAD_COURSE_GROUP", observed=True)["NMS_PER_num"]
-            .agg(n="count", median="median", q25=lambda x: x.quantile(0.25), q75=lambda x: x.quantile(0.75))
-            .round(2)
-            .reset_index()
-        )
+        course_desc = mc.compute_percentile_summary_by(df, "UNDERGRAD_COURSE_GROUP")
         st.markdown("**Table 12. Percentile summary by course group**")
         st.caption("Values show sample size, median percentile rank, and interquartile range for each course group.")
         st.dataframe(course_desc, use_container_width=True)
@@ -1841,17 +1195,14 @@ with tab5:
         st.info("No university-type records are available under the current filters.")
     else:
         st.caption("Insight: This page follows the institutional comparison subset (Public, Private, Foreign) from the analysis pipeline. This describes the examinee's undergraduate (pre-NMAT) institution, not a medical school.")
-        type_loc = uni_type_base.groupby(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"], observed=True).size().reset_index(name="Count")
-        type_loc["Percent of total"] = (type_loc["Count"] / type_loc["Count"].sum() * 100).round(2)
+        type_loc = mc.compute_unitype_location_mix(uni_type_base)
         st.markdown("**Table 13. Institution type by location mix**")
         st.caption(f"Values show counts and percentages of {len(uni_type_base):,} examinees within each institutional classification (does not require a percentile bin).")
-        st.dataframe(type_loc.sort_values(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION"]), use_container_width=True)
+        st.dataframe(type_loc, use_container_width=True)
 
         st.markdown("**Table 14. Institution type by location matrix**")
         st.caption("Row percentages describe the location mix within each university type. Column percentages show composition within each location.")
-        inst_count = pd.crosstab(uni_type_base["UNDERGRAD_UNI_TYPE"], uni_type_base["UNDERGRAD_UNI_LOCATION"], margins=True)
-        inst_pct_row = (pd.crosstab(uni_type_base["UNDERGRAD_UNI_TYPE"], uni_type_base["UNDERGRAD_UNI_LOCATION"], normalize="index") * 100).round(2)
-        inst_pct_col = (pd.crosstab(uni_type_base["UNDERGRAD_UNI_TYPE"], uni_type_base["UNDERGRAD_UNI_LOCATION"], normalize="columns") * 100).round(2)
+        inst_count, inst_pct_row, inst_pct_col = mc.compute_unitype_location_crosstab(uni_type_base)
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**Counts (with totals)**")
@@ -1862,18 +1213,10 @@ with tab5:
             st.markdown("**Column percentages: within UNDERGRAD_UNI_LOCATION**")
             st.dataframe(inst_pct_col, use_container_width=True)
 
-        inst_decile = (
-            uni_base.dropna(subset=["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION", "PercentileBin"])
-            .groupby(["UNDERGRAD_UNI_TYPE", "UNDERGRAD_UNI_LOCATION", "PercentileBin"], observed=True)
-            .size()
-            .unstack(fill_value=0)
-            .reindex(columns=BIN_ORDER, fill_value=0)
-        )
-        if not inst_decile.empty:
+        inst_decile_pct = mc.compute_unitype_location_bin_dist(uni_base)
+        if not inst_decile_pct.empty:
             st.markdown("**Figure 12. Percentile-bin distribution by institution type and location**")
             st.caption("Each row in the heatmap is one institution type-location combination.")
-            inst_decile_pct = inst_decile.div(inst_decile.sum(axis=1).replace(0, np.nan), axis=0).mul(100).fillna(0).round(2)
-            inst_decile_pct.index = [f"{u} ({l})" for u, l in inst_decile_pct.index]
             st.plotly_chart(
                 make_heatmap(
                     inst_decile_pct,
@@ -1903,8 +1246,7 @@ with tab5:
 
         st.markdown("**Figure 14. Bin composition by university type**")
         st.caption("Stacked percentages sum to 100% within each university type.")
-        _, uni_decile_pct = pct_table(uni_base, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
-        uni_decile_pct.index.name = "UNDERGRAD_UNI_TYPE"
+        uni_decile_pct, uni_decile_summary = mc.compute_uni_bin_summary(uni_base)
         st.plotly_chart(
             make_stacked_pct_bar(
                 uni_decile_pct,
@@ -1917,28 +1259,25 @@ with tab5:
             key="fig_t5_stacked_uni",
         )
 
-        uni_decile_count, _ = pct_table(uni_base, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
-        uni_decile_summary = uni_decile_count.copy()
-        uni_decile_summary["Total students"] = uni_decile_summary.sum(axis=1)
-        uni_decile_summary = uni_decile_summary.reset_index()
         st.markdown("**Table 15. Bin counts by university type**")
         st.caption("Values show counts of examinees by bin within each university type.")
         st.dataframe(uni_decile_summary, use_container_width=True)
 
         st.markdown("**Table 16. Foreign examinee summary**")
         st.caption("Foreign examinees are shown separately because they are a small but policy-relevant subgroup.")
-        foreign = uni_base[uni_base["UNDERGRAD_UNI_TYPE"].eq("Foreign")].copy()
+        _fsum = mc.compute_foreign_summary(uni_base)
+        foreign = _fsum["foreign_df"]
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Foreign examinees", f"{len(foreign):,}")
-        c2.metric("% of total", f"{(len(foreign) / max(len(uni_base), 1) * 100):.2f}%")
-        c3.metric("Median percentile", f"{foreign['NMS_PER_num'].median():.1f}" if not foreign.empty else "n/a")
+        c1.metric("Foreign examinees", f"{_fsum['n_foreign']:,}")
+        c2.metric("% of total", f"{_fsum['pct_of_total']:.2f}%")
+        c3.metric("Median percentile", f"{_fsum['median_pct']:.1f}" if _fsum['median_pct'] is not None else "n/a")
         c4.metric(
             "Top bin %",
-            f"{(foreign['PercentileBin'].isin(['B8', 'B9', 'B10']).mean() * 100):.2f}%" if not foreign.empty else "n/a",
+            f"{_fsum['topbin_pct']:.2f}%" if _fsum['topbin_pct'] is not None else "n/a",
         )
 
         if not foreign.empty:
-            _, foreign_pct = pct_table(foreign, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
+            _, foreign_pct = mc.pct_table(foreign, "UNDERGRAD_UNI_TYPE", "PercentileBin", BIN_ORDER)
             foreign_pct.index.name = "UNDERGRAD_UNI_TYPE"
             st.markdown("**Figure 15. Bin distribution among foreign examinees**")
             st.caption("Values show counts and percentages for foreign examinees under the current filters.")
@@ -1956,16 +1295,7 @@ with tab5:
 
         st.markdown("**Figure 16. Medical and allied versus other courses by university type**")
         st.caption(f"Stacked percentages sum to 100% within each university type. Uses {len(uni_type_base):,} examinees (does not require a percentile bin).")
-        med_other = uni_type_base.copy()
-        med_other["Course bucket"] = np.where(med_other["UNDERGRAD_COURSE_GROUP"].eq("Medical & Allied"), "Medical & Allied", "Other Courses")
-        med_tbl = (
-            med_other.groupby(["UNDERGRAD_UNI_TYPE", "Course bucket"], observed=True)
-            .size()
-            .unstack(fill_value=0)
-            .reindex(columns=["Medical & Allied", "Other Courses"], fill_value=0)
-        )
-        med_pct = med_tbl.div(med_tbl.sum(axis=1).replace(0, np.nan), axis=0).mul(100).round(2)
-        med_pct.index.name = "UNDERGRAD_UNI_TYPE"
+        med_pct = mc.compute_course_bucket_by_unitype(uni_type_base)
         st.plotly_chart(
             make_stacked_pct_bar(
                 med_pct,
@@ -1982,13 +1312,7 @@ with tab5:
         st.markdown("**Table 17. University listings by university type**")
         st.caption(f"Each university listing shows the standardized university name, cleaned location, and applicant count, over {len(uni_type_base):,} examinees (does not require a percentile bin, so this includes applicants dropped from the bin-dependent charts above).")
         for uni_type in ["Public", "Private", "Foreign"]:
-            table = (
-                uni_type_base[uni_type_base["UNDERGRAD_UNI_TYPE"] == uni_type]
-                .groupby(["UNDERGRAD_UNIVERSITY", "UNDERGRAD_UNI_LOCATION"], observed=True)
-                .agg(total_applicants=("APPNO_CLEAN", "count"))
-                .reset_index()
-                .sort_values("total_applicants", ascending=False)
-            )
+            table = mc.compute_university_listing(uni_type_base, uni_type)
             with st.expander(f"{uni_type} Universities", expanded=False):
                 st.dataframe(table, use_container_width=True)
 
@@ -2008,7 +1332,7 @@ with tab6:
         st.caption("Insight: Compare how Public, Private, and Foreign flows distribute across bins.")
         st.markdown("**Figure 17. Flow from university type to percentile bin**")
         st.caption("Each flow width represents the count of examinees moving from university type to percentile bin.")
-        flow = make_flow(uni, "UNDERGRAD_UNI_TYPE", "PercentileBin", ["Public", "Private", "Foreign"], BIN_ORDER)
+        flow = mc.make_flow(uni, "UNDERGRAD_UNI_TYPE", "PercentileBin", ["Public", "Private", "Foreign"], BIN_ORDER)
         st.plotly_chart(
             make_sankey(flow, "UNDERGRAD_UNI_TYPE", "PercentileBin", "University Type to Bin", None, None),
             use_container_width=True,
@@ -2027,7 +1351,7 @@ with tab6:
             for c in ["Medical & Allied", "Natural Sciences", "Social & Behavioral Sciences", "Education", "Engineering & Technology", "Other"]
             if c in best["UNDERGRAD_COURSE_GROUP"].unique()
         ]
-        flow = make_flow(best, "UNDERGRAD_COURSE_GROUP", "PercentileBin", order, BIN_ORDER)
+        flow = mc.make_flow(best, "UNDERGRAD_COURSE_GROUP", "PercentileBin", order, BIN_ORDER)
         st.plotly_chart(
             make_sankey(flow, "UNDERGRAD_COURSE_GROUP", "PercentileBin", "Course Group to Bin", None, None),
             use_container_width=True,
@@ -2046,18 +1370,13 @@ with tab6:
         )
         st.markdown("**Figure 19. Flow from percentile bin to PLE status in the observable cohort**")
         st.caption("Bin-to-PLE flow uses only the observable best-record cohort (IS_BEST_OBSERVABLE_RECORD).")
-        flow = make_flow(observable, "PercentileBin", "PLE_STATUS_LABEL", BIN_ORDER, PLE_ORDER)
+        flow = mc.make_flow(observable, "PercentileBin", "PLE_STATUS_LABEL", BIN_ORDER, PLE_ORDER)
         st.plotly_chart(
             make_sankey(flow, "PercentileBin", "PLE_STATUS_LABEL", "Bin to PLE Status (Observable Cohort)", None, None),
             use_container_width=True,
             key="fig_t6_sankey_ple",
         )
-        row_pct = (
-            flow.pivot(index="PercentileBin", columns="PLE_STATUS_LABEL", values="count")
-            .reindex(index=BIN_ORDER, columns=PLE_ORDER)
-            .fillna(0)
-        )
-        row_pct = row_pct.div(row_pct.sum(axis=1).replace(0, np.nan), axis=0).mul(100).fillna(0).round(2)
+        row_pct = mc.compute_flow_pct(flow, "PercentileBin", "PLE_STATUS_LABEL", BIN_ORDER, PLE_ORDER)
         st.markdown("**Table 20. PLE status composition within each bin**")
         st.caption("Bin-to-PLE flow uses only the observable best-record cohort; values are percent within each bin.")
         st.dataframe(row_pct.reset_index(), use_container_width=True)
@@ -2065,23 +1384,8 @@ with tab6:
     with flow_tab4:
         st.caption("Insight: These are the largest pathways into top bins (B8-B10).")
         st.markdown("**Table 21. Largest university-type pathways into B8-B10**")
-        top_deciles = ["B8", "B9", "B10"]
-        top_uni = (
-            uni[uni["PercentileBin"].isin(top_deciles)]
-            .groupby(["UNDERGRAD_UNI_TYPE", "PercentileBin"], observed=True)
-            .size()
-            .reset_index(name="Count")
-            .sort_values("Count", ascending=False)
-            .head(10)
-        )
-        top_course = (
-            best[best["PercentileBin"].isin(top_deciles)]
-            .groupby(["UNDERGRAD_COURSE_GROUP", "PercentileBin"], observed=True)
-            .size()
-            .reset_index(name="Count")
-            .sort_values("Count", ascending=False)
-            .head(10)
-        )
+        top_uni = mc.compute_top_pathways(uni, "UNDERGRAD_UNI_TYPE")
+        top_course = mc.compute_top_pathways(best, "UNDERGRAD_COURSE_GROUP")
         c1, c2 = st.columns(2)
         with c1:
             st.dataframe(top_uni, use_container_width=True)
@@ -2107,12 +1411,7 @@ with tab7:
         st.markdown("**Table 23. Score profile by PLE status**")
         st.caption("Table 23 reports count, median, mean, and interquartile range for each score measure by PLE status.")
         desc_cols = ["TotalRawScoreTRUE", "PartIRawScoreTRUE", "PartIIRawScoreTRUE", "NMS_PER_num", "NMS_GPS", "NMS_APT", "NMS_SA"]
-        desc_cols = [c for c in desc_cols if c in df.columns]
-        _q25 = lambda x: x.quantile(0.25)
-        _q25.__name__ = "q25"
-        _q75 = lambda x: x.quantile(0.75)
-        _q75.__name__ = "q75"
-        desc = df.groupby("PLE_STATUS_LABEL", observed=True)[desc_cols].agg(["count", "median", "mean", _q25, _q75]).round(2)
+        desc = mc.compute_score_desc_by(df, "PLE_STATUS_LABEL", desc_cols)
         st.dataframe(desc, use_container_width=True)
 
         st.markdown("**Figure 20. TRUE raw score distribution by PLE status**")
@@ -2125,7 +1424,7 @@ with tab7:
 
         st.markdown("**Table 24. Mann-Whitney comparison of confirmed passers versus no confirmed match**")
         st.caption("Table 24 compares only confirmed passers with the no-confirmed-match group and includes effect size.")
-        mw = mann_whitney_ple(
+        mw = mc.mann_whitney_ple(
             df,
             {
                 "TotalRawScoreTRUE": "Total Raw Score",
@@ -2141,22 +1440,14 @@ with tab7:
         st.markdown("**Figure 21. Bin distribution by PLE status**")
         _n_null_bin = int(df["PercentileBin"].isna().sum())
         st.caption(f"This chart reads within PLE status: how bins are distributed across each PLE-status group. {_n_null_bin:,} of {len(df):,} observable-cohort rows lack a percentile bin and are excluded from this figure and Figure 22/Table 25.")
-        ple_dist_count, ple_dist_pct = pct_table(df, "PLE_STATUS_LABEL", "PercentileBin", BIN_ORDER)
+        ple_dist_count, ple_dist_pct = mc.pct_table(df, "PLE_STATUS_LABEL", "PercentileBin", BIN_ORDER)
         ple_dist_pct = ple_dist_pct.reindex(PLE_ORDER)
         ple_dist_pct.index.name = "PLE_STATUS_LABEL"
         st.plotly_chart(make_stacked_pct_bar(ple_dist_pct, "Bin Distribution by PLE Status", "PLE Status", "Percent", BIN_COLORS), use_container_width=True, key="fig_t7_bin_ple")
 
         st.markdown("**Figure 22. PLE status composition within each percentile bin**")
         st.caption("This chart reads within bin: how PLE statuses are distributed within each percentile bin.")
-        decile_status = (
-            df.dropna(subset=["PercentileBin", "PLE_STATUS_LABEL"]) 
-            .groupby(["PercentileBin", "PLE_STATUS_LABEL"], observed=True)
-            .size()
-            .unstack(fill_value=0)
-            .reindex(index=BIN_ORDER, columns=PLE_ORDER, fill_value=0)
-        )
-        decile_status_pct = decile_status.div(decile_status.sum(axis=1).replace(0, np.nan), axis=0).mul(100).fillna(0).round(2)
-        decile_status_pct.index.name = "PercentileBin"
+        decile_status_pct = mc.compute_ple_status_by_bin(df)
         st.plotly_chart(make_stacked_pct_bar(decile_status_pct, "PLE Status Composition within Each Bin", "Bin", "Percent within bin", PALETTE_PLE), use_container_width=True, key="fig_t7_ple_bin")
         st.markdown("**Table 25. Percent distribution of PLE status within each bin**")
         st.caption("Values show percent distribution of PLE status within each percentile bin.")
@@ -2165,16 +1456,7 @@ with tab7:
     with ple_tab3:
         st.markdown("**Table 26. Course-group representation in the top bins**")
         st.caption("Top-bin survival here means the share of examinees in B8-B10, not a time-to-event survival model.")
-        survival_base = F["besttrend"].dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"]).copy()
-        survival_base["IS_TOP_BIN"] = survival_base["PercentileBin"].isin(["B8", "B9", "B10"])
-        survival = (
-            survival_base.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
-            .agg(total_examinees=("IS_TOP_BIN", "size"), top_decile_n=("IS_TOP_BIN", "sum"))
-            .reset_index()
-        )
-        survival["top_decile_n"] = survival["top_decile_n"].astype(int)
-        survival["survival_rate_pct"] = (survival["top_decile_n"] / survival["total_examinees"] * 100).round(2)
-        survival = survival.sort_values(["survival_rate_pct", "top_decile_n"], ascending=[False, False])
+        survival = mc.compute_top_bin_share_by(F["besttrend"], "UNDERGRAD_COURSE_GROUP")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -2196,58 +1478,15 @@ with tab7:
 
         st.markdown("**Table 27. Confirmed PLE alignment by university type in the observable cohort**")
         st.caption("University-type policy table reports observable best records, confirmed passers, no confirmed match, and confirmed PLE share.")
-        plelink_uni = (
-            dfuni.groupby("UNDERGRAD_UNI_TYPE", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int(x["HAS_CONFIRMED_PLE"].sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round(x["HAS_CONFIRMED_PLE"].mean() * 100, 2),
-            }))
-            .reset_index()
-        )
+        plelink_uni = mc.compute_ple_alignment_by(dfuni, "UNDERGRAD_UNI_TYPE")
         st.dataframe(plelink_uni, use_container_width=True)
 
     with ple_tab4:
         policybase = df.copy()
 
-        t_year = (
-            policybase.groupby("Year", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").mean() * 100, 2),
-            }))
-            .reset_index()
-            .sort_values("Year")
-        )
-
-        t_course = (
-            policybase.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").mean() * 100, 2),
-                "median_percentile_rank": round(x["NMS_PER_num"].median(), 2),
-            }))
-            .reset_index()
-            .sort_values("confirmed_ple_share_pct", ascending=False)
-        )
-
-        t_uni = (
-            policybase[policybase["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-            .groupby("UNDERGRAD_UNI_TYPE", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").mean() * 100, 2),
-                "median_percentile_rank": round(x["NMS_PER_num"].median(), 2),
-            }))
-            .reset_index()
-        )
+        t_year = mc.compute_ple_alignment_by(policybase, "Year")
+        t_course = mc.compute_ple_alignment_by(policybase, "UNDERGRAD_COURSE_GROUP", include_median=True)
+        t_uni = mc.compute_ple_alignment_by(policybase, "UNDERGRAD_UNI_TYPE", include_median=True)
 
         st.markdown("**Table 28. Confirmed PLE alignment by NMAT year**")
         st.caption("These policy tables are designed for direct inclusion in narrative reporting and use only the observable best-record cohort.")
@@ -2270,14 +1509,7 @@ with tab8:
     )
     df = F["trend"]
 
-    attempt_ct = df.groupby("PERSON_KEY", observed=True)["APPNO_CLEAN"].nunique().reset_index(name="attempt_count")
-    attempt_summary = (
-        attempt_ct["attempt_count"].value_counts()
-        .sort_index()
-        .rename_axis("Attempts")
-        .reset_index(name="Count")
-    )
-    attempt_summary["Percent"] = (attempt_summary["Count"] / attempt_summary["Count"].sum() * 100).round(2)
+    attempt_ct, attempt_summary = mc.compute_attempt_distribution(df)
 
     st.markdown("**Figure 24. Distribution of NMAT attempt counts per examinee**")
     st.caption("Each examinee is grouped by the number of unique NMAT applications linked to the same PERSON_KEY.")
@@ -2290,27 +1522,8 @@ with tab8:
     st.caption("Each examinee is grouped by the number of unique NMAT applications linked to the same PERSON_KEY.")
     st.dataframe(attempt_summary, use_container_width=True)
 
-    repeat_persons = attempt_ct.loc[attempt_ct["attempt_count"] > 1, "PERSON_KEY"]
-    repeat_df = df[df["PERSON_KEY"].isin(repeat_persons)].copy()
-    if not repeat_df.empty:
-        repeat_df = repeat_df.sort_values(["PERSON_KEY", "YEAR_INT", "APPNO_CLEAN"])
-        first_last = (
-            repeat_df.groupby("PERSON_KEY", observed=True)
-            .agg(
-                first_year=("YEAR_INT", "first"),
-                last_year=("YEAR_INT", "last"),
-                first_pct=("NMS_PER_num", "first"),
-                last_pct=("NMS_PER_num", "last"),
-                first_raw=("TotalRawScoreTRUE", "first"),
-                last_raw=("TotalRawScoreTRUE", "last"),
-                n_attempts=("APPNO_CLEAN", "count"),
-            )
-            .dropna()
-            .reset_index()
-        )
-        first_last["pct_improvement"] = first_last["last_pct"] - first_last["first_pct"]
-        first_last["raw_improvement"] = first_last["last_raw"] - first_last["first_raw"]
-
+    first_last, _traj = mc.compute_repeat_trajectories(df)
+    if first_last is not None:
         summary = pd.DataFrame({
             "Indicator": [
                 "Repeat-taker persons",
@@ -2321,12 +1534,12 @@ with tab8:
                 "Median raw score change",
             ],
             "Value": [
-                int(repeat_persons.nunique()),
-                int(len(first_last)),
-                round((first_last["pct_improvement"] > 0).mean() * 100, 2),
-                round((first_last["raw_improvement"] > 0).mean() * 100, 2),
-                round(first_last["pct_improvement"].median(), 2),
-                round(first_last["raw_improvement"].median(), 2),
+                _traj["n_repeat_persons"],
+                _traj["n_analytic_repeat_takers"],
+                _traj["pct_improved_percentile"],
+                _traj["pct_improved_raw"],
+                _traj["median_pct_change"],
+                _traj["median_raw_change"],
             ],
         })
 
@@ -2434,7 +1647,7 @@ with tab8:
     st.caption("Attempt histories exclusively for records matched deterministically via NMA_AppNo.")
 
     # Isolate deterministic matches
-    appno_matches = df[df["PLE_MATCH_METHOD"].isin(["MANUAL_APPNO_MATCH", "DETERMINISTIC_APPNO"])]
+    appno_matches = mc.compute_appno_deterministic_matches(df)
 
     if not appno_matches.empty:
         display_cols = ["PERSON_KEY", "APPNO_CLEAN", "Year", "TotalRawScoreTRUE", "NMS_PER_num", "PLE_STATUS_LABEL"]
@@ -2464,7 +1677,7 @@ with tab9:
     sub_tab1, sub_tab2, sub_tab3 = st.tabs(["University type", "Course group", "Radar profiles"])
 
     with sub_tab1:
-        uni_table = subtest_mean_table(uni_base, "UNDERGRAD_UNI_TYPE", std=True)
+        uni_table = mc.subtest_mean_table(uni_base, "UNDERGRAD_UNI_TYPE", std=True)
         uni_order = [u for u in ["Public", "Private", "Foreign"] if u in uni_table.index]
         if uni_order:
             uni_table = uni_table.reindex(uni_order)
@@ -2488,14 +1701,14 @@ with tab9:
             st.caption("Higher values indicate stronger average standardized performance in that subtest dimension.")
             st.dataframe(uni_table.reset_index(), use_container_width=True)
 
-            raw_uni_table = subtest_mean_table(uni_base, "UNDERGRAD_UNI_TYPE", std=False)
+            raw_uni_table = mc.subtest_mean_table(uni_base, "UNDERGRAD_UNI_TYPE", std=False)
             if not raw_uni_table.empty:
                 with st.expander("Table 35. Raw-score subtest means by university type", expanded=False):
                     st.caption("Raw-score subtest means for reference; these are not standardized scores.")
                     st.dataframe(raw_uni_table.reset_index(), use_container_width=True)
 
     with sub_tab2:
-        course_table = subtest_mean_table(course_base, "UNDERGRAD_COURSE_GROUP", std=True)
+        course_table = mc.subtest_mean_table(course_base, "UNDERGRAD_COURSE_GROUP", std=True)
         course_order = [c for c in PALETTE_COURSE.keys() if c in course_table.index]
         if course_order:
             course_table = course_table.reindex(course_order)
@@ -2517,7 +1730,7 @@ with tab9:
             st.caption("Higher values indicate stronger average standardized performance in that subtest dimension.")
             st.dataframe(course_table.reset_index(), use_container_width=True)
 
-            raw_course_table = subtest_mean_table(course_base, "UNDERGRAD_COURSE_GROUP", std=False)
+            raw_course_table = mc.subtest_mean_table(course_base, "UNDERGRAD_COURSE_GROUP", std=False)
             if not raw_course_table.empty:
                 with st.expander("Table 37. Raw-score subtest means by course group", expanded=False):
                     st.caption("Raw-score subtest means for reference; these are not standardized scores.")
@@ -2532,7 +1745,7 @@ with tab9:
             else:
                 st.markdown("**Figure 29. Standardized subtest radar profile by university type**")
                 st.caption("Radar shapes are descriptive profiles and should be read together with the mean-value tables.")
-                fig_uni, tbl_uni = radar_for_group(uni_base[uni_base["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])], "UNDERGRAD_UNI_TYPE")
+                fig_uni, tbl_uni = mc.radar_for_group(uni_base[uni_base["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])], "UNDERGRAD_UNI_TYPE")
                 st.plotly_chart(fig_uni, use_container_width=True, key="fig_t9_radar_uni")
                 st.markdown("**Table 38. Radar-profile values by university type**")
                 st.dataframe(tbl_uni.reset_index(), use_container_width=True)
@@ -2543,7 +1756,7 @@ with tab9:
             else:
                 st.markdown("**Figure 30. Standardized subtest radar profile by course group**")
                 st.caption("Radar shapes are descriptive profiles and should be read together with the mean-value tables.")
-                fig_course, tbl_course = radar_for_group(course_base, "UNDERGRAD_COURSE_GROUP")
+                fig_course, tbl_course = mc.radar_for_group(course_base, "UNDERGRAD_COURSE_GROUP")
                 st.plotly_chart(fig_course, use_container_width=True, key="fig_t9_radar_course")
                 st.markdown("**Table 39. Radar-profile values by course group**")
                 st.dataframe(tbl_course.reset_index(), use_container_width=True)
@@ -2558,20 +1771,16 @@ with tab10:
     gap_tab1, gap_tab2 = st.tabs(["PLE year gap", "Gender patterns"])
 
     with gap_tab1:
-        gap_df = F["bestobservable"].copy()
-        gap_df = gap_df[
-            (gap_df["PLE_STATUS_LABEL"] == "Confirmed PLE passer") &
-            gap_df["PLE_YEAR_GAP"].notna()
-        ].copy()
+        gap_df, _gap_kpis = mc.compute_year_gap_kpis(F["bestobservable"])
 
         if gap_df.empty:
             st.info("No confirmed observable PLE year-gap records are available under the current filters.")
         else:
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Confirmed passers", f"{len(gap_df):,}")
-            col2.metric("Median year gap", f"{gap_df['PLE_YEAR_GAP'].median():.1f}", help="Median of PLE_YEAR_GAP among confirmed observable passers.")
-            col3.metric("Q1 year gap", f"{gap_df['PLE_YEAR_GAP'].quantile(0.25):.1f}", help="25th percentile of PLE_YEAR_GAP among confirmed observable passers.")
-            col4.metric("Q3 year gap", f"{gap_df['PLE_YEAR_GAP'].quantile(0.75):.1f}", help="75th percentile of PLE_YEAR_GAP among confirmed observable passers.")
+            col1.metric("Confirmed passers", f"{_gap_kpis['n']:,}")
+            col2.metric("Median year gap", f"{_gap_kpis['median']:.1f}", help="Median of PLE_YEAR_GAP among confirmed observable passers.")
+            col3.metric("Q1 year gap", f"{_gap_kpis['q25']:.1f}", help="25th percentile of PLE_YEAR_GAP among confirmed observable passers.")
+            col4.metric("Q3 year gap", f"{_gap_kpis['q75']:.1f}", help="75th percentile of PLE_YEAR_GAP among confirmed observable passers.")
 
             c1, c2 = st.columns(2)
 
@@ -2604,19 +1813,7 @@ with tab10:
                 fig.update_layout(height=420, xaxis_title="", yaxis_title="PLE year gap")
                 st.plotly_chart(fig, use_container_width=True, key="fig_t10_gap_box")
 
-            gap_summary = (
-                gap_df.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
-                .agg(
-                    confirmed_passers=("PERSON_KEY", "nunique"),
-                    median_year_gap=("PLE_YEAR_GAP", "median"),
-                    q25_year_gap=("PLE_YEAR_GAP", lambda x: x.quantile(0.25)),
-                    q75_year_gap=("PLE_YEAR_GAP", lambda x: x.quantile(0.75)),
-                    median_percentile=("NMS_PER_num", "median"),
-                )
-                .reset_index()
-                .sort_values("median_year_gap")
-                .round(2)
-            )
+            gap_summary = mc.compute_year_gap_by_course(gap_df)
             st.markdown("**Table 40. Year-gap summary by course group**")
             st.caption("Table 40 reports confirmed passers, median year gap, interquartile range, and median NMAT percentile rank by course group.")
             st.dataframe(gap_summary, use_container_width=True)
@@ -2633,17 +1830,7 @@ with tab10:
             with c1:
                 st.markdown("**Table 41. Score summary by sex**")
                 st.caption("Sex summaries use records with valid SEX_CLEAN coding only.")
-                sex_perf = (
-                    sex_base.groupby("SEX_CLEAN", observed=True)
-                    .agg(
-                        n=("PERSON_KEY", "nunique"),
-                        median_raw=("TotalRawScoreTRUE", "median"),
-                        median_pct=("NMS_PER_num", "median"),
-                        median_gps=("NMS_GPS", "median"),
-                    )
-                    .reset_index()
-                    .round(2)
-                )
+                sex_perf = mc.compute_score_by_sex(sex_base)
                 st.dataframe(sex_perf, use_container_width=True)
 
             with c2:
@@ -2661,7 +1848,7 @@ with tab10:
                 fig.update_layout(height=420, xaxis_title="", yaxis_title="Percentile rank")
                 st.plotly_chart(fig, use_container_width=True, key="fig_t10_box_sex")
 
-            _, sex_year_pct = pct_table(sex_base, "Year", "SEX_CLEAN", ["Male", "Female"])
+            _, sex_year_pct = mc.pct_table(sex_base, "Year", "SEX_CLEAN", ["Male", "Female"])
             st.markdown("**Figure 34. Sex composition by NMAT year**")
             st.caption("The stacked bar shows the within-year sex mix.")
             fig = make_stacked_pct_bar(
@@ -2674,7 +1861,7 @@ with tab10:
             st.plotly_chart(fig, use_container_width=True, key="fig_t10_sex_year")
 
             if not observable_sex.empty:
-                _, sex_ple_pct = pct_table(observable_sex, "SEX_CLEAN", "PLE_STATUS_LABEL", PLE_ORDER)
+                _, sex_ple_pct = mc.pct_table(observable_sex, "SEX_CLEAN", "PLE_STATUS_LABEL", PLE_ORDER)
                 fig = make_stacked_pct_bar(
                     sex_ple_pct,
                     "PLE status composition by sex (observable cohort)",
@@ -2707,7 +1894,7 @@ with tab11:
             "NMS_PER_num": "Percentile rank",
             "NMS_GPS": "GPS standard score",
         }
-        kw_tbl = kruskal_table(test_df, "Year", score_map)
+        kw_tbl = mc.kruskal_table(test_df, "Year", score_map)
         if kw_tbl.empty:
             st.info("Not enough data to run year-based Kruskal-Wallis tests.")
         else:
@@ -2717,7 +1904,7 @@ with tab11:
 
     with stat_tab2:
         ple_test_df = F["bestobservable"].copy()
-        mw_tbl = mann_whitney_ple(
+        mw_tbl = mc.mann_whitney_ple(
             ple_test_df,
             {
                 "TotalRawScoreTRUE": "Total raw score",
@@ -2739,7 +1926,7 @@ with tab11:
         if chi_base.empty:
             st.info("No university-type records are available for chi-square testing.")
         else:
-            observed_tbl, expected_tbl, chi_summary = chi_square_unitype_bin(chi_base)
+            observed_tbl, expected_tbl, chi_summary = mc.chi_square_unitype_bin(chi_base)
 
             c1, c2 = st.columns(2)
             with c1:
@@ -2773,19 +1960,10 @@ with tab11:
         if not HAS_POSTHOCS:
             st.info("scikit-posthocs is not installed, so Dunn post-hoc output is skipped.")
         else:
-            ph_df = F["besttrend"].dropna(subset=["Year", "NMS_PER_num"]).copy()
-            if ph_df["Year"].nunique() < 3:
+            dunn = mc.compute_dunn_posthoc(F["besttrend"])
+            if dunn is None:
                 st.info("Not enough year groups are available for post-hoc testing.")
             else:
-                dunn = sp.posthoc_dunn(
-                    ph_df,
-                    val_col="NMS_PER_num",
-                    group_col="Year",
-                    p_adjust="bonferroni",
-                )
-                dunn.index = dunn.index.astype(str)
-                dunn.columns = dunn.columns.astype(str)
-
                 st.markdown("**Figure 36. Dunn post-hoc adjusted p-value matrix (percentile rank by year)**")
                 st.caption("Bonferroni-adjusted p-values from pairwise Dunn tests; cells < 0.05 indicate significant pairwise differences.")
                 fig = px.imshow(
@@ -2818,68 +1996,10 @@ with tab12:
     if policybase.empty:
         st.info("No observable best-record rows are available under the current filters.")
     else:
-        t_year = (
-            policybase.groupby("Year", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").mean() * 100, 2),
-            }))
-            .reset_index()
-            .sort_values("Year")
-        )
-
-        t_course = (
-            policybase.groupby("UNDERGRAD_COURSE_GROUP", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").mean() * 100, 2),
-                "median_percentile_rank": round(x["NMS_PER_num"].median(), 2),
-            }))
-            .reset_index()
-            .sort_values("confirmed_ple_share_pct", ascending=False)
-        )
-
-        t_uni = (
-            policybase[policybase["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign"])]
-            .groupby("UNDERGRAD_UNI_TYPE", observed=True)
-            .apply(lambda x: pd.Series({
-                "n_observable_best_records": len(x),
-                "confirmed_ple_passers": int((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").sum()),
-                "no_confirmed_ple_match": int((x["PLE_STATUS_LABEL"] == "No confirmed PLE match").sum()),
-                "confirmed_ple_share_pct": round((x["PLE_STATUS_LABEL"] == "Confirmed PLE passer").mean() * 100, 2),
-                "median_percentile_rank": round(x["NMS_PER_num"].median(), 2),
-            }))
-            .reset_index()
-        )
-
-        survival_base = (
-            F["besttrend"]
-            .dropna(subset=["UNDERGRAD_COURSE_GROUP", "PercentileBin"])
-            .copy()
-        )
-        survival_base["IS_TOP_BIN"] = survival_base["PercentileBin"].isin(["B8", "B9", "B10"])
-
-        survival = (
-            survival_base
-            .groupby("UNDERGRAD_COURSE_GROUP", observed=True)
-            .agg(
-                total_examinees=("IS_TOP_BIN", "size"),
-                top_decile_n=("IS_TOP_BIN", "sum"),
-            )
-            .reset_index()
-        )
-        survival["top_decile_n"] = survival["top_decile_n"].astype(int)
-        survival["survival_rate_pct"] = (
-            survival["top_decile_n"] / survival["total_examinees"] * 100
-        ).round(2)
-        survival = survival.sort_values(
-            ["survival_rate_pct", "top_decile_n"],
-            ascending=[False, False],
-        ).reset_index(drop=True)
+        t_year = mc.compute_ple_alignment_by(policybase, "Year")
+        t_course = mc.compute_ple_alignment_by(policybase, "UNDERGRAD_COURSE_GROUP", include_median=True)
+        t_uni = mc.compute_ple_alignment_by(policybase, "UNDERGRAD_UNI_TYPE", include_median=True)
+        survival = mc.compute_top_bin_share_by(F["besttrend"], "UNDERGRAD_COURSE_GROUP")
 
         st.markdown("### Table 1. Confirmed PLE alignment by NMAT year")
         st.dataframe(t_year, use_container_width=True)
@@ -3008,33 +2128,7 @@ performance claim).
             "observable-only PLE count in the same row."
         )
 
-        def _bin_at_or_above(b, threshold_b):
-            if pd.isna(b):
-                return False
-            try:
-                return BIN_ORDER.index(b) >= BIN_ORDER.index(threshold_b)
-            except (ValueError, IndexError):
-                return False
-
-        _scenario_rows = []
-        for _uni_type in ["All", "Public", "Private", "Foreign"]:
-            _sub_obs = df_obs if _uni_type == "All" else df_obs[df_obs["UNDERGRAD_UNI_TYPE"] == _uni_type]
-
-            for _label, _bin in [
-                ("30th percentile (B4+)", "B4"),
-                ("40th percentile (B5+)", "B5"),
-            ]:
-                _ple_cohort = _sub_obs[_sub_obs["PercentileBin"].apply(lambda x: _bin_at_or_above(x, _bin))]
-                _scenario_rows.append({
-                    "University Type": _uni_type,
-                    "Cut-off": _label,
-                    "Observable-cohort applicants at/above cut-off": len(_ple_cohort),
-                    "PLE passers (observable)": int(_ple_cohort["IS_PLE_PASSER"].sum()),
-                    "PLE linkage rate (%)": round(_ple_cohort["IS_PLE_PASSER"].mean() * 100, 2) if len(_ple_cohort) > 0 else 0,
-                    "Median percentile": round(_ple_cohort["NMS_PER_num"].median(), 1) if len(_ple_cohort) > 0 else 0,
-                })
-
-        _scenario_df = pd.DataFrame(_scenario_rows)
+        _scenario_df = mc.compute_cutoff_scenarios(df_obs)
 
         _c1, _c2 = st.columns([1, 1])
         with _c1:
@@ -3080,14 +2174,8 @@ performance claim).
             "evaluate; see the panel above)."
         )
 
-        _uniobs_citz = F["uniobservable"].copy()
-        if "FOREIGNER_STATUS" in _uniobs_citz.columns:
-            _uniobs_citz["_citz_group"] = np.where(
-                _uniobs_citz["FOREIGNER_STATUS"] != "Filipino", "Foreigner", "Filipino"
-            )
-            _citz_count, _citz_pct = pct_table(_uniobs_citz, "_citz_group", "PercentileBin", BIN_ORDER)
-            _citz_pct.index.name = "Group"
-
+        _citz_n, _citz_pct = mc.compute_citizenship_group_bin_dist(F["uniobservable"])
+        if _citz_pct is not None:
             _cb1, _cb2 = st.columns(2)
             with _cb1:
                 st.plotly_chart(
@@ -3095,7 +2183,6 @@ performance claim).
                     use_container_width=True, key="fig_t13_citz_stacked",
                 )
             with _cb2:
-                _citz_n = _uniobs_citz["_citz_group"].value_counts().rename_axis("Group").reset_index(name="n")
                 st.dataframe(_citz_n, use_container_width=True, hide_index=True)
                 st.dataframe(_citz_pct.reset_index(), use_container_width=True, hide_index=True)
         else:
@@ -3110,10 +2197,7 @@ performance claim).
             "linkage rate rises with NMAT percentile bin, in the observable cohort."
         )
 
-        _grad = df_obs.groupby("PercentileBin", observed=True)["IS_PLE_PASSER"].agg(["size", "sum", "mean"]).reindex(BIN_ORDER)
-        _grad.columns = ["n", "linked_n", "linkage_rate"]
-        _grad["linkage_rate_pct"] = (_grad["linkage_rate"] * 100).round(2)
-        _grad = _grad.drop(columns=["linkage_rate"]).reset_index()
+        _grad = mc.compute_linkage_gradient(df_obs)
 
         _gc1, _gc2 = st.columns([1, 1])
         with _gc1:
