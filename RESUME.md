@@ -1,43 +1,53 @@
 # RESUME — where this work stands and what to do next
 
-**Paused:** 2026-07-31, session limit. Branch `master`. Nested repos in
-`streamlit_dashboard/*/` were never touched, as instructed.
+**Remediation closed 2026-08-14.** Branch `master`. Nested repos in `streamlit_dashboard/*/` were
+never touched and remain at `33fa26f` / `157434f`, as instructed.
 
-Read `.claude/audit/_ORCHESTRATOR_FINDINGS.md` first (O-1..O-24), then
-`.claude/audit/_TARGET_SCHEMA_CONTRACT.md`. Those two files carry all the state.
+Read `.claude/audit/_ORCHESTRATOR_REPORT.md` first — it is the closing report: what is resolved,
+what is not, how each agent performed, and the rules that bind future work. Then
+`.claude/audit/_ORCHESTRATOR_FINDINGS.md` (O-1..O-24) and
+`.claude/audit/_TARGET_SCHEMA_CONTRACT.md` for the detail.
 
 ---
 
-## Commits so far
-
-| sha | what |
-|---|---|
-| `016df16` | audit checkpoint — 12 specialist reports + plan |
-| `4972ef3` | pipeline chain 1–5 rebuilt (RC-1…RC-4 fixed at source) |
-| `bfb9e5c` | **matcher fix (RC-0)** — removed the 40th-percentile hard filter |
-| `8e771ad` | forensic audit consolidated, unsupported claims withdrawn |
-| `719e04b` | **wip** — CHED dashboard + data_aggregator on the new schema |
-
-## Data layer: DONE and verified
+## Everything verified green
 
 ```
 dataset/NMAT_Exodus.parquet   178,927 x 53   md5 28b85ac53af13b4a2ef3ee93527c97c1
 3 byte-identical copies (dataset/ + both dashboard folders), enforced by 5_Slim_Exodus.py
-dataset/EXODUS_MANIFEST.json written
-pytest tests/  ->  36 passed
+
+pytest tests/                                          36 passed
+CHED dashboard   AppTest                               0 exceptions, 18 metrics / 19 dfs / 6 tabs
+main dashboard   AppTest                               0 exceptions, 27 metrics / 74 dfs / 42 tabs
+CHED export      6/6 tabs, 15/15 charts as data, 5/5 assertions
+main export      13/13 tabs, 59/59 charts as data, 102 tables, 5/5 assertions
+data_aggregator/run_all.py                             13 passed, 0 failed (any cwd)
+forensic_audit/forensic_audit.py                       completes, writes 5 CSVs
 ```
 
 Authoritative values — assert against these, hardcode nowhere:
 ```
 sittings 178,927 | unique examinees 134,869 | observable cohort (people) 69,503
 observable linkage 45.44% | confirmed PLE passers 49,086 | ambiguous PERSON_KEYs 6,148
+PLE_YEAR_UNCERTAIN 110 | stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
 repeat takers 33,713   (people with >1 distinct APPNO_CLEAN -- the row-count form gives
                         33,714 because one record is duplicated outright:
                         "VENTANILLA, GLEN TAN||" / appno 1073584 / 2007)
-PLE_YEAR_UNCERTAIN 110 | stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
 linkage by bin: B1 11.6  B2 22.7  B3 29.3  B4 36.0  B5 45.6
                 B6 50.4  B7 53.6  B8 55.0  B9 61.6  B10 71.0
 ```
+
+## How to run it
+
+```bash
+cd streamlit_dashboard/main_dashboard         && streamlit run dashboard.py
+cd streamlit_dashboard/CHED_relevant_dashboard && streamlit run dashboard.py
+.venv/Scripts/python.exe data_aggregator/run_all.py
+.venv/Scripts/python.exe -m pytest tests/ -q
+```
+Each dashboard has an **Export Complete Dashboard** expander producing one Markdown document with
+every chart's values as a data table. Both can also be regenerated headlessly by running their
+`export_markdown.py` directly. `docs/HANDOFF_TESTING_GUIDE.md` is the per-tab acceptance checklist.
 
 ## The two findings that matter most
 
@@ -49,63 +59,31 @@ year-gap, DOB/sex and latest-year only; ties are rejected as ambiguous, never de
 
 **O-24 — the DOB step was dead code.** `BDATE_CLEAN` was created *after* the row-dict snapshot
 `disambiguate()` reads, so the documented birthdate check never ran in any historical execution.
-With DOB dead, the percentile floor became the de-facto discriminator. Two defects, both pushing
-identity resolution onto score.
+With DOB dead, the percentile floor became the de-facto discriminator.
 
 **Headline finding (replaces a withdrawn one):** 6,173 of 25,596 below-40 observable examinees
 (**24.1%**) are confirmed PLE passers — 795 in the lowest decile. Ambiguous-key rate among them is
-3.0%, *below* the 3.5% cohort base rate, so they are not collision artefacts; 6,152 of 6,173 are
-Filipino; spread across all nine years.
+3.0%, *below* the 3.5% cohort base rate; 6,152 of 6,173 are Filipino; spread across all nine years.
 
 **Withdrawn:** the 21-point B4→B5 "discontinuity" and the regression-discontinuity recommendation
 built on it. Corrected step is 9.6 points, in line with B1→B2 (+11.1). It was mostly our own filter.
 
 ---
 
-## Outstanding work
+## Outstanding — all of it needs a decision, none of it blocks use
 
-### 1. Verify the wip commit (`719e04b`) — do this first
-Neither was orchestrator-verified before the pause.
-```bash
-.venv/Scripts/python.exe -m pytest tests/ -q
-.venv/Scripts/python.exe -c "from streamlit.testing.v1 import AppTest; \
-  at=AppTest.from_file('streamlit_dashboard/CHED_relevant_dashboard/dashboard.py', default_timeout=540); \
-  at.run(); print('exceptions:', len(at.exception)); [print(str(e)[:300]) for e in at.exception[:3]]"
-.venv/Scripts/python.exe data_aggregator/run_all.py     # must produce 13/13 from ANY cwd
-```
-Check `.claude/audit/logs/D2_ched_dashboard.md` and `D3_data_aggregator.md` for what they claim,
-then confirm it independently. **Do not trust a "done" you have not reproduced** — that habit is
-what surfaced RC-0.
-
-### 2. Agents that were still running at the pause
-Their work may be partially on disk. Re-verify or re-dispatch:
-- **D1** (`main_dashboard/dashboard.py`) — was fixing a bug I found: the default sidebar **Sex**
-  filter silently drops the 43 rows with null `SEX`, so headline KPIs read 134,826 / 69,460 instead
-  of 134,869 / 69,503. Fix = add an explicit **"(not specified)"** option, selected by default, and
-  check Year / Course Group / University Type / PLE status for the same defect.
-- **E1** — building `main_dashboard/export_markdown.py` (the export button the user asked for),
-  plus `main_common.py` shared compute. Spec: `.claude/audit/_EXPORT_FORMAT_CONTRACT.md`.
-- **E2** — rewriting `docs/data_dictionary.md`, `docs/pipeline_architecture.md`, `CLAUDE.md`,
-  `README.md`, `changelog.md`.
-
-### 3. Not yet started
-- **Handoff/testing guide** — how to run each dashboard, what to check on each tab, how to verify
-  an export matches what the screen shows.
-- **Two manuscript guides** — section outlines + what to discuss, one for main-dashboard insights,
-  one for CHED-dashboard insights. Must include the per-pipeline data-quality narrative (the
-  CHED/CEM problems Pipelines 1–2 handle): the 56.45% stored-total mismatch, the fuzzy
-  university-name matching, the dead DOB filter, the percentile floor, PERSON_KEY collisions.
-- **Stale-artifact cleanup** — `dataset/_cleanup_stale.py` exists and is **dry-run only**; its
-  `TIER_NOW` holds just `UNIVS_ARCHIVED.csv`. `TIER_FUTURE` (~472 MB: `NMAT_Exodus.csv`,
-  `output/NMAT_FINAL.parquet`) is now safe to promote since the pipelines have re-run and
-  `5_Slim_Exodus.py` exists. Review `dataset/DATASET_MANIFEST.md` first.
-  **Never delete** the refuse-list files — H1 found the CSV-vs-parquet "dead twin" direction *flips*
-  between pairs (Pipeline 2 reads `NMAT_FINAL.csv`, not its parquet), so a naive sweep would destroy
-  a live input.
-- **Decide on** `RShiny_Dashboard/`, `reports/`, root `dashboard.py` + `dashboard.py.bak` — the plan
-  recommends deleting all as legacy. Not done; needs the user's nod.
-- **`forensic_audit/`**: `PLE_AMBIGUOUS_REVIEW.csv` still filters on the retired `"AMBIGUOUS"`
-  status string instead of `"AMBIGUOUS_NAME_COLLISION"` (flagged by P1, unowned).
+1. **Legacy directories.** `RShiny_Dashboard/`, `reports/`, root `dashboard.py` + `dashboard.py.bak`
+   are marked legacy in the docs but not deleted. The audit recommends deletion; that is your call.
+2. **`dataset/NMAT_Exodus.csv.bak` (230 MB)** — a Pipeline 4 "manual inspection" mirror with no
+   reader. It is a *current* pipeline output rather than a stale artefact, so the cleanup script
+   does not classify it and it was not deleted unilaterally. Obvious next candidate.
+   **Never delete** the `_cleanup_stale.py` refuse-list files — the CSV-vs-parquet "dead twin"
+   direction *flips* between pairs (Pipeline 2 reads `NMAT_FINAL.csv`, not its parquet), so a naive
+   sweep would destroy a live input.
+3. **Caption density** in the main export: 23 of 102 tables. Stat-test tables 43–47 lean on their
+   section heading for population context rather than carrying their own line.
+4. **`use_container_width`** is deprecated in Streamlit (removed after 2025-12-31) and used
+   throughout both dashboards. Harmless now, mechanical to fix, will break on a future upgrade.
 
 ---
 
@@ -122,3 +100,5 @@ Their work may be partially on disk. Re-verify or re-dispatch:
 7. `UNDERGRAD_*` is the applicant's **undergraduate** institution. No medical-school identifier
    exists, so no institution-level PLE performance claim is supportable.
 8. B1 is the **lowest** decile. Order bins explicitly; string sort puts B10 between B1 and B2.
+9. **Do not trust a "done" you have not reproduced.** It changed the outcome in six of the nine
+   remediation agents — see the report.

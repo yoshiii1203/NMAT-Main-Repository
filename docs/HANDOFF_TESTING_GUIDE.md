@@ -197,11 +197,44 @@ Check each row:
    call `ched_common.compute_uni_score_summary()` — if they ever disagree, that is the historical
    57/49-vs-56/48 drift bug (RC-5) recurring, and is a release blocker.
 
-### Main dashboard — no consolidated export yet (known gap)
+### Main dashboard — full export with a self-check block
 
-Unlike the CHED dashboard, `streamlit_dashboard/main_dashboard/` has **no `export_markdown.py`** and
-no self-check block — this was tracked as outstanding work (`RESUME.md`, agent E1) and has not been
-built as of this guide. What exists instead is **per-tab CSV downloads**, only on 3 of the 13 tabs:
+The main dashboard now has the same export the CHED dashboard has. Use the **"Export Complete
+Dashboard"** expander at the top of the page, or regenerate it headlessly:
+
+```bash
+.venv/Scripts/python.exe streamlit_dashboard/main_dashboard/export_markdown.py
+# writes streamlit_dashboard/main_dashboard/complete_markdown/NMAT_Main_Dashboard_Complete.md
+```
+
+Both paths call the same `main_common.compute_*()` functions the dashboard renders from, so the
+document and the screen cannot silently disagree. The export covers the **unfiltered** cohort, not
+whatever the sidebar happens to be set to — it says so in its own header.
+
+**What to check in the self-check block at the end of the document:**
+
+| line | expected |
+|---|---|
+| Source parquet md5 | `28b85ac53af13b4a2ef3ee93527c97c1` |
+| Rows / cols (source parquet on disk) | `178,927 / 53` — the file, not the 58-column in-memory frame |
+| Derived columns added at load time | 5 (`YEAR_INT`, `SEX_CLEAN`, `IS_BOARD_OBSERVABLE_COHORT`, `HAS_CONFIRMED_PLE`, `PLE_STATUS_LABEL`) |
+| Tabs exported | 13 / 13 |
+| **Charts exported as data** | **59 / 59** |
+| Tables exported | 102 |
+| Dashboard-vs-export value assertions passed | 5 / 5 |
+
+The chart figure is a genuine check, not a self-satisfying ratio: `CHART_TABLE_MAP` in
+`export_markdown.py` holds one entry per `st.plotly_chart()` call in `dashboard.py` (asserted equal
+to 59 at import), and coverage is measured by looking for each chart's backing-table heading in the
+assembled body. **If it ever reads below 59/59, a chart on screen has no table carrying its
+numbers** — the document then lists the offending charts by name under "Charts NOT covered by a data
+table". Treat that as a release blocker. To confirm the check still works, rename one backing-table
+heading and re-run: it must drop to 58/59 and name that chart.
+
+Use the **Chart-to-Table Index** near the top of the document to go from any chart on screen to the
+table holding its values.
+
+Per-tab CSV downloads still exist alongside the full export, on 3 of the 13 tabs:
 
 | Tab | Files | Content |
 |---|---|---|
@@ -209,8 +242,8 @@ built as of this guide. What exists instead is **per-tab CSV downloads**, only o
 | 12 Policy Tables & Export | `policy_table_year.csv`, `policy_table_course.csv`, `policy_table_university.csv`, `policy_table_top_decile_survival.csv` | Reflect the sidebar filters active at download time (per the tab's own caption) |
 | 13 CHED Compliance | `ched_cutoff_scenarios.csv`, `ched_linkage_gradient_by_bin.csv` | Section A / Section C tables |
 
-**How to verify a main-dashboard CSV matches the screen** (no automated self-check exists yet, so do
-this manually):
+**How to verify a main-dashboard CSV matches the screen** (the full export self-checks itself; these
+per-tab CSVs do not, so check them by hand):
 1. Download the CSV and open it (pandas, Excel, or a text viewer).
 2. Compare its row count and column headers to the `st.dataframe` immediately above the download
    button on screen.
@@ -220,11 +253,12 @@ this manually):
    the full one), re-check the sidebar filter state before downloading — the policy tables in Tab 12
    are filter-sensitive by design; the Tab 8 and Tab 13 CSVs are not.
 
-If you're asked to build the missing consolidated export, follow
-`.claude/audit/_EXPORT_FORMAT_CONTRACT.md` — it specifies the same self-check block format shown
-above, and requires the exporter to call the same compute functions the dashboard uses (the main
-dashboard doesn't yet have a `main_common.py` equivalent to `ched_common.py`; building one would
-also resolve the "Tab 7 vs Tab 12" duplicate-table-computation quirk noted in §3).
+If you add a chart or a tab, `.claude/audit/_EXPORT_FORMAT_CONTRACT.md` is the spec both exporters
+follow. In practice: add the chart, add its backing table, add an entry to `CHART_TABLE_MAP`, and
+bump the `assert len(CHART_TABLE_MAP) == 59` to match the new `st.plotly_chart()` count. The assert
+is deliberate — it makes a new chart fail loudly at import rather than quietly ship unexported.
+The "Tab 7 vs Tab 12" duplicate-table quirk noted in §3 is resolved: both now call the single
+`main_common.compute_ple_alignment_by()`.
 
 ---
 
@@ -254,6 +288,17 @@ print(len(at.exception), len(at.metric), len(at.dataframe), len(at.tabs))
 
 .venv/Scripts/python.exe data_aggregator/run_all.py
 # -> Complete: 13 passed, 0 failed
+
+.venv/Scripts/python.exe streamlit_dashboard/main_dashboard/export_markdown.py
+# -> wrote .../NMAT_Main_Dashboard_Complete.md
+#    self-check: 178,927 / 53 | 13/13 tabs | 59/59 charts as data | 102 tables | 5/5 assertions
+
+.venv/Scripts/python.exe streamlit_dashboard/CHED_relevant_dashboard/export_markdown.py
+# -> wrote .../CHED_NMAT_Dashboard_Complete.md
+#    self-check: 178,927 / 53 | 6/6 tabs | 15/15 charts as data | 5/5 assertions
+
+.venv/Scripts/python.exe forensic_audit/forensic_audit.py
+# -> AUDIT COMPLETE, 5 CSVs written into forensic_audit/
 ```
 
 If any of these numbers differ on your machine, something in the data layer or dashboard code has
