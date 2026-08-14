@@ -642,6 +642,46 @@ def compute_percentile_summary_by(df: pd.DataFrame, group_col: str) -> pd.DataFr
     )
 
 
+def compute_box_summary_by(df: pd.DataFrame, group_col: str, value_col: str) -> pd.DataFrame:
+    """Five-number summary + n + outlier count per group -- the mandatory
+    stand-in for a box-plot chart's raw points (export contract Rule 1).
+    Outlier = outside [Q1-1.5*IQR, Q3+1.5*IQR] (standard Tukey rule, matches
+    the default box-plot whisker convention)."""
+    rows = []
+    for grp, s in df.dropna(subset=[group_col, value_col]).groupby(group_col, observed=True)[value_col]:
+        s = s.dropna()
+        if s.empty:
+            continue
+        q1, med, q3 = s.quantile(0.25), s.median(), s.quantile(0.75)
+        iqr = q3 - q1
+        lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+        rows.append({
+            group_col: grp, "n": int(s.shape[0]), "min": round(float(s.min()), 2),
+            "q1": round(float(q1), 2), "median": round(float(med), 2), "q3": round(float(q3), 2),
+            "max": round(float(s.max()), 2), "outliers": int(((s < lo) | (s > hi)).sum()),
+        })
+    return pd.DataFrame(rows)
+
+
+def compute_year_gap_histogram(gap_df: pd.DataFrame) -> pd.DataFrame:
+    """Distribution table backing the PLE-year-gap histogram."""
+    out = gap_df["PLE_YEAR_GAP"].value_counts().sort_index().rename_axis("PLE_YEAR_GAP").reset_index(name="Count")
+    return out
+
+
+def compute_repeat_change_summary(first_last: pd.DataFrame) -> pd.DataFrame:
+    """Five-number summary of percentile/raw-score change from first to last
+    attempt -- backs the repeat-taker change box plot."""
+    long_change = first_last.melt(
+        id_vars=["PERSON_KEY"], value_vars=["pct_improvement", "raw_improvement"],
+        var_name="Measure", value_name="Change",
+    )
+    long_change["Measure"] = long_change["Measure"].replace({
+        "pct_improvement": "Percentile change", "raw_improvement": "Raw score change",
+    })
+    return compute_box_summary_by(long_change, "Measure", "Change")
+
+
 def compute_top_bottom_by(pct_df: pd.DataFrame) -> pd.DataFrame:
     """Top (B8-B10) vs bottom (B1-B3) share per row of an already-computed
     pct_table() output (e.g. indexed by Year)."""

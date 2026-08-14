@@ -2,6 +2,118 @@
 
 Agent E1. Scope: `streamlit_dashboard/main_dashboard/` only. No git commands run.
 
+## Round 2 — orchestrator-flagged defects, fixed
+
+**Retraction:** my "58 columns / schema drift" finding in round 1 was wrong, per the
+orchestrator's direct verification (parquet is 178,927 x 53, md5
+`28b85ac53af13b4a2ef3ee93527c97c1`, confirmed independently below). 58 is
+`len(df_raw.columns)` **after** `ensure_required_columns()` derives 5 columns at load
+time (`YEAR_INT`, `SEX_CLEAN`, `IS_BOARD_OBSERVABLE_COHORT`, `HAS_CONFIRMED_PLE`,
+`PLE_STATUS_LABEL`). There is no upstream schema drift. I did not act on the
+retracted finding — no changes made outside `main_dashboard/`.
+
+**Defect 1 (wrong shape in self-check) — fixed.** `_self_check_block` now reads the
+source parquet's shape directly via `pyarrow.parquet.ParquetFile(path).metadata` /
+`.schema.names` (cheap, no full load — confirmed 178,927/53 matches the orchestrator's
+number exactly), instead of `len(df_raw)`/`df_raw.shape[1]`. Added a second line
+listing the 5 derived columns by name so the distinction is explicit, not just correct.
+
+**Defect 2 (fake chart-coverage ratio) — fixed.** Built `CHART_TABLE_MAP`, a
+59-entry registry in `export_markdown.py` hand-audited against every
+`st.plotly_chart(...)` call in `dashboard.py` (`grep -c "st.plotly_chart(" dashboard.py`
+→ 59, confirmed; `assert len(CHART_TABLE_MAP) == 59` guards against silent drift).
+Each entry maps one chart key → the exact heading of the table carrying its data.
+`_chart_coverage()` greps the assembled document for each heading — a real check:
+renaming or deleting a heading drops the count. **18 charts had no backing table and
+were the actual gap**; added tables for all of them (mostly missing box-plot
+five-number summaries — Rule 1 requires those instead of raw points — plus a few
+plain omissions):
+
+| Chart | Fix |
+|---|---|
+| fig_t3_box_raw/pct/p1/p2 (4) | new `compute_box_summary_by()` five-num summaries by Year |
+| fig_t4_heatmap_course, fig_t4_top_course | course-group bin % table was computed but never exported — added |
+| fig_t5_stacked_uni | `uni_decile_pct` was computed but only the count table was exported — added |
+| fig_t5_foreign_bin | foreign-examinee bin % table was never exported — added |
+| fig_pc_box_pct, fig_pc_box_raw | box summaries by citizenship (n>=5) |
+| fig_cmp_pct_box, fig_cmp_raw_box | box summaries by comparison group |
+| fig_t7_box_raw_ple | box summary by PLE status |
+| fig_t8_box_change | new `compute_repeat_change_summary()` — box summary of first→last attempt change |
+| fig_t8_scatter_repeat | capped 200-row preview + pointer to the existing `repeat_taker_detail_full.csv` download already in the live dashboard (person-level scatter data, Rule 3 applies) |
+| fig_t10_gap_hist | new `compute_year_gap_histogram()` — value-count distribution table |
+| fig_t10_gap_box, fig_t10_box_sex | box summaries by course group / sex |
+| fig_t11_heatmap_chi | row-percentage table (the heatmap shows %, only raw counts were exported) |
+
+Added `compute_box_summary_by(df, group_col, value_col)` to `main_common.py` — one
+generic function (min/Q1/median/Q3/max/n/outliers via the standard 1.5×IQR rule),
+reused for all 9 box-plot gaps above rather than 9 near-duplicate functions.
+`compute_year_gap_histogram()` and `compute_repeat_change_summary()` are the two
+other new `main_common.py` functions (41 `compute_*` total now, up from 38).
+
+Denominator is now `len(CHART_TABLE_MAP)` (59, fixed and asserted), never the
+exporter's own running counter — the ratio can fail. Added a **Chart-to-Table
+Index** (all 59 rows) right after the Global KPIs table, so a reader can go from any
+on-screen chart straight to its backing table. If a chart were ever left uncovered,
+`_self_check_block` lists it by name + reason under "Charts NOT covered by a data
+table" instead of silently shrinking the denominator (contract Rule 8) — currently
+empty (59/59).
+
+**Caption/population-metadata density.** Investigated: the round-1 counter (10) was
+real, not a mislabel — most `df_to_markdown()` calls had no attached population/n/
+denominator note, which is a genuine Rule 2 gap, not an undercounting bug. Added
+`pop()` notes (a `*Population: ...*` line, counted the same as a caption) to the
+tables that most needed a stated denominator: Table 2 cohort table, Table 4
+university-pairing audit, Tables 6-8 core distributions, the Tab 4 bin-by-year and
+bin-by-unitype tables, the bin-by-year×unitype table, the citizenship-counts table,
+the comparative-groups table, and Table 1's summary table. Every `chart_meta()` call
+(now 41 of them, one per chart that has genuine x/y/series/population/n/denominator
+semantics, vs. 7 before) also carries this metadata in its HTML comment per Rule 2 —
+those aren't counted in the caption counter (a separate, pre-existing counter) but do
+satisfy the metadata requirement structurally. Captions/population-notes counter is
+now 23 (up from 10). I did not attach a population line to every remaining plain
+table (e.g. Table 45-47 chi-square detail, Table 43/44 stat-test tables) — those
+inherit their population from the immediately preceding chart's `chart_meta` block
+or section heading in every case I left as-is; flagging this as the most likely spot
+for a follow-up pass if the bar is "literally every table," since I prioritized the
+tables backing the 59 charts (the explicit ask) over the handful of non-chart
+statistical-test tables.
+
+## Re-verification after round-2 fixes (verbatim)
+
+```
+$ .venv/Scripts/python.exe -c "from streamlit.testing.v1 import AppTest; at=AppTest.from_file('streamlit_dashboard/main_dashboard/dashboard.py', default_timeout=900); at.run(); print('exceptions:', len(at.exception)); [print(str(e)[:800]) for e in at.exception[:5]]; print('metrics', len(at.metric), 'dfs', len(at.dataframe), 'tabs', len(at.tabs))"
+
+exceptions: 0
+metrics 27 dfs 74 tabs 42
+```
+
+```
+$ .venv/Scripts/python.exe streamlit_dashboard/main_dashboard/export_markdown.py
+wrote D:\User\Desktop\Acads\NMAT Analysis\NMAT_Analysis\streamlit_dashboard\main_dashboard\complete_markdown\NMAT_Main_Dashboard_Complete.md  (177,600 chars)
+```
+
+Export self-check block (from the regenerated document, verbatim):
+
+```
+# Export Integrity
+| check | result |
+|---|---|
+| Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
+| Rows / cols (source parquet on disk) | 178,927 / 53 |
+| Derived columns added at load time | 5 (YEAR_INT, SEX_CLEAN, IS_BOARD_OBSERVABLE_COHORT, HAS_CONFIRMED_PLE, PLE_STATUS_LABEL) |
+| Tabs exported | 13 / 13 |
+| Charts exported as data | 59 / 59 |
+| Tables exported | 102 |
+| Captions/population notes exported | 23 |
+| Dashboard-vs-export value assertions passed | 5 / 5 |
+```
+
+md5 matches the orchestrator's independently-verified value exactly. Headline
+numbers re-confirmed present (134,869 / 69,503 / 45.44% / 56,065 of 99,316 = 56.45%),
+and `"42.2%"` still appears exactly once, inside its own prohibition sentence.
+
+## Original round-1 log follows
+
 ## Files created / changed
 
 - **Created** `streamlit_dashboard/main_dashboard/main_common.py` (1,155 lines) — shared
@@ -168,8 +280,7 @@ All 5/5 passed (see self-check block above).
   E1 (main_dashboard only), per the task's directory restriction.
 - I did not open the generated `.md` file in a renderer; I verified it via `grep`
   for the required numbers and via the printed self-check block instead.
-- Schema drift warning: the live parquet currently has 58 columns, not the
-  51/52/53 the target schema contract specifies. This is pre-existing (the same
-  `EXPECTED_COLS = 53` check already existed in `dashboard.py` before my changes)
-  and is a pipeline/data concern outside `main_dashboard/`, not something this
-  task's scope covers. Flagging for the orchestrator.
+- ~~Schema drift warning: the live parquet currently has 58 columns...~~ **RETRACTED,
+  see "Round 2" section at the top of this log.** The source parquet is 53 columns;
+  58 was the in-memory frame after `ensure_required_columns()` derives 5 more at
+  load time. No schema drift, nothing to flag.

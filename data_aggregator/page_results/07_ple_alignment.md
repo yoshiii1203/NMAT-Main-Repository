@@ -1,6 +1,6 @@
 # Page 7: PLE Alignment of NMAT Performance
 
-**Generated:** 2026-08-14 16:58
+**Generated:** 2026-08-14 17:29
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 

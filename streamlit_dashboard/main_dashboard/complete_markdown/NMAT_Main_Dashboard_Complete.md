@@ -1,8 +1,8 @@
 # NMAT Performance Dashboard -- Complete Export
 
-> Complete Markdown export generated 2026-08-14 17:17. Every number below is computed by the same functions the live dashboard renders from (`main_common.py`) -- this document is a faithful transcript, not a paraphrase. **This export always reflects the FULL, UNFILTERED dataset**, not whatever sidebar filters happened to be applied in the browser session that generated it.
+> Complete Markdown export generated 2026-08-14 17:25. Every number below is computed by the same functions the live dashboard renders from (`main_common.py`) -- this document is a faithful transcript, not a paraphrase. **This export always reflects the FULL, UNFILTERED dataset**, not whatever sidebar filters happened to be applied in the browser session that generated it.
 
-**Source:** NMAT_Exodus.parquet, 178,927 rows x 58 columns.
+**Source:** NMAT_Exodus.parquet, 178,927 rows x 58 columns loaded (source parquet on disk is 53 columns; the rest are derived at load time -- see Export Integrity at the end).
 
 ## How to Read This Document
 
@@ -11,6 +11,7 @@
 - **NMAT-to-PLE linkage** -- the share of examinees later matched to PLE passer records. This is NEVER a pass rate: the PLE source list contains passers only, so "No confirmed PLE match" is not evidence of failure.
 - **Score bins** -- B1 (0-9, lowest) through B10 (90-100, highest). Always ordered B1..B10, never string-sorted.
 - **People vs sittings** -- best-record filtering counts people; unfiltered subsets (e.g. Tab 8 Repeat Takers) count exam sittings.
+- **Box-plot charts** are exported as a five-number summary (min/Q1/median/Q3/max) plus n and outlier count per group, never as raw points (export contract Rule 1).
 - **No medical-school identifier exists in this dataset.** UNDERGRAD_UNI_TYPE / UNDERGRAD_UNIVERSITY describe the examinee's undergraduate institution, never the medical school.
 
 ## Global KPIs
@@ -24,6 +25,72 @@
 | Repeat takers | 33,713 (25.0%) | unique examinees | - |
 
 ---
+
+## Chart-to-Table Index
+
+Every chart the live dashboard renders (`st.plotly_chart`, 59 total), and the exact heading in this document carrying its underlying values as data.
+
+| # | Tab | Chart | Backing table (heading) |
+|---|---|---|---|
+| 1 | Tab 1 | Annual NMAT score and volume profile | Annual Trend |
+| 2 | Tab 1 | Course-group composition pie | Course-Group Composition |
+| 3 | Tab 1 | University-type composition pie | University-Type Composition |
+| 4 | Tab 3 | Annual score trends and volume | Annual Score Trends |
+| 5 | Tab 3 | Total raw score by year (box) | Box Summary: Total Raw Score by Year |
+| 6 | Tab 3 | Percentile rank by year (box) | Box Summary: Percentile Rank by Year |
+| 7 | Tab 3 | Part I raw score by year (box) | Box Summary: Part I Raw Score by Year |
+| 8 | Tab 3 | Part II raw score by year (box) | Box Summary: Part II Raw Score by Year |
+| 9 | Tab 4 | Bin distribution heatmap by year | Bin Distribution by Year |
+| 10 | Tab 4 | Bin composition stacked bar by year | Bin Distribution by Year |
+| 11 | Tab 4 | Top vs bottom bin share by year | Top vs Bottom Bin Share by Year |
+| 12 | Tab 4 | Bin distribution heatmap by university type | Bin Distribution by University Type |
+| 13 | Tab 4 | Top-bin share bar by university type | Bin Distribution by University Type |
+| 14 | Tab 4 | Bin composition facet by year x university type | Bin Count by Year x University Type |
+| 15 | Tab 4 | Citizenship composition pie | Citizenship Counts |
+| 16 | Tab 4 | Foreigners vs Filipinos pie | Citizenship Profile KPIs |
+| 17 | Tab 4 | Top-15 citizenship groups bar | Citizenship Counts |
+| 18 | Tab 4 | Bin composition by citizenship (stacked) | Bin Distribution by Citizenship (Top 15) |
+| 19 | Tab 4 | Full bin heatmap by citizenship | Bin Distribution by Citizenship (Top 15) |
+| 20 | Tab 4 | Top-bin share by citizenship | Top-Bin Share (B8-B10) by Citizenship (n>=3) |
+| 21 | Tab 4 | Percentile rank by citizenship (box, n>=5) | Box Summary: Percentile Rank by Citizenship (n>=5) |
+| 22 | Tab 4 | TRUE raw score by citizenship (box, n>=5) | Box Summary: TRUE Raw Score by Citizenship (n>=5) |
+| 23 | Tab 4 | Percentile rank by comparison group (box) | Box Summary: Percentile Rank by Comparison Group |
+| 24 | Tab 4 | TRUE raw score by comparison group (box) | Box Summary: TRUE Raw Score by Comparison Group |
+| 25 | Tab 4 | Full bin heatmap by comparison group | Bin Distribution by Comparison Group |
+| 26 | Tab 4 | Bin composition by comparison group (stacked) | Bin Distribution by Comparison Group |
+| 27 | Tab 4 | Top vs bottom bin share by comparison group | Top vs Bottom Bin Share by Comparison Group |
+| 28 | Tab 4 | Bin distribution heatmap by course group | Bin Distribution by Course Group |
+| 29 | Tab 4 | Top-bin share bar by course group | Bin Distribution by Course Group |
+| 30 | Tab 5 | Bin distribution by institution type x location | Bin Distribution by Institution Type x Location |
+| 31 | Tab 5 | Top-bin share by institution type x location | Bin Distribution by Institution Type x Location |
+| 32 | Tab 5 | Bin composition by university type (stacked) | Bin Composition by University Type (%) |
+| 33 | Tab 5 | Bin distribution among foreign examinees | Bin Distribution Among Foreign Examinees |
+| 34 | Tab 5 | Medical & Allied vs other courses by university type | Figure 16 -- Medical & Allied vs Other Courses by University Type |
+| 35 | Tab 6 | University type to bin flow (Sankey) | Table 18 -- University Type to Bin Flow |
+| 36 | Tab 6 | Course group to bin flow (Sankey) | Table 19 -- Course Group to Bin Flow |
+| 37 | Tab 6 | Bin to PLE status flow (Sankey) | Table 20 -- Bin to PLE Status Flow (Observable Cohort) |
+| 38 | Tab 7 | TRUE raw score by PLE status (box) | Box Summary: TRUE Raw Score by PLE Status |
+| 39 | Tab 7 | Bin distribution by PLE status | Figure 21 -- Bin Distribution by PLE Status |
+| 40 | Tab 7 | PLE status composition within each bin | Table 25 -- PLE Status Composition within Each Bin |
+| 41 | Tab 7 | Top-bin share by course group | Table 26 -- Course-Group Top-Bin Survival |
+| 42 | Tab 8 | NMAT attempt-count distribution | Table 31 -- Attempt-Count Distribution |
+| 43 | Tab 8 | First-to-last attempt change (box) | Box Summary: First-to-Last Attempt Change |
+| 44 | Tab 8 | First vs last percentile (scatter) | First vs Last Percentile (Repeat Takers, Preview) |
+| 45 | Tab 9 | Standardized subtest means by university type | Table 34 -- Standardized Subtest Means by University Type |
+| 46 | Tab 9 | Standardized subtest means by course group | Table 36 -- Standardized Subtest Means by Course Group |
+| 47 | Tab 9 | Subtest radar profile by university type | Table 38 -- Radar-Profile Values by University Type |
+| 48 | Tab 9 | Subtest radar profile by course group | Table 39 -- Radar-Profile Values by Course Group |
+| 49 | Tab 10 | PLE year-gap distribution (histogram) | PLE Year-Gap Distribution |
+| 50 | Tab 10 | PLE year gap by course group (box) | Box Summary: PLE Year Gap by Course Group |
+| 51 | Tab 10 | Percentile rank by sex (box) | Box Summary: Percentile Rank by Sex |
+| 52 | Tab 10 | Sex composition by year | Figure 34 -- Sex Composition by Year |
+| 53 | Tab 10 | PLE status composition by sex | Table 42 -- PLE Status Composition by Sex (Observable Cohort) |
+| 54 | Tab 11 | University type x bin row percentages | University Type x Bin Row Percentages |
+| 55 | Tab 11 | Dunn post-hoc adjusted p-values | Table 48 -- Dunn Post-Hoc Adjusted P-Values |
+| 56 | Tab 12 | Survival to top bins by course group | Table 4 -- Survival to Top Bins by Course Group |
+| 57 | Tab 13 | PLE linkage rate by cut-off scenario | Section A -- Applicant-Pool Cut-off Scenarios (30th vs 40th Percentile) |
+| 58 | Tab 13 | Bin composition: foreigner vs Filipino | Section B -- Foreign vs Filipino Applicant-Pool Composition |
+| 59 | Tab 13 | PLE linkage rate by percentile bin | Section C -- Individual-Level PLE Linkage Gradient by Percentile Bin |
 
 # Tab 1 -- Executive Summary
 
@@ -45,7 +112,7 @@
 <!-- chart_type: bar+line | x: Year | y: n, raw_median, per_median | series: none
      population: best-record examinees, all years
      n: 134,869 | denominator: one row per person
-     source_tab: 1 | element_id: t1_fig1 -->
+     source_tab: 1 | element_id: fig_t1_trends -->
 
 |   Year |      n |   raw_median |   raw_q25 |   raw_q75 |   part1_median |   part2_median |   per_median |   per_q25 |   per_q75 |   gps_median |   iqr_raw |   part1_share_pct |   part2_share_pct |
 |-------:|-------:|-------------:|----------:|----------:|---------------:|---------------:|-------------:|----------:|----------:|-------------:|----------:|------------------:|------------------:|
@@ -71,7 +138,7 @@
 <!-- chart_type: pie | x: UNDERGRAD_COURSE_GROUP | y: Count | series: none
      population: best-record examinees
      n: 134,869 | denominator: best-record examinees
-     source_tab: 1 | element_id: t1_fig2 -->
+     source_tab: 1 | element_id: fig_t1_course_pie -->
 
 | UNDERGRAD_COURSE_GROUP       |   Count |   Share (%) |
 |:-----------------------------|--------:|------------:|
@@ -90,7 +157,7 @@
 <!-- chart_type: pie | x: UNDERGRAD_UNI_TYPE | y: Count | series: none
      population: best-record examinees
      n: 134,869 | denominator: best-record examinees
-     source_tab: 1 | element_id: t1_fig3 -->
+     source_tab: 1 | element_id: fig_t1_uni_pie -->
 
 | UNDERGRAD_UNI_TYPE   |   Count |   Share (%) |
 |:---------------------|--------:|------------:|
@@ -130,6 +197,8 @@
 
 ## Table 2 -- Analysis Cohorts
 
+*Population: 6 analytic subsets defined over the full, unfiltered dataset (n varies by row -- see Row count column)*
+
 | Analytic subset                               |   Row count | Interpretation                                                                                                                                          |
 |:----------------------------------------------|------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------|
 | All cleaned NMAT rows                         |     178,927 | Every cleaned NMAT sitting, any year, all applicants.                                                                                                   |
@@ -162,12 +231,16 @@ Stored-vs-derived mismatch rate: 56,065 of 99,316 rows with a stored total disag
 |---|---|---|---|
 | Universities checked | 2,907 | distinct UNDERGRAD_UNIVERSITY values | - |
 | University pairing conflicts | 0 | universities above | >1 UNDERGRAD_UNI_TYPE or >1 UNDERGRAD_UNI_LOCATION |
+*Population: conflicting universities only, 0 of 2,907 checked*
+
 _(no data under the current population)_
 
 ---
 
 
 ## Tables 6-8 -- Core Distributions
+
+*Population: all rows, n=178,927*
 
 | UNDERGRAD_UNI_TYPE   |   Count |   Share (%) |
 |:---------------------|--------:|------------:|
@@ -183,17 +256,19 @@ _(no data under the current population)_
 | Other                        |   9,855 |        5.51 |
 | Education                    |   4,162 |        2.33 |
 | Engineering & Technology     |     848 |        0.47 |
+*Population: observable cohort only (Year<=2014); 90,783 of 178,927 rows (50.7%) excluded as Year>2014*
+
 | PLE_STATUS_LABEL       |   Count |
 |:-----------------------|--------:|
 | No confirmed PLE match |  48,507 |
 | Confirmed PLE passer   |  39,637 |
-90,783 of 178,927 rows (50.7%) are Year > 2014 and excluded from the PLE-status table for that reason.
-
 
 ---
 
 
 ## Table 9 -- PLE Match-Outcome Breakdown
+
+*Population: all rows, n=178,927*
 
 | PLE_MATCH_OUTCOME         |   Count |   Percent |
 |:--------------------------|--------:|----------:|
@@ -209,10 +284,13 @@ _(no data under the current population)_
 
 # Tab 3 -- Trends & Stability
 
+
+## Annual Score Trends
+
 <!-- chart_type: line (4-panel) | x: Year | y: raw/percentile median + IQR, n | series: none
      population: best-record trend cohort
      n: 134,869 | denominator: best-record examinees, 2006-2018
-     source_tab: 3 | element_id: t3_fig4 -->
+     source_tab: 3 | element_id: fig_t3_trends -->
 
 |   Year |      n |   raw_median |   raw_q25 |   raw_q75 |   part1_median |   part2_median |   per_median |   per_q25 |   per_q75 |   gps_median |   iqr_raw |   part1_share_pct |   part2_share_pct |
 |-------:|-------:|-------------:|----------:|----------:|---------------:|---------------:|-------------:|----------:|----------:|-------------:|----------:|------------------:|------------------:|
@@ -229,6 +307,110 @@ _(no data under the current population)_
 |  2,016 | 12,480 |          123 |        98 |       146 |             66 |             57 |           48 |        19 |        73 |          495 |        48 |             53.66 |             46.34 |
 |  2,017 | 23,948 |          118 |        93 |       143 |             63 |             54 |           44 |        19 |        70 |          485 |        50 |             53.39 |             45.76 |
 |  2,018 | 22,333 |          111 |        91 |       132 |             59 |             51 |           43 |        17 |        70 |          481 |        41 |             53.15 |             45.95 |
+
+---
+
+
+## Box Summary: Total Raw Score by Year
+
+<!-- chart_type: box | x: Year | y: TotalRawScoreTRUE | series: none
+     population: best-record trend cohort
+     n: 134,869 | denominator: best-record examinees, 2006-2018
+     source_tab: 3 | element_id: fig_t3_box_raw -->
+
+|   Year |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|-------:|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+|  2,006 |  3,698 |    50 |  108 |      131 |  154 |   220 |          0 |
+|  2,007 |  3,690 |    38 |  107 |      130 |  156 |   222 |          0 |
+|  2,008 |  4,965 |    37 |  107 |      129 |  153 |   223 |          2 |
+|  2,009 |  7,445 |    48 |  109 |      130 |  152 |   223 |          5 |
+|  2,010 |  8,548 |    44 |  115 |      136 |  159 |   231 |          3 |
+|  2,011 |  8,692 |    46 |  109 |      129 |  151 |   222 |         10 |
+|  2,012 |  9,102 |    43 |  101 |      122 |  145 |   223 |         20 |
+|  2,013 |  9,144 |    10 |  103 |      128 |  154 |   227 |          5 |
+|  2,014 | 10,455 |     9 |   98 |      120 |  142 |   220 |         28 |
+|  2,015 | 10,326 |    27 |   93 |      118 |  142 |   222 |         10 |
+|  2,016 | 12,480 |    30 |   98 |      123 |  146 |   223 |          2 |
+|  2,017 | 23,948 |     7 |   93 |      118 |  143 |   226 |         11 |
+|  2,018 | 22,333 |    25 |   91 |      111 |  132 |   230 |        219 |
+
+---
+
+
+## Box Summary: Percentile Rank by Year
+
+<!-- chart_type: box | x: Year | y: NMS_PER_num | series: none
+     population: best-record trend cohort
+     n: 134,869 | denominator: best-record examinees, 2006-2018
+     source_tab: 3 | element_id: fig_t3_box_pct -->
+
+|   Year |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|-------:|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+|  2,006 |  3,678 |    -1 |   27 |       53 |   77 |    99 |          0 |
+|  2,007 |  3,671 |    -1 |   27 |       52 |   77 |    99 |          0 |
+|  2,008 |  4,958 |    -1 |   28 |       54 |   80 |    99 |          0 |
+|  2,009 |  7,445 |    -1 |   27 |       52 |   77 |    99 |          0 |
+|  2,010 |  8,539 |    -1 |   32 |       57 |   81 |    99 |          0 |
+|  2,011 |  8,654 |    -1 |   30 |       52 |   76 |    99 |          0 |
+|  2,012 |  8,926 |    -1 |   26 |       54 |   81 |    99 |          0 |
+|  2,013 |  8,898 |    -1 |   24 |       60 |   86 |    99 |          0 |
+|  2,014 | 10,277 |    -1 |   24 |       57 |   83 |    99 |          0 |
+|  2,015 | 10,141 |    -1 |   19 |       52 |   78 |    99 |          0 |
+|  2,016 | 12,428 |    -1 |   19 |       48 |   73 |    99 |          0 |
+|  2,017 | 23,872 |    -1 |   19 |       44 |   70 |    99 |          0 |
+|  2,018 | 22,206 |    -1 |   17 |       43 |   70 |    99 |          0 |
+
+---
+
+
+## Box Summary: Part I Raw Score by Year
+
+<!-- chart_type: box | x: Year | y: PartIRawScoreTRUE | series: none
+     population: best-record trend cohort
+     n: 134,869 | denominator: best-record examinees, 2006-2018
+     source_tab: 3 | element_id: fig_t3_box_p1 -->
+
+|   Year |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|-------:|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+|  2,006 |  3,698 |    21 |   56 |       67 |   79 |   115 |          3 |
+|  2,007 |  3,690 |    15 |   54 |       66 |   77 |   115 |          3 |
+|  2,008 |  4,965 |    13 |   56 |       67 |   79 |   113 |          7 |
+|  2,009 |  7,445 |    12 |   57 |       68 |   79 |   115 |         13 |
+|  2,010 |  8,548 |    16 |   60 |       71 |   83 |   118 |         12 |
+|  2,011 |  8,692 |    20 |   58 |       69 |   80 |   116 |         21 |
+|  2,012 |  9,102 |    19 |   56 |       67 |   79 |   115 |         11 |
+|  2,013 |  9,144 |     7 |   57 |       70 |   83 |   117 |         14 |
+|  2,014 | 10,455 |     0 |   53 |       65 |   76 |   116 |         37 |
+|  2,015 | 10,326 |    12 |   48 |       61 |   73 |   114 |          9 |
+|  2,016 | 12,480 |     1 |   53 |       66 |   78 |   115 |          5 |
+|  2,017 | 23,948 |     1 |   50 |       63 |   77 |   116 |          5 |
+|  2,018 | 22,333 |    12 |   48 |       59 |   71 |   117 |         49 |
+
+---
+
+
+## Box Summary: Part II Raw Score by Year
+
+<!-- chart_type: box | x: Year | y: PartIIRawScoreTRUE | series: none
+     population: best-record trend cohort
+     n: 134,869 | denominator: best-record examinees, 2006-2018
+     source_tab: 3 | element_id: fig_t3_box_p2 -->
+
+|   Year |      n |   min |   q1 |   median |    q3 |   max |   outliers |
+|-------:|-------:|------:|-----:|---------:|------:|------:|-----------:|
+|  2,006 |  3,698 |    25 |   51 |       63 | 77.75 |   112 |          0 |
+|  2,007 |  3,690 |     0 |   52 |       65 |    80 |   110 |          5 |
+|  2,008 |  4,965 |     0 |   49 |       61 |    75 |   118 |          2 |
+|  2,009 |  7,445 |    21 |   51 |       62 |    75 |   113 |          2 |
+|  2,010 |  8,548 |    21 |   53 |       65 |    78 |   116 |          1 |
+|  2,011 |  8,692 |    19 |   49 |       60 |    72 |   112 |          9 |
+|  2,012 |  9,102 |    14 |   43 |       54 |    68 |   113 |         21 |
+|  2,013 |  9,144 |     1 |   45 |       57 |    73 |   115 |          1 |
+|  2,014 | 10,455 |     4 |   43 |       55 |    68 |   109 |         17 |
+|  2,015 | 10,326 |     2 |   42 |       57 |    71 |   116 |          2 |
+|  2,016 | 12,480 |     0 |   43 |       57 |    70 |   115 |         12 |
+|  2,017 | 23,948 |     0 |   42 |       54 |    68 |   117 |         62 |
+|  2,018 | 22,333 |     6 |   41 |       51 |    64 |   114 |        232 |
 
 ---
 
@@ -251,7 +433,7 @@ _(no data under the current population)_
 
 ## Bin Distribution by Year
 
-<!-- chart_type: heatmap | x: Year | y: PercentileBin | series: t4_fig5
+<!-- chart_type: heatmap+stacked_bar | x: Year | y: PercentileBin | series: fig_t4_heatmap_year
      population: row %
      n: best-record trend cohort | denominator: 134,869
      source_tab: best-record examinees, 2006-2018 | element_id: 4 -->
@@ -298,6 +480,8 @@ _(no data under the current population)_
 
 ## Bin Distribution by University Type
 
+*Population: best-record, Public/Private/Foreign, n=133,477*
+
 | UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
 |:---------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
 | Foreign              | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
@@ -317,6 +501,8 @@ _(no data under the current population)_
 
 
 ## Bin Count by Year x University Type
+
+*Population: best-record, Public/Private/Foreign, valid year+bin, n=130,494 sittings across 390 year x unitype x bin cells*
 
 |   Year | UNDERGRAD_UNI_TYPE   | PercentileBin   |     n |
 |-------:|:---------------------|:----------------|------:|
@@ -710,8 +896,6 @@ _(no data under the current population)_
 |  2,018 | Public               | B8              |   328 |
 |  2,018 | Public               | B9              |   369 |
 |  2,018 | Public               | B10             |   377 |
-Full table shown.
-
 
 ---
 
@@ -725,7 +909,14 @@ Full table shown.
 | Filipinos | 32,320 | rows above | - |
 | Distinct citizenship labels | 43 | rows above | - |
 
+### Citizenship Profile KPIs
+
+(Foreigners vs Filipinos pie chart uses the two rows above: Foreigners and Filipinos.)
+
+
 ### Citizenship Counts
+
+*Population: no-PLE-match observable examinees with a citizenship label, n=37,381*
 
 | CITIZENSHIP_FINAL     |      n |
 |:----------------------|-------:|
@@ -829,6 +1020,78 @@ Full table shown.
 | Vietnam               |      3 |       2 |          66.7 |
 | United Kingdom        |     18 |      14 |          77.8 |
 
+### Box Summary: Percentile Rank by Citizenship (n>=5)
+
+<!-- chart_type: box | x: CITIZENSHIP_FINAL | y: NMS_PER_num | series: none
+     population: citizenship groups with n>=5
+     n: 37,347 | denominator: no-PLE-match observable examinees
+     source_tab: 4 | element_id: fig_pc_box_pct -->
+
+| CITIZENSHIP_FINAL     |      n |   min |    q1 |   median |    q3 |   max |   outliers |
+|:----------------------|-------:|------:|------:|---------:|------:|------:|-----------:|
+| Australia             |     17 |    -1 |    41 |       73 |    92 |    99 |          0 |
+| Bangladesh            |      8 |     2 | 12.25 |     30.5 | 51.25 |    62 |          0 |
+| Canada                |     32 |     4 | 41.75 |     69.5 | 88.25 |    99 |          0 |
+| China                 |     31 |     9 |  27.5 |       55 |    86 |    99 |          0 |
+| Ethiopia              |      5 |     7 |    11 |       23 |    28 |    87 |          1 |
+| Filipino              | 32,177 |    -1 |    18 |       41 |    69 |    99 |          0 |
+| Foreign (unspecified) |    106 |    -1 | 10.25 |       39 | 74.75 |    98 |          0 |
+| Ghana                 |     12 |    19 | 31.25 |     44.5 |    77 |    84 |          0 |
+| India                 |  2,597 |    -1 |     2 |       12 |    39 |    99 |         18 |
+| Indonesia             |     75 |    -1 |  15.5 |       32 |    63 |    99 |          0 |
+| Iran                  |    125 |    -1 |     1 |       10 |    37 |    96 |          2 |
+| Japan                 |     33 |     1 |    23 |       41 |    55 |    89 |          0 |
+| Kenya                 |     20 |     1 | 37.75 |       52 |    56 |    96 |          5 |
+| Korea (South)         |    124 |     4 |  34.5 |       58 |    81 |    99 |          0 |
+| Malaysia              |     76 |    -1 |     6 |       24 | 38.25 |    98 |          4 |
+| Myanmar               |      8 |    -1 |     2 |      3.5 |   5.5 |    47 |          1 |
+| Nepal                 |    418 |    -1 |    11 |       32 |    55 |    97 |          0 |
+| Nigeria               |    127 |    -1 |     6 |       26 |  57.5 |    98 |          0 |
+| Pakistan              |     26 |    -1 |  3.25 |       14 | 61.75 |    92 |          0 |
+| Somalia               |     38 |    -1 |  -0.5 |        2 |     3 |    48 |          4 |
+| Sri Lanka             |    124 |    -1 |    24 |     44.5 |    65 |    96 |          0 |
+| Sudan                 |     14 |    -1 |    -1 |      4.5 |    12 |    26 |          0 |
+| Taiwan                |     65 |    -1 |     7 |       25 |    70 |    99 |          0 |
+| Thailand              |    580 |    -1 |     6 |       16 |    36 |    98 |         16 |
+| United Kingdom        |     18 |    23 |    74 |     79.5 | 85.75 |    97 |          3 |
+| United States         |    330 |    -1 | 42.25 |       75 |    89 |    99 |          0 |
+
+### Box Summary: TRUE Raw Score by Citizenship (n>=5)
+
+<!-- chart_type: box | x: CITIZENSHIP_FINAL | y: TotalRawScoreTRUE | series: none
+     population: citizenship groups with n>=5
+     n: 37,347 | denominator: no-PLE-match observable examinees
+     source_tab: 4 | element_id: fig_pc_box_raw -->
+
+| CITIZENSHIP_FINAL     |      n |   min |     q1 |   median |     q3 |   max |   outliers |
+|:----------------------|-------:|------:|-------:|---------:|-------:|------:|-----------:|
+| Australia             |     19 |    50 |    120 |      150 |  170.5 |   200 |          0 |
+| Bangladesh            |      8 |    69 |  89.75 |    102.5 | 116.25 |   135 |          0 |
+| Canada                |     34 |    77 | 117.25 |      144 |    165 |   223 |          0 |
+| China                 |     32 |    86 |  104.5 |    127.5 | 163.25 |   215 |          0 |
+| Ethiopia              |      5 |    82 |     89 |      101 |    110 |   164 |          1 |
+| Filipino              | 32,302 |    37 |     97 |      116 |    138 |   223 |        163 |
+| Foreign (unspecified) |    107 |    56 |   88.5 |      115 |    150 |   200 |          0 |
+| Ghana                 |     12 |    94 | 103.75 |      110 |    135 |   151 |          0 |
+| India                 |  2,596 |     9 |     69 |       89 |    112 |   216 |          9 |
+| Indonesia             |     75 |    56 |     94 |      109 |    134 |   198 |          1 |
+| Iran                  |    125 |    40 |     69 |       88 |    117 |   171 |          0 |
+| Japan                 |     33 |    65 |    100 |      115 |    128 |   166 |          0 |
+| Kenya                 |     19 |    57 |    110 |      121 |    130 |   183 |          4 |
+| Korea (South)         |    125 |    79 |    111 |      131 |    155 |   194 |          0 |
+| Malaysia              |     76 |    44 |     84 |     99.5 | 117.25 |   174 |          1 |
+| Myanmar               |      8 |    50 |   68.5 |       73 |  80.75 |   125 |          2 |
+| Nepal                 |    417 |    47 |     89 |      108 |    125 |   195 |          5 |
+| Nigeria               |    127 |    59 |   81.5 |      102 |    125 |   178 |          0 |
+| Pakistan              |     26 |    48 |     73 |       93 |  129.5 |   176 |          0 |
+| Somalia               |     38 |    43 |  61.25 |       69 |     74 |   114 |          3 |
+| Sri Lanka             |    124 |    60 | 100.75 |      119 |    134 |   177 |          0 |
+| Sudan                 |     14 |    48 |     61 |     76.5 |  91.25 |   104 |          0 |
+| Taiwan                |     62 |    56 |   85.5 |      110 |    139 |   184 |          0 |
+| Thailand              |    575 |    46 |     80 |       95 |  112.5 |   176 |          8 |
+| United Kingdom        |     18 |    99 | 140.25 |      151 |    162 |   186 |          1 |
+| United States         |    336 |    47 |    122 |      149 | 168.25 |   216 |          1 |
+
 ### Summary by Citizenship
 
 | CITIZENSHIP_FINAL     |   n_examinees |   median_percentile_rank |   median_true_raw_score |   top_decile_n |   top_decile_pct |   bottom_decile_n |   bottom_decile_pct |
@@ -919,12 +1182,42 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 ## Comparative Analysis: Foreigners vs Filipino Undergrad Groups
 
+*Population: 4 groups (Verified Foreigner; Filipino+foreign undergrad; Filipino+public undergrad; Filipino+private undergrad), n=73,293 combined*
+
 | Group                         |      n |   median_percentile_rank |   q25_pct |   q75_pct |   median_raw_score |   PLE linkage rate % |
 |:------------------------------|-------:|-------------------------:|----------:|----------:|-------------------:|---------------------:|
 | Filipinos (foreign undergrad) |    643 |                       66 |        35 |        86 |                137 |                35.89 |
 | Filipinos (private undergrad) | 52,317 |                       50 |        25 |        76 |                123 |                44.98 |
 | Filipinos (public undergrad)  | 14,410 |                       66 |        35 |        90 |                137 |                49.35 |
 | Foreigners (non-Filipino)     |  5,159 |                       23 |         4 |        53 |                100 |                 2.49 |
+
+### Box Summary: Percentile Rank by Comparison Group
+
+<!-- chart_type: box | x: _cmp_group | y: NMS_PER_num | series: none
+     population: 4 comparison groups
+     n: 73,293 | denominator: combined comparison population
+     source_tab: 4 | element_id: fig_cmp_pct_box -->
+
+| _cmp_group                    |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|:------------------------------|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+| Filipinos (foreign undergrad) |    643 |    -1 |   35 |       66 |   86 |    99 |          0 |
+| Filipinos (private undergrad) | 52,317 |    -1 |   25 |       50 |   76 |    99 |          0 |
+| Filipinos (public undergrad)  | 14,410 |    -1 |   35 |       66 |   90 |    99 |          0 |
+| Foreigners (non-Filipino)     |  5,159 |    -1 |    4 |       23 |   53 |    99 |          0 |
+
+### Box Summary: TRUE Raw Score by Comparison Group
+
+<!-- chart_type: box | x: _cmp_group | y: TotalRawScoreTRUE | series: none
+     population: 4 comparison groups
+     n: 73,293 | denominator: combined comparison population
+     source_tab: 4 | element_id: fig_cmp_raw_box -->
+
+| _cmp_group                    |      n |   min |   q1 |   median |     q3 |   max |   outliers |
+|:------------------------------|-------:|------:|-----:|---------:|-------:|------:|-----------:|
+| Filipinos (foreign undergrad) |    652 |    38 |  110 |      137 | 160.25 |   219 |          0 |
+| Filipinos (private undergrad) | 52,787 |    10 |  103 |      123 |    146 |   227 |        116 |
+| Filipinos (public undergrad)  | 14,638 |     9 |  111 |      137 |    166 |   231 |          7 |
+| Foreigners (non-Filipino)     |  5,162 |     9 |   77 |      100 |    124 |   223 |         35 |
 
 ### Bin Distribution by Comparison Group
 
@@ -947,6 +1240,25 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 ---
 
 
+## Bin Distribution by Course Group
+
+<!-- chart_type: heatmap+top_share_bar | x: UNDERGRAD_COURSE_GROUP | y: PercentileBin | series: fig_t4_heatmap_course
+     population: row %
+     n: best-record trend cohort | denominator: 134,869
+     source_tab: best-record examinees | element_id: 4 -->
+
+| UNDERGRAD_COURSE_GROUP       |    B1 |    B2 |   B3 |    B4 |    B5 |    B6 |   B7 |    B8 |    B9 |   B10 |
+|:-----------------------------|------:|------:|-----:|------:|------:|------:|-----:|------:|------:|------:|
+| Education                    |  9.09 |  8.88 | 9.26 |  9.67 |  10.6 |  9.11 | 9.72 |  9.61 | 10.45 | 13.61 |
+| Engineering & Technology     |  5.21 |  5.89 | 5.89 |  5.62 |  8.63 |  8.77 | 7.53 |    10 | 14.66 | 27.81 |
+| Medical & Allied             |    10 |  9.74 | 9.43 | 10.67 | 10.82 | 10.66 | 9.77 |  9.79 |  9.39 |  9.74 |
+| Natural Sciences             | 12.29 |  8.52 | 7.54 |  8.34 |  8.35 |  8.79 | 9.44 |  9.98 | 11.04 |  15.7 |
+| Other                        |  9.76 |  8.47 | 8.47 |  9.37 |  9.38 |  9.63 | 9.63 | 10.41 | 11.63 | 13.24 |
+| Social & Behavioral Sciences | 19.91 | 11.02 | 8.62 |  8.38 |  7.82 |  8.29 | 7.49 |  7.93 |  8.92 | 11.61 |
+
+---
+
+
 ## Table 12 -- Percentile Summary by Course Group
 
 | UNDERGRAD_COURSE_GROUP       |      n |   median |   q25 |   q75 |
@@ -965,6 +1277,8 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 
 ## Table 13 -- Institution Type by Location Mix
+
+*Population: undergrad type+location present, n=133,477*
 
 | UNDERGRAD_UNI_TYPE   | UNDERGRAD_UNI_LOCATION   |   Count |   Percent of total |
 |:---------------------|:-------------------------|--------:|-------------------:|
@@ -1008,11 +1322,32 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 ## Bin Distribution by Institution Type x Location
 
+<!-- chart_type: heatmap+top_share_bar | x: PercentileBin | y: UNDERGRAD_UNI_TYPE x LOCATION | series: fig_t5_heatmap_instloc
+     population: row %
+     n: valid percentile bin | denominator: 130,494
+     source_tab: best-record uni subset | element_id: 5 -->
+
 | index                   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
 |:------------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
 | Foreign (International) | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
 | Private (Local)         | 12.04 | 9.69 |    9 | 9.92 | 9.91 | 9.94 | 9.47 | 9.69 |  9.73 | 10.63 |
 | Public (Local)          | 10.83 | 8.18 | 7.56 | 8.25 | 8.52 | 8.89 |  9.1 | 9.57 |  11.2 |  17.9 |
+
+---
+
+
+## Bin Composition by University Type (%)
+
+<!-- chart_type: stacked_bar | x: UNDERGRAD_UNI_TYPE | y: PercentileBin | series: fig_t5_stacked_uni
+     population: row %
+     n: valid percentile bin | denominator: 130,494
+     source_tab: best-record uni subset | element_id: 5 -->
+
+| UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
+|:---------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
+| Foreign              | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
+| Private              | 12.04 | 9.69 |    9 | 9.92 | 9.91 | 9.94 | 9.47 | 9.69 |  9.73 | 10.63 |
+| Public               | 10.83 | 8.18 | 7.56 | 8.25 | 8.52 | 8.89 |  9.1 | 9.57 |  11.2 |  17.9 |
 
 ---
 
@@ -1040,7 +1375,23 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 ---
 
 
+## Bin Distribution Among Foreign Examinees
+
+<!-- chart_type: stacked_bar | x: UNDERGRAD_UNI_TYPE | y: PercentileBin | series: fig_t5_foreign_bin
+     population: row %
+     n: Foreign examinees only | denominator: 1,860
+     source_tab: Foreign university-type subset | element_id: 5 -->
+
+| UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
+|:---------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
+| Foreign              | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
+
+---
+
+
 ## Figure 16 -- Medical & Allied vs Other Courses by University Type
+
+*Population: undergrad type+location present, n=133,477*
 
 | UNDERGRAD_UNI_TYPE   |   Medical & Allied |   Other Courses |
 |:---------------------|-------------------:|----------------:|
@@ -1233,7 +1584,7 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 ## Table 18 -- University Type to Bin Flow
 
-<!-- chart_type: sankey | x: UNDERGRAD_UNI_TYPE | y: PercentileBin | series: t6_fig17
+<!-- chart_type: sankey | x: UNDERGRAD_UNI_TYPE | y: PercentileBin | series: fig_t6_sankey_uni
      population: source->target->value
      n: uni subset | denominator: 130,494
      source_tab: best-record, Public/Private/Foreign | element_id: 6 -->
@@ -1275,6 +1626,11 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 
 ## Table 19 -- Course Group to Bin Flow
+
+<!-- chart_type: sankey | x: UNDERGRAD_COURSE_GROUP | y: PercentileBin | series: fig_t6_sankey_course
+     population: source->target->value
+     n: best-record trend cohort | denominator: 131,845
+     source_tab: best-record examinees | element_id: 6 -->
 
 | UNDERGRAD_COURSE_GROUP       | PercentileBin   |   count |
 |:-----------------------------|:----------------|--------:|
@@ -1343,6 +1699,11 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 
 ## Table 20 -- Bin to PLE Status Flow (Observable Cohort)
+
+<!-- chart_type: sankey | x: PercentileBin | y: PLE_STATUS_LABEL | series: fig_t6_sankey_ple
+     population: source->target->value
+     n: observable cohort | denominator: 68,173
+     source_tab: observable best-record examinees | element_id: 6 -->
 
 | PercentileBin   | PLE_STATUS_LABEL       |   count |
 |:----------------|:-----------------------|--------:|
@@ -1427,6 +1788,21 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 ---
 
 
+## Box Summary: TRUE Raw Score by PLE Status
+
+<!-- chart_type: box | x: PLE_STATUS_LABEL | y: TotalRawScoreTRUE | series: none
+     population: observable cohort
+     n: 69,503 | denominator: observable best-record examinees
+     source_tab: 7 | element_id: fig_t7_box_raw_ple -->
+
+| PLE_STATUS_LABEL       |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|:-----------------------|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+| Confirmed PLE passer   | 31,572 |    48 |  120 |      139 |  162 |   231 |          5 |
+| No confirmed PLE match | 37,888 |     9 |   94 |      114 |  136 |   223 |        201 |
+
+---
+
+
 ## Table 24 -- Mann-Whitney: Confirmed vs No Match
 
 | Score              |      U_stat | p_value   |   effect_r |   Confirmed_median |   NoMatch_median |
@@ -1441,6 +1817,11 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 
 
 ## Figure 21 -- Bin Distribution by PLE Status
+
+<!-- chart_type: stacked_bar | x: PLE_STATUS_LABEL | y: PercentileBin | series: fig_t7_bin_ple
+     population: row %
+     n: observable cohort | denominator: 69,503
+     source_tab: observable best-record examinees | element_id: 7 -->
 
 | PLE_STATUS_LABEL       |    B1 |    B2 |    B3 |    B4 |   B5 |    B6 |   B7 |    B8 |    B9 |   B10 |
 |:-----------------------|------:|------:|------:|------:|-----:|------:|-----:|------:|------:|------:|
@@ -1531,7 +1912,7 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 <!-- chart_type: bar | x: Attempts | y: Count | series: none
      population: all sittings, 2006-2018
      n: 178,927 | denominator: all NMAT sittings in the trend window
-     source_tab: 8 | element_id: t8_fig24 -->
+     source_tab: 8 | element_id: fig_t8_attempts -->
 
 |   Attempts |   Count |   Percent |
 |-----------:|--------:|----------:|
@@ -1559,6 +1940,233 @@ Person-level record detail (37,381 rows) is available in the live dashboard and 
 | Median percentile change | 11.00 | analytic repeat takers | - |
 | Median raw score change | 12.00 | analytic repeat takers | - |
 
+## Box Summary: First-to-Last Attempt Change
+
+<!-- chart_type: box | x: Measure | y: Change | series: none
+     population: analytic repeat takers
+     n: 33,702 | denominator: repeat takers with complete first/last scores
+     source_tab: 8 | element_id: fig_t8_box_change -->
+
+| Measure           |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|:------------------|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+| Percentile change | 33,702 |   -71 |    2 |       11 |   25 |    94 |        444 |
+| Raw score change  | 33,702 |   -84 |    0 |       12 |   26 |   119 |        313 |
+
+---
+
+
+## First vs Last Percentile (Repeat Takers, Preview)
+
+<!-- chart_type: scatter | x: first_pct | y: last_pct | series: none
+     population: analytic repeat takers
+     n: 33,702 | denominator: repeat takers with complete first/last scores
+     source_tab: 8 | element_id: fig_t8_scatter_repeat -->
+
+| PERSON_KEY                                               |   first_pct |   last_pct |   n_attempts |
+|:---------------------------------------------------------|------------:|-----------:|-------------:|
+| ASUNCION, JESLY ANNE BULUSAN||8/10/1992                  |          -1 |         11 |            9 |
+| H ISMAEL, DONORAIN EDRES||2/6/1989                       |          24 |          3 |            8 |
+| LLANES, RUDOLPH RICAMARA||5/12/1988                      |           5 |         40 |            8 |
+| PASCUAL, KENNETH TRISTAN NAZARENO||05/13/1990            |           6 |         40 |            8 |
+| LAMBON, EMMANUEL YENUBE||04/27/1987                      |           5 |         67 |            8 |
+| GONZAGA, CATHERINE KAYE SALVACION||01/29/1993            |          11 |         25 |            8 |
+| QUIMING, LYAN DJAMILLE BUSTAMANTE||11/11/1992            |          32 |         56 |            8 |
+| QUILLOPE, AIMIE KLAIN MAGAS||12/9/1991                   |           6 |         20 |            7 |
+| CAVAN, LUCKY ANGELO BARUIS||8/6/1993                     |           2 |         28 |            7 |
+| EVANGELIO, JEAN MARIE AGUILA||1/8/1991                   |           4 |         30 |            7 |
+| PEREZ, APRIL HAMILI GRACE CAYDE||04/24/1987              |          18 |         37 |            7 |
+| AGABIN, AIZA ANGOLLUAN||12/9/1988                        |          19 |         41 |            7 |
+| COLLANTES, ANTHONY AVENA||11/9/1993                      |          49 |         80 |            7 |
+| NARVASA, JAMES JR ROSALES||03/14/1989                    |           1 |          2 |            7 |
+| MUKSAN, RAYHAN JAINA ABAM||9/2/1991                      |          15 |         25 |            7 |
+| CAJANDIG, PRINCESS MAY TEE||3/5/1992                     |           1 |          3 |            7 |
+| ERNI, HANZEL CHARZON ALEGRE||06/15/1987                  |          10 |         60 |            7 |
+| CAPOQUIAN, WILMARY PAJARES||12/2/1993                    |           9 |         38 |            7 |
+| DIZON, GINA PAULA DENSING||3/6/1991                      |          19 |         63 |            7 |
+| MONJE, REEMA LI VALDEZ||06/24/1994                       |           5 |         33 |            7 |
+| VELOSO, JOSE CARLOS GLIANE||09/13/1990                   |           9 |         26 |            7 |
+| MACALANGCOM, JAWAHER SALI||03/15/1989                    |          -1 |          2 |            7 |
+| TURGANO, LOIS KATHLEEN MARY JAVILLONAR||05/18/1985       |           2 |         49 |            7 |
+| SAMPULNA, JIM II DURUIN||7/6/1989                        |           8 |         33 |            7 |
+| CATEDRAL, GLENNA HOPE JOYCE TUAZON||10/12/1989           |           9 |         15 |            6 |
+| GAERLAN, LOURD DERICK JURADO||02/24/1991                 |          15 |         46 |            6 |
+| CAMPOS, CRISTINE SEDANO||1/4/1988                        |           8 |         33 |            6 |
+| FIGUEROA, RALPH BERNARD MOJICA||9/9/1992                 |           2 |         13 |            6 |
+| LIM, KATRINA ROSE LAO||2/6/1990                          |          12 |         35 |            6 |
+| CONCEPCION, MA CARMELA MENDOZA||01/22/1991               |           3 |          4 |            6 |
+| LOGO, JOHN CYRUS PEREZ||02/20/1992                       |          25 |         62 |            6 |
+| BANZON, ANA KRISTIANA LOUISE AUSTRIA||11/14/1993         |          15 |         68 |            6 |
+| DONADILLA, ROSELLINE ZAPATA||09/19/1993                  |           3 |         46 |            6 |
+| BANDARI, LAXMI PRASANNA||06/19/1996                      |          12 |         27 |            6 |
+| LORESCA, ROSE LEEN CRISANTO||9/3/1992                    |           3 |         15 |            6 |
+| MADRIAGA, KATRIN VELASCO||06/30/1990                     |          11 |         34 |            6 |
+| HIPOLITO, JAYVY RAMOS||7/4/1992                          |           3 |         16 |            6 |
+| CANGAS, MARI LEN BATALLA||11/20/1993                     |           1 |         26 |            6 |
+| DOMINGO, PAMELA CASTANO||01/20/1993                      |          14 |         32 |            6 |
+| CASTRO, JEANINE||10/16/1974                              |          -1 |         24 |            6 |
+| DEMAFILES, DEAN ROBERT ANCHETA||06/29/1988               |           7 |         33 |            6 |
+| DAOWAG, FAITH ASWIGUE||10/19/1991                        |           7 |         44 |            6 |
+| MAHARJAN, SUNILA||02/16/1995                             |          13 |          3 |            6 |
+| ANANDAN, MUGUNTHAN||03/21/1997                           |           3 |         39 |            6 |
+| MALLILLIN, KARLA MAY CANTOR||05/22/1990                  |          21 |         41 |            6 |
+| GILERA, HANNA PATRICIA VALLEJA||12/2/1995                |          16 |         37 |            6 |
+| MORALES, JANINE CARLA MANZANERO||6/12/1990               |           5 |         28 |            6 |
+| NANDAKUMAR NAIR, SREEKUMAR||1/6/1996                     |          21 |          4 |            6 |
+| NUNES, XERYL ANN DIMACULANGAN||3/5/1991                  |          34 |         57 |            6 |
+| PANGAN, DESIREE CLEMENTE||12/9/1987                      |          23 |         40 |            6 |
+| CONDE, MA THELMA PRECY CONSULTA||11/25/1993              |          18 |         60 |            6 |
+| PASAO, CATHERINE PALIZA||3/11/1992                       |           5 |         54 |            6 |
+| GOTICO, AARON SAMUEL TIBAYAN||09/26/1994                 |          32 |         59 |            6 |
+| CLERIGO, APRILLE VANESSA ROA||12/4/1994                  |           8 |         59 |            6 |
+| CHAUDHARY, ANIL JESUNGBHAI||08/26/1994                   |           4 |         83 |            6 |
+| CARANGUIAN, MARIFE DURAN||12/2/1992                      |           5 |         47 |            6 |
+| DALMAN, JENDEE DEMORITO||8/7/1992                        |           2 |         28 |            6 |
+| BAUTISTA, KAYE DOLFO||4/8/1992                           |           9 |         29 |            6 |
+| PASUPATHY, DIVYA||5/1/1997                               |          -1 |         11 |            6 |
+| PATEL, PUJAN MUKESHKUMAR||1/1/1997                       |          86 |         16 |            6 |
+| ACUNA, JANELLA MARA VILLANUEVA||02/16/1994               |           3 |         45 |            6 |
+| GONZALES, MAJESTY DELA CRUZ||12/1/1996                   |           2 |         11 |            6 |
+| KUMAR, ARUN||09/21/1995                                  |           9 |         15 |            6 |
+| GUEVARRA, MARIE THERESE TAEZA||09/21/1993                |          39 |         43 |            6 |
+| PROFETANA, ERLA RHYN VEGA||03/28/1992                    |          13 |         34 |            6 |
+| RABARI, AMIT MANABHAI||1/3/1997                          |           9 |         13 |            6 |
+| GALLARDO, JOSHUA PENAREDONDA||11/29/1990                 |          16 |          9 |            6 |
+| RAGUVEL, MANIBHARATHI||10/15/1996                        |          -1 |         24 |            6 |
+| DE GUZMAN, NINA GAE CAMAGAY||02/26/1995                  |           2 |          6 |            6 |
+| REYES, JAIRUS REYES||5/7/1991                            |          49 |         80 |            6 |
+| BARIA, TARUNKUMAR GULABSINH||06/28/1996                  |           6 |         28 |            6 |
+| RIVERA, KEZIA EARL DIGNOS||04/24/1986                    |           4 |         36 |            6 |
+| ADEWALE, FISAYO FOLASADE||08/15/1989                     |           6 |         26 |            6 |
+| ROMANCAP, JAMELA KASID||10/5/1990                        |           2 |          1 |            6 |
+| CABALLERO, NIKKOLE NICOLAS||4/7/1993                     |          16 |         12 |            6 |
+| SAADRA, RAEFAH YUSOPH||09/28/1994                        |          -1 |         24 |            6 |
+| SALIK, FAYDHAL AMPATUAN||07/30/1990                      |          16 |         28 |            6 |
+| SANCHEZ, KATRINA MANGAOANG||7/7/1992                     |           2 |         18 |            6 |
+| HABILING, KAVIN BIDANG||05/18/1992                       |          14 |         92 |            6 |
+| SANCHEZ, MA KRISTINE JOY KALAW||12/26/1993               |          -1 |          4 |            6 |
+| SEMBRANO, GABRIELYNE DELA CRUZ||07/29/1992               |          12 |         25 |            6 |
+| ALDEA, ALDA LOU MATEUM||5/1/1992                         |           6 |         22 |            6 |
+| SUBRAMANIAN, KUMARAVEL||7/11/1997                        |           8 |         32 |            6 |
+| DAYANDAYAN, DARWIN ADRIAN UMALI||01/25/1992              |          24 |         36 |            6 |
+| AGOR, ELIS MARIE MALLANAO||8/10/1994                     |           6 |          8 |            6 |
+| SUBU, UMAMAHESWARI||05/30/1996                           |           6 |         55 |            6 |
+| LAWRENCE, NICKSON||06/17/1997                            |          10 |          5 |            6 |
+| GONZALES, CHRYZEL ANGELICA BABAAN||09/22/1990            |          31 |         46 |            6 |
+| THAKOR, DHAVAL RAKESHKUMAR||09/22/1996                   |          16 |         21 |            6 |
+| AGOJO, ERYLL JOY HOLGADO||1/10/1993                      |           5 |         57 |            6 |
+| BHOJAK, NIDHIBEN VIKRAMBHAI||03/29/1997                  |          17 |         48 |            6 |
+| TUTING, JULIE ANN DENIEGA||4/7/1988                      |           8 |          9 |            6 |
+| VALDERRAMA, BEA AIRA BALMACEDA||10/10/1992               |           4 |         11 |            6 |
+| BARRIOS, KEVIN GEORGE BEARE||04/27/1991                  |          72 |         88 |            6 |
+| VAZA, JIGNASA VAJUBHAI||07/31/1996                       |          23 |         17 |            6 |
+| CASIN, DENISE ARIELLE ACERO||1/8/1992                    |           9 |         55 |            6 |
+| ISIDRO, IAN QUILON||04/27/1990                           |          16 |         15 |            6 |
+| DILLA, PERCIVAL CALIXTO||6/6/1990                        |          10 |         13 |            6 |
+| ENTERO, ALLANA GHISEL BAUTISTA||09/27/1995               |          13 |         51 |            6 |
+| ASUAKO, FRANCIS||10/6/1987                               |          12 |         59 |            6 |
+| VERZOSA, JEROME TURINGAN||04/30/1990                     |          14 |         47 |            6 |
+| VIDAL, JEANNETTE ANNE NAVARRO||07/27/1995                |           6 |         34 |            6 |
+| LACANDULA, GISELLE ALFORQUE||5/4/1988                    |          43 |         30 |            6 |
+| VILLENA, MICHAEL BERNARD SALUD||11/2/1995                |           2 |         85 |            6 |
+| GARCIA, KEITH CACHO||9/11/1984                           |          14 |         18 |            6 |
+| ANDREWS, DOLL SUZANNE||1/12/1996                         |           3 |         57 |            6 |
+| WAL, MICHAEL JUDE CASTANEDA||05/29/1993                  |           8 |         64 |            6 |
+| GUTIERREZ, PAOLO GABRIEL FERRER||05/17/1995              |          30 |         52 |            6 |
+| BAGTILAY, APRIL DIANN JUAN||7/4/1992                     |          29 |         45 |            6 |
+| CUDAL, RIO CLAIRE IYADAN||03/31/1996                     |           6 |         48 |            6 |
+| WATANABE, MAKOTO||10/18/1979                             |          -1 |         24 |            6 |
+| GEORGE SELVAMARY, SAGAYA HELAN MARY||1/11/1996           |           1 |         11 |            6 |
+| GERONIMO, MONA LEIGH LEVISTE||03/24/1992                 |          27 |         99 |            5 |
+| LACERNA, JOHN CHRISTOPHER LUCENA||11/17/1994             |          46 |         69 |            5 |
+| ESPIRITU, MARIE CHRISTINE ILAGAN||8/9/1993               |          27 |         42 |            5 |
+| CHRISTOPHER MANI, ELIJAH OSBORN||11/6/1996               |          -1 |         43 |            5 |
+| IGNACIO, NICOLE TARA JAVIER||04/28/1993                  |           1 |         19 |            5 |
+| ELEAZAR, GENICA SUMAMPONG||10/11/1994                    |          12 |         25 |            5 |
+| ATIENZA, AHRJAY DE GUZMAN||11/8/1992                     |           6 |         19 |            5 |
+| BANGAYAN, BONNA ALLAM||5/4/1992                          |          12 |         52 |            5 |
+| SOSA, KIMBERLY ANN PAYAWAL||12/1/1992                    |          -1 |          9 |            5 |
+| KHRUSHEV, SWATHI||03/13/1997                             |          12 |         23 |            5 |
+| LANGEBAN, MARREM JANELLE ANGELES||01/20/1994             |           2 |         20 |            5 |
+| AWA, JULIE SUMINGUIT||08/15/1991                         |           8 |         41 |            5 |
+| COLLERA, CARMINA DELA CRUZ||10/23/1992                   |           3 |         23 |            5 |
+| ABIERAS, AMAE JAY BULCASE||1/10/1993                     |           8 |         75 |            5 |
+| CAMPOS, KIM JUSTINE ROSALI||08/13/1993                   |           4 |         17 |            5 |
+| DAMARILLO, BEN JOHN CELIS||04/29/1991                    |           4 |         20 |            5 |
+| ATIENZA, DON DANIEL||5/10/1992                           |          19 |         41 |            5 |
+| BANGGOLLAY, FAITH ANNE MANGANIP||01/19/1990              |          14 |         26 |            5 |
+| ATIENZA, EMILIANNE WEE ENG||04/22/1995                   |          87 |         82 |            5 |
+| EZHAVA, ADHIRA SURENDRAN||06/17/1996                     |          -1 |         -1 |            5 |
+| BAGUIWAN, JOAN SIBLAG||05/29/1993                        |           4 |         47 |            5 |
+| DOCENA, RUTCHEL RISOS||9/3/1992                          |          16 |         73 |            5 |
+| ENGINEER, PARTH BABUBHAI||09/23/1997                     |           1 |         31 |            5 |
+| GATLA, SHRUTHI REDDY||11/9/1994                          |          14 |         52 |            5 |
+| AMPELOQUIO, BERNADETTE SUYO||01/27/1994                  |           6 |         17 |            5 |
+| DEBUTON, AIRON GANTALA||08/26/1994                       |          11 |         16 |            5 |
+| GUDEN, DIANA ARCE||12/2/1995                             |           3 |         60 |            5 |
+| LABANA, ANAND RAMANLAL||11/22/1997                       |           2 |         15 |            5 |
+| DAO AYAN, KIAREI BAGGAS||04/15/1994                      |           6 |         34 |            5 |
+| BANIQUED, NAPHTALI ROSALES||05/25/1987                   |          15 |         46 |            5 |
+| DE ASIS, JILBERT DARONG||11/27/1991                      |          17 |         40 |            5 |
+| BHATT, HARSH ATULKUMAR||11/20/1997                       |          21 |         19 |            5 |
+| ANDRES, KHRISTINE MAE NAPOLES||6/5/1989                  |          11 |         29 |            5 |
+| KOILRAJ, SHARUTI ROYCE||8/6/1996                         |           2 |         15 |            5 |
+| KUMAR, GOPAL||12/15/1997                                 |           6 |         17 |            5 |
+| BEL IDA, JASTENE VILLACORTA||12/13/1995                  |          -1 |         12 |            5 |
+| ESPIRITU, SARAH JANE BIEN||2/11/1993                     |           1 |         19 |            5 |
+| IBARRA, CHRISTINE ANNE FERNANDEZ||05/27/1990             |          12 |         21 |            5 |
+| BELADIYA, MAHIPAL KISHORBHAI||10/29/1994                 |           3 |         74 |            5 |
+| CHINTHOJU, MAYURI||12/7/1997                             |           2 |         21 |            5 |
+| BAMBHAROLIYA, VIVEK BIPINBHAI||10/24/1994                |           6 |         86 |            5 |
+| CABATBAT, JENVIRLI VALERIC GLORINA II LIGAYA||09/27/1986 |          20 |         20 |            5 |
+| DAYAG, CORY SIBBALUCA||1/3/1986                          |           2 |         41 |            5 |
+| ALVAREZ, VINCENT PAUL STA TERESA||08/23/1991             |          -1 |         12 |            5 |
+| ISMAEL, JUHANISA DELINOGUN||10/13/1990                   |           9 |         21 |            5 |
+| DELDACAN, FREDLAND UBALDO||3/12/1981                     |           7 |         13 |            5 |
+| DHAYAL, UDDIPTA||6/6/1996                                |           2 |         18 |            5 |
+| GOVINDAN, RANJITH||12/24/1996                            |          -1 |          9 |            5 |
+| ALAS, KARLA PATRICIA CIRERA||02/25/1992                  |          20 |         31 |            5 |
+| FERNANDO, MARIA KATHERINE CHARMAINE CALLADA||11/30/1993  |           7 |         10 |            5 |
+| HILARIO, MYOLAINE CHU||05/20/1987                        |           3 |         43 |            5 |
+| KHATRI, ALI ASGAR||3/6/1995                              |           1 |         -1 |            5 |
+| LANDINGIN, AGNES JOYCE BARROZO||07/21/1993               |           5 |         43 |            5 |
+| GALEON, EDELAINE MARIE JABANES||3/10/1994                |          15 |         37 |            5 |
+| ACLAN, NOELIE JOY MOSQUITO||10/10/1992                   |           1 |         37 |            5 |
+| GATBONTON, BIANCA MARGUERITE DE GUZMAN||9/7/1994         |          18 |         81 |            5 |
+| BERMEJO, JARETTE LORENZO||08/27/1985                     |          20 |         27 |            5 |
+| JOSYULA, SREE NEEHARIKA||02/26/1996                      |          36 |          6 |            5 |
+| GUTIERREZ, JUAN MIGUEL ICARO||07/23/1990                 |          26 |         50 |            5 |
+| BAYAOA, KAREN FAYE GARCIA||10/21/1991                    |          11 |         48 |            5 |
+| BUMANGLAG, KATRINA MARIE DIAZ||06/15/1994                |           4 |         31 |            5 |
+| BERMOY, FRANCIS CARLO ALMARIO||10/12/1994                |          20 |         67 |            5 |
+| KORADIYA, RAVIKUMAR BALABHAI||7/9/1997                   |           4 |         15 |            5 |
+| KORRA, RAJARAM||07/27/1998                               |           6 |          6 |            5 |
+| DEL PRADO, ROSE MYSTICA FERNANDEZ||11/9/1992             |           6 |         63 |            5 |
+| JOSUE, ADMIRANTE JR MAMARIL||04/14/1994                  |          16 |         27 |            5 |
+| ESGUERRA, NADYNNE MARIE RAAGAS||09/14/1992               |          20 |         45 |            5 |
+| CASIPIT, CARLO GABRIEL CANONIGO||10/22/1995              |          57 |         98 |            5 |
+| ANTONIO, ROBIN VALDEZ||09/18/1992                        |          21 |         62 |            5 |
+| BENDITA, JESSELINE MARIE GUAY||03/16/1995                |           6 |         14 |            5 |
+| COCJIN, JEHU MILES SUPERIO||08/26/1995                   |          21 |          9 |            5 |
+| BADUA, KHRISTAN JAY FIESTA||10/26/1991                   |           9 |         24 |            5 |
+| BALBIN, MANRIC LASAGA||1/3/1992                          |           1 |         19 |            5 |
+| LADUMOR, VIJAY LAKHABHAI||12/30/1996                     |           9 |          4 |            5 |
+| ALVENIZ, SHENNA MAE VILLEGAS||1/8/1994                   |          -1 |          2 |            5 |
+| JADAV, RIDHAM DHIRUBHAI||01/22/1998                      |          17 |          3 |            5 |
+| DENNA, PRINCESS MARY ABBYGAIL MANGAGOM||05/21/1991       |          10 |         43 |            5 |
+| ARAGA, AKHIL RAGHAVENDRA REDDY||08/29/1996               |           2 |          9 |            5 |
+| ISRAEL, LEONIDES RAMONETTE CANAPI||12/27/1991            |          14 |         43 |            5 |
+| BALLUNGAY, JOHN HARLEY CUNTAPAY||12/3/1990               |          18 |         17 |            5 |
+| ASENCIO, CHARISSA MAEH PASCUA||08/19/1989                |          26 |         49 |            5 |
+| BUENSALIDA, ANGELA CASTILLO||02/26/1995                  |          48 |         86 |            5 |
+| FRANCISCO, PRECIOUS EVE BETITA||08/28/1994               |           4 |         25 |            5 |
+| ALMIREZ, NIKKI CIARA SEVERINO||08/22/1995                |          26 |         52 |            5 |
+| IGNACIO, KHAYLA MARIE CRISOSTOMO||6/3/1992               |          50 |         63 |            5 |
+| GAUDIANO, JOSELLE LORRAINE ALMEDA||1/5/1993              |          11 |         43 |            5 |
+| KORRA, VIVEKRAM||04/14/1996                              |          15 |         37 |            5 |
+| KHATRI, FIROZ||01/16/1995                                |           1 |          5 |            5 |
+<!-- truncated: true | shown: 200 | total: 33702 | full_csv: repeat_taker_detail_full.csv (download button in live dashboard, Tab 8) -->
+
+
 ---
 
 
@@ -1578,6 +2186,11 @@ Full record-level detail is available via CSV download in the live dashboard; no
 
 ## Table 34 -- Standardized Subtest Means by University Type
 
+<!-- chart_type: heatmap | x: subtest | y: UNDERGRAD_UNI_TYPE | series: none
+     population: mean standardized score
+     n: 133,477 | denominator: best-record uni subset
+     source_tab: 9 | element_id: fig_t9_heatmap_uni -->
+
 | UNDERGRAD_UNI_TYPE   |   Verbal |   Inductive |   Quantitative |   Perceptual |   Biology |   Physics |   Social |   Chemistry |
 |:---------------------|---------:|------------:|---------------:|-------------:|----------:|----------:|---------:|------------:|
 | Foreign              |   478.75 |      505.58 |         512.25 |       489.33 |     499.4 |     512.8 |    479.1 |      506.07 |
@@ -1588,6 +2201,11 @@ Full record-level detail is available via CSV download in the live dashboard; no
 
 
 ## Table 36 -- Standardized Subtest Means by Course Group
+
+<!-- chart_type: heatmap | x: subtest | y: UNDERGRAD_COURSE_GROUP | series: none
+     population: mean standardized score
+     n: 134,869 | denominator: best-record trend cohort
+     source_tab: 9 | element_id: fig_t9_heatmap_course -->
 
 | UNDERGRAD_COURSE_GROUP       |   Verbal |   Inductive |   Quantitative |   Perceptual |   Biology |   Physics |   Social |   Chemistry |
 |:-----------------------------|---------:|------------:|---------------:|-------------:|----------:|----------:|---------:|------------:|
@@ -1638,6 +2256,49 @@ Full record-level detail is available via CSV download in the live dashboard; no
 | Q1 year gap | 6.0 | rows above | - |
 | Q3 year gap | 7.0 | rows above | - |
 
+## PLE Year-Gap Distribution
+
+<!-- chart_type: histogram | x: PLE_YEAR_GAP | y: Count | series: none
+     population: confirmed observable passers with a year gap
+     n: 29,519 | denominator: rows above
+     source_tab: 10 | element_id: fig_t10_gap_hist -->
+
+|   PLE_YEAR_GAP |   Count |
+|---------------:|--------:|
+|              5 |   3,424 |
+|              6 |  14,777 |
+|              7 |   7,563 |
+|              8 |   2,366 |
+|              9 |     832 |
+|             10 |     321 |
+|             11 |     138 |
+|             12 |      65 |
+|             13 |      24 |
+|             14 |       5 |
+|             15 |       4 |
+
+---
+
+
+## Box Summary: PLE Year Gap by Course Group
+
+<!-- chart_type: box | x: UNDERGRAD_COURSE_GROUP | y: PLE_YEAR_GAP | series: none
+     population: confirmed observable passers with a year gap
+     n: 29,519 | denominator: rows above
+     source_tab: 10 | element_id: fig_t10_gap_box -->
+
+| UNDERGRAD_COURSE_GROUP       |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|:-----------------------------|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+| Education                    |  1,563 |     5 |    6 |        6 |    7 |    15 |         93 |
+| Engineering & Technology     |    106 |     5 |    6 |        6 |    7 |    11 |          7 |
+| Medical & Allied             | 16,776 |     5 |    6 |        6 |    7 |    14 |        696 |
+| Natural Sciences             |  6,523 |     5 |    6 |        6 |    7 |    13 |        299 |
+| Other                        |  2,962 |     5 |    6 |        6 |    7 |    15 |        208 |
+| Social & Behavioral Sciences |  1,589 |     5 |    6 |        6 |    7 |    14 |         86 |
+
+---
+
+
 ### Table 40 -- Year-Gap Summary by Course Group
 
 | UNDERGRAD_COURSE_GROUP       |   confirmed_passers |   median_year_gap |   q25_year_gap |   q75_year_gap |   median_percentile |
@@ -1663,7 +2324,28 @@ Full record-level detail is available via CSV download in the live dashboard; no
 ---
 
 
+## Box Summary: Percentile Rank by Sex
+
+<!-- chart_type: box | x: SEX_CLEAN | y: NMS_PER_num | series: none
+     population: best-record trend cohort, valid SEX_CLEAN
+     n: 134,869 | denominator: sex_base
+     source_tab: 10 | element_id: fig_t10_box_sex -->
+
+| SEX_CLEAN       |      n |   min |   q1 |   median |   q3 |   max |   outliers |
+|:----------------|-------:|------:|-----:|---------:|-----:|------:|-----------:|
+| (not specified) |     42 |    -1 |    0 |        0 | 34.5 |    70 |          0 |
+| Female          | 74,219 |    -1 |   23 |       50 |   76 |    99 |          0 |
+| Male            | 59,432 |    -1 |   22 |       49 |   76 |    99 |          0 |
+
+---
+
+
 ## Figure 34 -- Sex Composition by Year
+
+<!-- chart_type: stacked_bar | x: Year | y: SEX_CLEAN | series: fig_t10_sex_year
+     population: row %
+     n: best-record trend cohort, valid SEX_CLEAN | denominator: 134,869
+     source_tab: sex_base | element_id: 10 -->
 
 |   Year |   Male |   Female |
 |-------:|-------:|---------:|
@@ -1743,6 +2425,22 @@ Full record-level detail is available via CSV download in the live dashboard; no
 ---
 
 
+## University Type x Bin Row Percentages
+
+<!-- chart_type: heatmap | x: PercentileBin | y: UNDERGRAD_UNI_TYPE | series: fig_t11_heatmap_chi
+     population: row %
+     n: best-record uni subset | denominator: 133,477
+     source_tab: chi_base | element_id: 11 -->
+
+| UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
+|:---------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
+| Foreign              | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
+| Private              | 12.04 | 9.69 |    9 | 9.92 | 9.91 | 9.94 | 9.47 | 9.69 |  9.73 | 10.63 |
+| Public               | 10.83 | 8.18 | 7.56 | 8.25 | 8.52 | 8.89 |  9.1 | 9.57 |  11.2 |  17.9 |
+
+---
+
+
 ## Table 48 -- Dunn Post-Hoc Adjusted P-Values
 
 |   index |   2006 |   2007 |   2008 |   2009 |   2010 |   2011 |   2012 |   2013 |   2014 |   2015 |   2016 |   2017 |   2018 |
@@ -1802,6 +2500,11 @@ Full record-level detail is available via CSV download in the live dashboard; no
 
 ## Table 4 -- Survival to Top Bins by Course Group
 
+<!-- chart_type: bar | x: UNDERGRAD_COURSE_GROUP | y: survival_rate_pct | series: none
+     population: best-record trend cohort, valid bin
+     n: 134,869 | denominator: besttrend
+     source_tab: 12 | element_id: fig_t12_survival -->
+
 | UNDERGRAD_COURSE_GROUP       |   total_examinees |   top_decile_n |   survival_rate_pct |
 |:-----------------------------|------------------:|---------------:|--------------------:|
 | Engineering & Technology     |               730 |            383 |               52.47 |
@@ -1819,6 +2522,11 @@ Full record-level detail is available via CSV download in the live dashboard; no
 
 ## Section A -- Applicant-Pool Cut-off Scenarios (30th vs 40th Percentile)
 
+<!-- chart_type: bar | x: University Type | y: PLE linkage rate (%) | series: none
+     population: observable cohort
+     n: 69,503 | denominator: observable best-record examinees
+     source_tab: 13 | element_id: fig_t13_scenario -->
+
 | University Type   | Cut-off               |   Observable-cohort applicants at/above cut-off |   PLE passers (observable) |   PLE linkage rate (%) |   Median percentile |
 |:------------------|:----------------------|------------------------------------------------:|---------------------------:|-----------------------:|--------------------:|
 | All               | 30th percentile (B4+) |                                          49,623 |                     27,145 |                   54.7 |                  68 |
@@ -1835,6 +2543,11 @@ Full record-level detail is available via CSV download in the live dashboard; no
 
 ## Section B -- Foreign vs Filipino Applicant-Pool Composition
 
+<!-- chart_type: stacked_bar | x: Group | y: PercentileBin | series: fig_t13_citz_stacked
+     population: row %
+     n: observable uni subset | denominator: 68,622
+     source_tab: uniobservable | element_id: 13 -->
+
 | Group     |      n |
 |:----------|-------:|
 | Filipino  | 63,431 |
@@ -1848,6 +2561,11 @@ Full record-level detail is available via CSV download in the live dashboard; no
 
 
 ## Section C -- Individual-Level PLE Linkage Gradient by Percentile Bin
+
+<!-- chart_type: bar | x: PercentileBin | y: linkage_rate_pct | series: none
+     population: observable cohort
+     n: 68,173 | denominator: observable best-record examinees with a valid bin
+     source_tab: 13 | element_id: fig_t13_gradient -->
 
 | PercentileBin   |     n |   linked_n |   linkage_rate_pct |
 |:----------------|------:|-----------:|-------------------:|
@@ -1872,9 +2590,10 @@ The gradient rises steadily from the lowest to the highest bin, with no sharp st
 | check | result |
 |---|---|
 | Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
-| Rows / cols | 178,927 / 58 |
+| Rows / cols (source parquet on disk) | 178,927 / 53 |
+| Derived columns added at load time | 5 (YEAR_INT, SEX_CLEAN, IS_BOARD_OBSERVABLE_COHORT, HAS_CONFIRMED_PLE, PLE_STATUS_LABEL) |
 | Tabs exported | 13 / 13 |
-| Charts exported as data | 7 / 7 |
-| Tables exported | 84 |
-| Captions exported | 10 |
+| Charts exported as data | 59 / 59 |
+| Tables exported | 102 |
+| Captions/population notes exported | 23 |
 | Dashboard-vs-export value assertions passed | 5 / 5 |
