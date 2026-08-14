@@ -31,6 +31,9 @@ Authoritative values — assert against these, hardcode nowhere:
 ```
 sittings 178,927 | unique examinees 134,869 | observable cohort (people) 69,503
 observable linkage 45.44% | confirmed PLE passers 49,086 | ambiguous PERSON_KEYs 6,148
+repeat takers 33,713   (people with >1 distinct APPNO_CLEAN -- the row-count form gives
+                        33,714 because one record is duplicated outright:
+                        "VENTANILLA, GLEN TAN||" / appno 1073584 / 2007)
 PLE_YEAR_UNCERTAIN 110 | stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
 linkage by bin: B1 11.6  B2 22.7  B3 29.3  B4 36.0  B5 45.6
                 B6 50.4  B7 53.6  B8 55.0  B9 61.6  B10 71.0

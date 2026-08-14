@@ -1,6 +1,6 @@
 # NMAT Performance Evidence for CHED Cut-Off Policy Review
 
-> Complete Markdown export generated 2026-08-14 16:50. Every number below is computed by the same functions the live dashboard renders from (`ched_common.py`) — this document is a faithful transcript, not a paraphrase.
+> Complete Markdown export generated 2026-08-14 16:59. Every number below is computed by the same functions the live dashboard renders from (`ched_common.py`) — this document is a faithful transcript, not a paraphrase.
 
 **Source:** NMAT_Exodus.parquet, 178,927 rows x 53 columns.
 

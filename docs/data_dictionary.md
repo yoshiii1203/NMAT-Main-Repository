@@ -1,11 +1,21 @@
 # NMAT_Exodus Data Dictionary
 
 ## Source
+
 - **File:** `dataset/NMAT_Exodus.parquet`
-- **Rows:** 178,927
-- **Columns:** 54
-- **Size:** 10.5 MB
-- **Pipeline:** Output of Pipeline 4 (`4_Citizenship_Integration.py`), aggregating all 4 pipelines
+- **Rows:** 178,927 (exam sittings, not unique people)
+- **Columns:** 53
+- **md5:** `28b85ac53af13b4a2ef3ee93527c97c1`
+- **Three byte-identical copies**, enforced by `5_Slim_Exodus.py`:
+  `dataset/NMAT_Exodus.parquet`, `streamlit_dashboard/main_dashboard/NMAT_Exodus.parquet`,
+  `streamlit_dashboard/CHED_relevant_dashboard/NMAT_Exodus.parquet`. A copy that drifts from the
+  canonical md5 is a bug — check `dataset/EXODUS_MANIFEST.json`.
+- **Pipeline:** Output of Pipeline 5 (`5_Slim_Exodus.py`), which slims Pipeline 4's
+  118-column `NMAT_Exodus.parquet.bak` down to the 53 columns actually consumed by the
+  dashboards and `data_aggregator/`.
+
+Every number in this document was read directly off the live parquet on 2026-08-14 (see the
+commands inline); it is not transcribed from an earlier design doc.
 
 ## How This Dataset Is Produced
 
@@ -14,222 +24,284 @@ flowchart LR
     P1["Pipeline 1<br/>Data Cleaning"] --> P2["Pipeline 2<br/>PLE Matching"]
     P2 --> P3["Pipeline 3<br/>Statistical Analysis"]
     P2 --> P4["Pipeline 4<br/>Citizenship Integration"]
-    P4 --> EXODUS["NMAT_Exodus.parquet<br/>54 columns"]
+    P4 --> P5["Pipeline 5<br/>Slim Exodus"]
+    P5 --> EXODUS["NMAT_Exodus.parquet<br/>53 columns"]
 ```
 
-This dataset is the final, slimmed-down analytic file. It was reduced from 118 columns to 54 by removing columns unused by both the Streamlit dashboard (`dashboard.py`) and the `data_aggregator/` analysis scripts. A full backup of the original 118-column output is at `dataset/NMAT_Exodus.parquet.bak`.
+Pipeline 3 branches off Pipeline 2's output for its own analysis-only artifacts and does not feed
+the shipped Exodus file. See `pipeline_architecture.md` for the full chain, including the two
+root-cause defects (RC-0, O-24) fixed upstream of this file.
 
 ## Scoring Framework
 
-The NMAT has two parts, each with four subtests, producing standard scores (mean ≈ 500, SD ≈ 100) and raw scores (number of correct items).
+The NMAT has two parts, each with four subtests, producing standard scores (mean ~500, SD ~100)
+and raw scores (number of correct items).
 
 | Part | Focus | Subtests | Standard Score Columns | Raw Score Columns |
 |------|-------|----------|----------------------|-------------------|
 | **Part I** | Aptitude / Cognitive Skills | Verbal, Inductive Reasoning, Quantitative, Perceptual Acuity | `NMS_VCss`, `NMS_IRss`, `NMS_Qss`, `NMS_PAss` | `Raw_Verbal`, `Raw_InductiveReasoning`, `Raw_Quantitative`, `Raw_PerceptualAcuity` |
 | **Part II** | Science / Subject Knowledge | Biology, Physics, Social Science, Chemistry | `NMS_BIOss`, `NMS_PHYss`, `NMS_SSCss`, `NMS_CHEMss` | `Raw_Biology`, `Raw_Physics`, `Raw_SocialScience`, `Raw_Chemistry` |
 
-**TRUE Raw Score = Part I Raw + Part II Raw** (recalculated from first principles — see `StoredVsDerivedMismatch`)
+**TRUE Raw Score = Part I Raw + Part II Raw**, recalculated from the 8 components. This
+arithmetic is exact: `max(abs(sum(Raw_8) - TotalRawScoreTRUE)) < 1e-6` across all 178,882
+non-null rows, verified as a structural (hard-fail) invariant in `5_Slim_Exodus.py` and in
+`tests/test_data_invariants.py`.
+
+## Critical framing before reading the columns
+
+- **No medical-school identifier exists anywhere in this dataset.** `UNDERGRAD_UNIVERSITY` /
+  `UNDERGRAD_UNI_TYPE` / `UNDERGRAD_UNI_LOCATION` / `UNDERGRAD_COURSE_GROUP` describe the
+  applicant's **pre-med undergraduate degree**, not the medical school that trained them (proof:
+  UP Diliman has no College of Medicine, yet 4,421 NMAT rows list it as `UNDERGRAD_UNIVERSITY`,
+  1,914 of them confirmed PLE passers). No institution-level PLE passing-rate claim is
+  supportable from this data, and `UNDERGRAD_UNI_TYPE` is not an SUC/PHEI proxy for CMO purposes.
+- **`IS_PLE_PASSER` is the only authoritative passer count (49,086).** `PLE_YEAR_PASSED`,
+  `PLE_MATCH_METHOD`, `PLE_MATCH_CONFIDENCE`, `PLE_YEAR_GAP` are diagnostic metadata — their
+  non-null sets do **not** nest inside `IS_PLE_PASSER`. Never use them as a passer denominator.
+- **"Not linked" is never "failed."** The PLE source file contains passers only. Every rate built
+  from `IS_PLE_PASSER` is a **linkage rate**, never a pass rate.
+- **`B1` is the LOWEST percentile decile, `B10` the highest.** A plain string sort places `B10`
+  between `B1` and `B2` — always order bins explicitly as `B1..B10`.
+- **`PERSON_KEY` is a weak identity key.** It is built from normalized name + a coarse birthdate
+  fragment (14.09% of rows have an empty birthdate component, so the key degrades to name-only).
+  6,148 keys carry contradictory `SEX` across their rows — direct proof of name collisions, not
+  genuine repeat attempts. See `PERSON_KEY_AMBIGUOUS` below and treat every person-level count as
+  carrying this uncertainty.
+- **Use `IS_BEST_OBSERVABLE_RECORD` for the observable/PLE-linked cohort, never
+  `IS_BEST_NMAT_RECORD & (Year <= 2014)`.** The naive combination silently drops 3,721 people
+  whose overall-best attempt falls after 2014 (65,782 vs the correct 69,503) — see the
+  `IS_BEST_OBSERVABLE_RECORD` entry.
 
 ## Column Dictionary
 
-### Core Identifiers
+Columns are listed in the exact order they appear in the parquet (`df.columns`, index 0-52).
 
-| Column | Type | Missing | Description | Pipeline Context |
-|--------|------|-------:|-------------|-----------------|
-| `APPNO_CLEAN` | string | 0% | Standardized application number used as the primary join key across all pipelines. Digits-only extract of the original NMAT application number. Formats vary: 6-digit (legacy, 0.4%), 7-digit (standard, 13.4%), 10-digit (newer, 85.3%). | Created in Pipeline 1 as the cleaned join key. Used by Pipeline 2 to match PLE records and by Pipeline 4 to merge citizenship data. |
-| `PERSON_KEY` | string | 0% | Person-level deduplication key constructed from normalized name + birthdate. Used to identify repeat NMAT takers (25% of examinees took NMAT 2+ times, max 9 attempts). | Created in Pipeline 1. Drives `IS_BEST_NMAT_RECORD` selection and repeat-taker analysis in Pipeline 3. |
-| `SEX` | string | ~0.03% | Standardized sex label ("Male" / "Female"). Derived from `NMA_Sex` (numeric code) or `NMASex` in earlier pipeline stages. | Passed through from raw NMAT data via Pipeline 1. Used for gender-based analysis in Pipeline 3 Section 11. |
+### Core Identifiers (0-3)
 
-### Time / Year
+| # | Column | Type | Nulls | Distinct | Description |
+|---|--------|------|------:|---------:|-------------|
+| 0 | `APPNO_CLEAN` | string | 0 | 178,926 | Digits-only application number, the primary join key across all pipelines. Length distribution: 10-digit (85.3%, 152,540), 7-digit (13.4%, 23,985), 6-digit (1.3%, 2,402). **One duplicate**: appno `1073584` (`PERSON_KEY` "VENTANILLA, GLEN TAN\|\|", Year 2007) appears on two rows — this is why a row-count-based repeat-taker tally (33,714) differs by one from the distinct-appno tally (33,713). |
+| 1 | `PERSON_KEY` | string | 0 | 134,869 | Person-deduplication key = normalized name + `"\|\|"` + birthdate fragment. Drives `IS_BEST_NMAT_RECORD`. **Weak** — see the framing note above; 6,148 keys are flagged ambiguous by `PERSON_KEY_AMBIGUOUS`. |
+| 2 | `Year` | int64 | 0 | 13 | NMAT examination year, 2006-2018 inclusive. Defines the observable cohort (`Year <= 2014`, `IS_OBSERVABLE_COHORT`). |
+| 3 | `SEX` | string | 45 | 2 | `Female` (101,240) / `Male` (77,642) / null (45, 0.03%). |
 
-| Column | Type | Missing | Description | Pipeline Context |
-|--------|------|-------:|-------------|-----------------|
-| `Year` | int | 0% | NMAT examination year (2006–2018). All 13 years are represented. | Core grouping variable used across ALL pipelines. Defines the **observable cohort** (Year <= 2014) in Pipelines 2–3 to avoid right-censoring bias in PLE outcomes. |
+### Undergraduate Institution (4-7)
 
-### Education & Institution
+Renamed from `UNIVERSITY`/`UNI_TYPE`/`UNI_LOCATION`/`CourseGroup` specifically to make clear
+these describe the applicant's **pre-med bachelor's degree**, not any medical school (see the
+framing note above — this is the single most important caveat in this file).
 
-| Column | Type | Missing | Description | Pipeline Context |
-|--------|------|-------:|-------------|-----------------|
-| `NMA_College` | string | 0% | Original college/university name as reported by the examinee. 3,251 unique values. Preserved for audit trail against the normalized `UNIVERSITY` field. | Raw input from NMAT. Used in Pipeline 1's university normalization (4-tier matching against UNIVS.csv). |
-| `UNIVERSITY` | string | 0% | **Standardized** university name from UNIVS.csv lookup. 2,907 unique values. Falls back to the original `NMA_College` if no match was found (1,386 unmatched, 31.7%). | Output of Pipeline 1 university normalization. The authoritative institution identifier for all downstream analysis. |
-| `UNI_TYPE` | string | 0% | University type classification: **Public** (18.9%), **Private** (79.1%), **Foreign** (1.7%), **Not Specified** (0.3%). Derived from UNIVS.csv with fallback to `School Type_rec2_FINAL`. | Used extensively in Pipeline 3 for group comparisons (Kruskal-Wallis, Chi-square). Required by the CHED amendment to distinguish SUCs from PHEIs. |
-| `UNI_LOCATION` | string | 0% | University location class: **Local** (Philippine HEIs), **International** (foreign schools), **Unknown**. Derived from UNI_TYPE: Foreign → International, Public/Private → Local. | Used in Pipeline 3's extended institution analysis (Section 4A-Ext) for cross-tabulation with UNI_TYPE. |
-| `CourseGroup` | string | 0% | Final grouped pre-med background used in all analyses. 6 categories derived via keyword matching on course name: **Medical & Allied**, **Natural Sciences**, **Social & Behavioral Sciences**, **Education**, **Engineering & Technology**, **Other**. | Created in Pipeline 1. One of the most-used grouping variables in Pipeline 3 (Kruskal-Wallis, Chi-square, Sankey flows, survival analysis). |
+| # | Column | Type | Nulls | Distinct | Description |
+|---|--------|------|------:|---------:|-------------|
+| 4 | `UNDERGRAD_UNIVERSITY` | string | 0 | 2,907 | Standardized undergraduate institution name, matched against `UNIVS.csv` in Pipeline 1's 4-tier cascade. |
+| 5 | `UNDERGRAD_UNI_LOCATION` | string | 0 | 3 | `Local` (174,780) / `International` (2,315) / `Unknown` (1,832). |
+| 6 | `UNDERGRAD_UNI_TYPE` | string | 0 | 4 | `Private` (137,476, 76.8%) / `Public` (37,304, 20.8%) / `Foreign` (2,315, 1.3%) / `Not Specified` (1,832, 1.0%). |
+| 7 | `UNDERGRAD_COURSE_GROUP` | string | 0 | 6 | Pre-med course grouping: `Medical & Allied` (86,140), `Natural Sciences` (55,900), `Social & Behavioral Sciences` (22,022), `Other` (9,855), `Education` (4,162), `Engineering & Technology` (848). |
 
-### Assessment Scores — NMAT Standard Scores
+### Percentile & Composite Scores (8-12)
 
-These are the **NMAT-reported standard scores** (mean ≈ 500, SD ≈ 100). They come directly from CEM and are used for subtest profile analysis.
+| # | Column | Type | Nulls | Distinct | Description |
+|---|--------|------|------:|---------:|-------------|
+| 8 | `PercentileBin` | string | 4,141 (2.3%) | 10 | Decile bin `B1`-`B10` from `NMS_PER_num`, left-closed `[0,10) .. [90,100]`. **`B1` = weakest (0-9), `B10` = strongest (90-99)** — verified monotonic against mean `TotalRawScoreTRUE` per bin (B1 75.1 -> B10 175.5). Counts: B1 24,434, B2 19,393, B3 17,443, B4 18,600, B5 15,857, B6 15,829, B7 15,282, B8 15,407, B9 15,500, B10 17,041. |
+| 9 | `NMS_PER_num` | float64 | 1,275 (0.7%) | 101 | Percentile rank (0-100), the outcome variable underlying every cut-off/bin analysis and `PercentileBin`. |
+| 10 | `NMS_GPS` | int64 | 0 | 443 | General Performance Score — overall standard score. |
+| 11 | `NMS_APT` | int64 | 0 | 320 | Part I (Aptitude) composite standard score. |
+| 12 | `NMS_SA` | int64 | 0 | 334 | Part II (Science) composite standard score. |
 
-| Column | Description | Pipeline Context |
-|--------|-------------|-----------------|
-| `NMS_VCss` | NMAT standard score: **Verbal** subtest (Part I) | Used in Pipeline 3 Section 8 (Subtest Profile Analysis) for heatmaps and radar charts by UNI_TYPE and CourseGroup. |
-| `NMS_IRss` | NMAT standard score: **Inductive Reasoning** subtest (Part I) | Same as above. |
-| `NMS_Qss` | NMAT standard score: **Quantitative** subtest (Part I) | Same as above. |
-| `NMS_PAss` | NMAT standard score: **Perceptual Acuity** subtest (Part I) | Same as above. |
-| `NMS_BIOss` | NMAT standard score: **Biology** subtest (Part II) | Same as above. |
-| `NMS_PHYss` | NMAT standard score: **Physics** subtest (Part II) | Same as above. |
-| `NMS_SSCss` | NMAT standard score: **Social Science** subtest (Part II) | Same as above. |
-| `NMS_CHEMss` | NMAT standard score: **Chemistry** subtest (Part II) | Same as above. |
+### Subtest Standard Scores (13-20)
 
-### Assessment Scores — Composites
+| # | Column | Subtest | Part |
+|---|--------|---------|------|
+| 13 | `NMS_VCss` | Verbal | I |
+| 14 | `NMS_IRss` | Inductive Reasoning | I |
+| 15 | `NMS_Qss` | Quantitative | I |
+| 16 | `NMS_PAss` | Perceptual Acuity | I |
+| 17 | `NMS_BIOss` | Biology | II |
+| 18 | `NMS_PHYss` | Physics | II |
+| 19 | `NMS_SSCss` | Social Science | II |
+| 20 | `NMS_CHEMss` | Chemistry | II |
 
-| Column | Type | Missing | Description | Pipeline Context |
-|--------|------|-------:|-------------|-----------------|
-| `NMS_APT` | float | 0% | **Part I (Aptitude) composite** standard score. Aggregates Verbal + Inductive Reasoning + Quantitative + Perceptual Acuity. | Used in Pipeline 3 for yearly summary statistics, Mann-Whitney U tests, and composite performance comparisons. |
-| `NMS_SA` | float | 0% | **Part II (Science) composite** standard score. Aggregates Biology + Physics + Social Science + Chemistry. | Same as above. |
-| `NMS_GPS` | float | 0% | **General Performance Score** — the overall standardized NMAT score. The primary metric for overall performance comparisons. | The most-used score metric in Pipeline 3: Kruskal-Wallis stability tests, Mann-Whitney PLE comparisons, yearly summary tables. |
-| `NMS_PER_num` | float | 0.7% | **Percentile rank** (0–100). The examinee's percentile standing among all test-takers. Derived by coercing the raw `NMS_PER` field to numeric. | The single most-used column in the dataset. Used in: bin assignment, group comparisons, trend analysis, box plots, statistical tests, and all CHED-relevant cut-off analysis. |
-| `PercentileBin` | string | ~0.7% | **Percentile bin** (B1–B10). Decile categorization of `NMS_PER_num` using **left-closed intervals** `[0,10), [10,20), ..., [90,100]`. | Created by `pd.cut()` in the dashboard at load time (or renamed from `PercentileDecile` in older pipeline versions). **B4+** = at or above 30th percentile; **B5+** = at or above 40th percentile (CHED cut-off-relevant). |
+All int64, 0 nulls, 127-138 distinct values each.
 
-### Assessment Scores — TRUE Raw Scores
+### TRUE Raw Scores — authoritative (21-23)
 
-**These are the AUTHORITATIVE raw scores.** The pipeline recalculated them from first principles because 42.2% of the stored totals in the CEM data were incorrect. The TRUE sum uses all 8 component raw scores and is calculated only when ALL 8 are present.
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 21 | `TotalRawScoreTRUE` | float64 | 45 (0.03%) | **The authoritative total raw score** = sum of the 8 `Raw_*` components below. Recalculated from first principles because a large share of the stored CEM totals were wrong (see `StoredVsDerivedMismatch`). |
+| 22 | `PartIRawScoreTRUE` | float64 | 45 | Sum of the 4 Part I raw components. |
+| 23 | `PartIIRawScoreTRUE` | float64 | 45 | Sum of the 4 Part II raw components. |
 
-| Column | Type | Missing | Description | Pipeline Context |
-|--------|------|-------:|-------------|-----------------|
-| `TotalRawScoreTRUE` | float | ~0.03% | **TRUE total raw score** = sum of all 8 raw components (Verbal + IR + Quantitative + Perceptual Acuity + Biology + Physics + Social Science + Chemistry). Only calculated when all 8 are non-null. | The authoritative total score for all analyses in Pipeline 3. Replaces `StoredRawTotal` which was wrong in 42.2% of records. |
-| `PartIRawScoreTRUE` | float | ~0.03% | **TRUE Part I raw score** = sum of Verbal + IR + Quantitative + Perceptual Acuity. | Used for Part I trend analysis, Part I vs Part II comparisons, and Mann-Whitney tests. |
-| `PartIIRawScoreTRUE` | float | ~0.03% | **TRUE Part II raw score** = sum of Biology + Physics + Social Science + Chemistry. | Same as above. |
+### Raw Score Components (24-31)
 
-### Assessment Scores — Raw Components
+All float64, 45 nulls each, 31 distinct values (item counts 0-30 per subtest).
 
-These are the individual item-correct scores per subtest. Used for the most granular score analysis.
+| # | Column | Subtest |
+|---|--------|---------|
+| 24 | `Raw_Verbal` | Verbal (Part I) |
+| 25 | `Raw_InductiveReasoning` | Inductive Reasoning (Part I) |
+| 26 | `Raw_Quantitative` | Quantitative (Part I) |
+| 27 | `Raw_PerceptualAcuity` | Perceptual Acuity (Part I) |
+| 28 | `Raw_Biology` | Biology (Part II) |
+| 29 | `Raw_Physics` | Physics (Part II) |
+| 30 | `Raw_SocialScience` | Social Science (Part II) |
+| 31 | `Raw_Chemistry` | Chemistry (Part II) |
 
-| Column | Description |
-|--------|-------------|
-| `Raw_Verbal` | Raw subscore: Verbal (Part I) |
-| `Raw_InductiveReasoning` | Raw subscore: Inductive Reasoning (Part I) |
-| `Raw_Quantitative` | Raw subscore: Quantitative (Part I) |
-| `Raw_PerceptualAcuity` | Raw subscore: Perceptual Acuity (Part I) |
-| `Raw_Biology` | Raw subscore: Biology (Part II) |
-| `Raw_Physics` | Raw subscore: Physics (Part II) |
-| `Raw_SocialScience` | Raw subscore: Social Science (Part II) |
-| `Raw_Chemistry` | Raw subscore: Chemistry (Part II) |
+### Stored-Score Validation (32-35)
 
-### Assessment Scores — CEM Matched Scores
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 32 | `StoredRawTotal` | float64 | 79,611 (44.5%) | CEM's original stored raw total (`STU_RSCORE`). Present only when the CEM record carried a stored total (99,316 of 178,927 rows). |
+| 33 | `StoredVsDerivedMismatch` | **boolean** (nullable) | 79,611 | `True` when `StoredRawTotal != TotalRawScoreTRUE`, `False` when they agree, `NA` when no stored total exists. **56,065 of the 99,316 rows that carry a stored total disagree (56.45%)** — 31.33% of all 178,927 rows. Coerced from a string-typed column to pandas nullable `boolean` in Pipeline 5 (the old `str` dtype meant `bool("False") is True`, silently inverting every truthiness test). **The figure "42.2%" that appears throughout older project history is wrong** — it divided the 56,065 mismatch count by 133,558 (a stale, also-wrong best-record examinee count) instead of by 99,316 (the rows that actually have a stored total to compare against). Always state the denominator: "56.45% of the 99,316 records with a stored total." |
+| 34 | `CalculatedRawTotal_Source` | float64 | 45 | CEM's own calculated raw total (`STU_RSCORE_CALC`). Identical to `TotalRawScoreTRUE` on every non-null row — confirms the recalculation logic, not just the stored total, was independently reproducible. |
+| 35 | `HasTRUErawScores` | **boolean** | 0 | `True` for 178,882 rows (99.97%), `False` for 45 — whether all 8 raw components were present to compute `TotalRawScoreTRUE`. Coerced from `str` in Pipeline 5, same fix as `StoredVsDerivedMismatch`. |
 
-These columns come from the CEM data matched to each NMAT record. They include the original standard scores and composites from CEM (slightly different computation than the NMAT-reported scores above, preserved for auditing).
+### CEM-Matched Scores (36-39)
 
-| Column | Type | Missing | Description |
-|--------|------|-------:|-------------|
-| `APT_CEM` | float | ~0.03% | CEM-calculated Aptitude composite score (Part I). |
-| `SA_CEM` | float | ~0.03% | CEM-calculated Science composite score (Part II). |
-| `GPS_CEM` | float | ~0.03% | CEM-calculated General Performance Score. |
-| `Percentile_CEM` | float | ~2.3% | CEM-calculated percentile rank. |
-| `AllRawComponentsPresent` | bool | ~0.03% | True when all 8 raw component scores are available for TRUE recalculation. |
-| `HasTRUErawScores` | bool | 0% | True when the record has valid TRUE raw scores (used as a filter flag). |
+Independently-computed CEM-side scores, preserved for audit cross-checking against the
+NMAT-reported `NMS_*` columns above.
 
-### Validation & Stored Scores
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 36 | `APT_CEM` | float64 | 45 | CEM-side Part I composite. |
+| 37 | `SA_CEM` | float64 | 45 | CEM-side Part II composite. |
+| 38 | `GPS_CEM` | float64 | 45 | CEM-side overall composite. |
+| 39 | `Percentile_CEM` | float64 | 4,182 (2.3%) | CEM-side percentile rank. |
 
-These columns track the score recalibration audit. **Key finding:** `StoredRawTotal` was incorrect in 42.2% of records (107,422 mismatches vs `TotalRawScoreTRUE`). The calculated total (`CalculatedRawTotal_Source`) was always correct (0 mismatches).
+### Best-Record Flags (40)
 
-| Column | Type | Missing | Description |
-|--------|------|-------:|:------------|
-| `StoredRawTotal` | float | ~44% | The original stored raw score total from CEM (`STU_RSCORE`). Only present when the CEM record had a stored total. **WARNING:** Wrong in 42.2% of records. |
-| `CalculatedRawTotal_Source` | float | ~0.03% | The CEM-calculated raw total (`STU_RSCORE_CALC`). **Always matches TotalRawScoreTRUE.** |
-| `StoredVsDerivedMismatch` | float | ~44% | 1.0 when `StoredRawTotal` differs from `TotalRawScoreTRUE`, 0.0 when they match. NaN when `StoredRawTotal` is missing. **107,422 mismatches found.** |
-| `CalcVsDerivedMismatch` | float | ~0.03% | 1.0 when `CalculatedRawTotal_Source` differs from `TotalRawScoreTRUE`, otherwise 0.0. **Always 0 — no mismatches.** |
-| `HasCEMMatch` | bool | 0% | True when the NMAT record has a matched CEM row (178,882 of 178,927 have CEM data). |
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 40 | `IS_BEST_NMAT_RECORD` | bool | 0 | Exactly one `True` row per `PERSON_KEY` (134,869 True total — verified as a structural invariant: `groupby(PERSON_KEY).sum().eq(1).all()`). **One uniform rule for every person**, passers and non-passers alike: highest `NMS_PER_num` -> latest `Year` -> lowest `APPNO_CLEAN`, deterministic total order. This replaces an earlier, defective version that used a different selection rule for PLE passers than for everyone else and silently dropped 1,311 people from every "unique people" count. Use for person-level analysis in general (not for the *observable* cohort — see `IS_BEST_OBSERVABLE_RECORD` below). |
 
-### PLE Linkage Flags
+### PLE Linkage (41-45)
 
-These flags identify whether an NMAT examinee was matched to a Philippine Licensure Examination (PLE) passer record. Matching is **purely deterministic** (no fuzzy matching) after the DE-FUZZY refactor.
+Matching is **deterministic only** — no fuzzy/`rapidfuzz` matching anywhere in this stage.
 
-| Column | Type | Missing | Description | Pipeline Context |
-|--------|------|-------:|-------------|-----------------|
-| `IS_PLE_PASSER` | bool | 0% | True if the examinee matched a PLE record (any match status). Covers all attempts by confirmed PLE passers. | 49,986 rows marked True. Includes multiple NMAT attempts for the same person. |
-| `IS_PLE_ANALYSIS_SAFE` | bool | 0% | **Strict PLE linkage flag.** True only when the match is `FINAL_MATCH`, `MANUAL_APPNO_MATCH`, or `DETERMINISTIC_APPNO` — the three clean deterministic statuses. | 49,986 rows marked True. This is the authoritative flag for all PLE-linked analyses. **Always use this for PLE comparisons — NOT `IS_PLE_PASSER`.** |
-| `IS_BEST_NMAT_RECORD` | bool | 0% | **Best-record flag** — exactly one row per person (identified by `PERSON_KEY`). For PLE passers: the specific NMAT attempt that matched to the PLE record. For others: highest percentile, latest year tiebreak. | **CRITICAL:** Use this for person-level analyses to avoid repeat-taker inflation (25% of examinees took NMAT 2+ times). Pipeline 3 uses this as the default filter. |
-| `PLE_MATCH_METHOD` | string | ~68% | Method used for the PLE match: `EXACT`, `MANUAL_APPNO_MATCH`, `DETERMINISTIC_APPNO`, or NaN for unmatched records. | From Pipeline 2's 3-stage deterministic matching. |
-| `PLE_YEAR_PASSED` | float | ~69% | Year of PLE passage for matched records (2011–2022). NaN for unmatched. | Used to compute `PLE_YEAR_GAP` and for PLE year trend analysis. |
-| `PLE_YEAR_GAP` | float | ~72% | `PLE_YEAR_PASSED` minus `Year` (NMAT year). Represents years between NMAT and PLE passage. Median gap varies by decile. | Used in Pipeline 3 Section 10 (gap analysis) and in the disambiguator's year-gap filter (>= 5 years). |
-| `PLE_MATCH_CONFIDENCE` | float | ~68% | Numeric confidence score for the PLE match (100 = exact, etc.). NaN for unmatched. | Audit field from Pipeline 2. |
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 41 | `IS_PLE_PASSER` | bool | 0 | **The only authoritative passer flag.** `True` for 49,086 rows. Set when a candidate PLE record was accepted through the 3-stage deterministic cascade and the disambiguator (see `pipeline_architecture.md`). |
+| 42 | `PLE_MATCH_METHOD` | string | 121,623 (68.0%) | `EXACT` (54,437), `MANUAL_APPNO_MATCH` (2,775), `DETERMINISTIC_APPNO` (92). Diagnostic metadata — do not use as a passer denominator. |
+| 43 | `PLE_MATCH_CONFIDENCE` | float64 | 121,623 | `100.0` (49,086 rows — matches `IS_PLE_PASSER` exactly) or `50.0` (8,218 rows — lower-confidence `EXACT` candidates that did **not** clear the disambiguator and are therefore `IS_PLE_PASSER == False`). |
+| 44 | `PLE_YEAR_PASSED` | float64 | 124,398 (69.5%) | Year of PLE passage, 2011-2022, for accepted and some rejected-but-metadata-retaining rows. Non-null count (54,528) exceeds `IS_PLE_PASSER` (49,086) — the two sets are **not nested**; 7,318 rows have a year but are not counted passers (rejected candidates that kept metadata), and 2,776 are passers with no year (all `MANUAL_APPNO_MATCH`, whose source file lacks a year column). |
+| 45 | `PLE_YEAR_GAP` | float64 | 132,708 (74.2%) | `PLE_YEAR_PASSED - Year`, range 5-15. Used by the disambiguator's year-gap check (candidates must clear >= 5 years). |
 
-### Citizenship (Pipeline 4)
+### Citizenship (46-47)
 
-These columns are produced by **Pipeline 4: Citizenship Integration** — the final enrichment step. They implement a **3-tier hierarchy of truth**:
+Produced by Pipeline 4's 3-tier hierarchy: Tier 1 `REAL_FOREIGNERS.csv` ground truth (32,501
+records) -> Tier 2 name-based pseudo-citizenship inference (13 records) -> Tier 3 default
+Filipino (146,413 records).
 
-1. **Tier 1 (Ground Truth):** `REAL_FOREIGNERS.csv` — 32,501 records with verified nationalities
-2. **Tier 2 (Inferred):** `pseudo_citizenship_profiling_FINAL.csv` — 317 name-based FOREIGN inferences
-3. **Tier 3 (Default):** Filipino — everyone else
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 46 | `CITIZENSHIP_FINAL` | string | 0 | Final canonicalized nationality label, 91 distinct values. Top values: Filipino (146,413), India (26,491), Nepal (1,158), Thailand (1,062), United States (839), Nigeria (639). **Contains a literal placeholder `"Foreign (unspecified)"` (156 rows)** — an unresolved bucket, not a country; exclude or explicitly label it in nationality charts. **Nationality shares must use the full `Verified Foreigner` denominator (32,501)**, never a top-N subtotal — India is 81.5% of verified foreigners, not a higher figure computed off a truncated top list. |
+| 47 | `FOREIGNER_STATUS` | string | 0 | `Filipino` (146,413) / `Verified Foreigner` (32,501, from Tier-1 ground truth) / `Likely Foreigner` (13, from Tier-2 name inference only). |
 
-| Column | Type | Missing | Description | Values |
-|--------|------|-------:|-------------|--------|
-| `CITIZENSHIP_FINAL` | string | **0%** | The **definitive citizenship label** after applying the 3-tier hierarchy. Nationalities are canonicalized (e.g., both "India" and "Indian" → "India"). 108 unique values. | **Filipino** (146,413), **India** (26,490), **Nepal** (1,158), **Thailand** (1,062), **United States** (839), **Nigeria** (639), and 102 others |
-| `FOREIGNER_STATUS` | string | **0%** | High-level foreigner classification flag. | **Filipino** (146,413), **Verified Foreigner** (32,501 — from REAL_FOREIGNERS.csv ground truth), **Likely Foreigner** (13 — from pseudo-citizenship inference only) |
-| `name_based_assessment` | string | ~99.5% | Free-text assessment from the pseudo-citizenship profiling file. Only populated for the 871 records in the profiling CSV. Used for record-level display in dashboards. | "Likely true foreigner", "Likely Filipino / Filipino-origin", etc. |
+### Observable Cohort & Identity Diagnostics (48-50)
 
-### Data Integrity Flags
+Added in Pipeline 5 to replace a broken predecessor and to expose, rather than hide, a
+pre-existing identity-resolution weakness.
 
-| Column | Type | Missing | Description |
-|--------|------|-------:|-------------|
-| `StoredVsDerivedMismatch` | float | ~44% | 1.0 when stored total ≠ TRUE total; 0.0 when they match. NaN when stored total missing. |
-| `CalcVsDerivedMismatch` | float | ~0.03% | 1.0 when calculated total ≠ TRUE total; 0.0 when they match. Always 0. |
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 48 | `IS_OBSERVABLE_COHORT` | bool | 0 | `True` iff `Year <= 2014` (88,144 rows) — examinees with enough elapsed time to plausibly have sat the PLE. Replaces the retired `IS_PLE_ANALYSIS_SAFE`, which was found to be a byte-for-byte duplicate of `IS_PLE_PASSER` (documented as "Year<=2014" but actually true for 9,116 rows in 2015-2018) — using it as a cohort filter made every "observable pass rate" 100% by construction. Verified non-tautological: `not (IS_OBSERVABLE_COHORT == IS_PLE_PASSER).all()`. |
+| 49 | `PERSON_KEY_AMBIGUOUS` | bool | 0 | `True` where a `PERSON_KEY` has **contradictory `SEX`** across the rows sharing it — direct, detectable evidence of two different people colliding on the same key. **6,148 distinct keys** (constant within each key, verified). This is a *lower bound*: it only catches collisions where the two merged people differ in sex; scaling by the observed 56.6%/43.4% sex split implies a true collision rate roughly double the detected one. Differing `UNDERGRAD_UNIVERSITY` alone was considered and explicitly **excluded** from this flag — repeat takers legitimately record their institution differently across sittings, so using it would over-flag 22,002 additional keys for no real signal. |
+| 50 | `IS_BEST_OBSERVABLE_RECORD` | bool | 0 | **The observable cohort, correctly defined** — one `True` row per person, selected by the same uniform rule as `IS_BEST_NMAT_RECORD` but applied *within* `Year <= 2014` only. **69,503 True.** This is deliberately a separate flag from `IS_BEST_NMAT_RECORD & (Year <= 2014)` (the "naive" combination), because the naive form picks each person's overall-best attempt first and then filters by year — silently dropping the 3,721 people whose overall-best attempt falls in 2015+ even though they also sat, and were observable, in an earlier year (65,782 people / 46.69% linkage under the naive form vs. 69,503 / 45.44% under this flag). **Use `IS_BEST_OBSERVABLE_RECORD` for every PLE-linked, person-level analysis.** |
 
----
+### PLE Match Provenance (51-52)
+
+Optional diagnostic columns carried through from Pipeline 2 so a dashboard can state *why* a
+candidate match was or wasn't counted, instead of silently showing a smaller passer count.
+
+| # | Column | Type | Nulls | Description |
+|---|--------|------|------:|-------------|
+| 51 | `PLE_MATCH_OUTCOME` | string | 0 | `no_match` (121,623) / `accepted` (49,086, == `IS_PLE_PASSER`) / `rejected_ambiguous_person` (8,216 — 2+ candidates survived every identity check, so no single match could be accepted) / `rejected` (2). |
+| 52 | `PLE_YEAR_UNCERTAIN` | bool | 0 | `True` for 110 rows — an accepted passer (`IS_PLE_PASSER == True`) whose specific PLE *year* could not be disambiguated because their matched application number was independently claimed by 2+ distinct PLE name records after per-name deduplication (85 such application numbers). Passer status is certain; the year attached to it is not. |
 
 ## Interpretation Guide
 
-### Person-Level Analysis
+### Person-level analysis (general)
 ```python
-# Use the best-record flag to get one row per person
-df_person = df[df["IS_BEST_NMAT_RECORD"] == True]
+df_person = df[df["IS_BEST_NMAT_RECORD"]]        # one row per PERSON_KEY, 134,869 rows
 ```
 
-### Observable Cohort (PLE-linked Analysis)
+### Observable / PLE-linked cohort — use this, not the naive combination
 ```python
-# Restrict to examinees who've had time to take the boards
-df_observable = df[df["Year"] <= 2014]
+df_observable = df[df["IS_BEST_OBSERVABLE_RECORD"]]   # 69,503 rows, correct
+# NOT: df[df["IS_BEST_NMAT_RECORD"] & (df["Year"] <= 2014)]   # 65,782 rows, WRONG — drops 3,721 people
 ```
 
-### CHED Cut-Off Analysis (30th vs 40th Percentile)
+### Linkage rate (never call this a "pass rate")
 ```python
-# B4 = 30th-40th percentile (30th cut-off means "at or above B4")
-# B5 = 40th-50th percentile (40th cut-off means "at or above B5")
-above_30th = df["PercentileBin"].isin(["B4","B5","B6","B7","B8","B9","B10"])
-above_40th = df["PercentileBin"].isin(["B5","B6","B7","B8","B9","B10"])
+linkage_rate = df_observable["IS_PLE_PASSER"].mean()   # 45.44%
 ```
 
-### Foreign Student Analysis
+### Percentile bins — always order explicitly
 ```python
-# Verified foreigners from ground-truth data
-foreign = df[df["FOREIGNER_STATUS"] == "Verified Foreigner"]
-# Likely foreigners from name-based inference
-likely_foreign = df[df["FOREIGNER_STATUS"] == "Likely Foreigner"]
+BIN_ORDER = [f"B{i}" for i in range(1, 11)]   # B1 = weakest ... B10 = strongest
+df["PercentileBin"] = pd.Categorical(df["PercentileBin"], categories=BIN_ORDER, ordered=True)
 ```
 
-### PLE Performance Comparison
+### Foreigner analysis
 ```python
-ple_passers = df[df["IS_PLE_ANALYSIS_SAFE"] == True]
-non_passers = df[df["IS_PLE_ANALYSIS_SAFE"] != True]
+verified_foreign = df[df["FOREIGNER_STATUS"] == "Verified Foreigner"]   # 32,501, denominator for nationality shares
+likely_foreign   = df[df["FOREIGNER_STATUS"] == "Likely Foreigner"]     # 13
 ```
 
----
+### What NOT to do
+```python
+# WRONG: NMA_College / IS_PLE_ANALYSIS_SAFE / AllRawComponentsPresent / CalcVsDerivedMismatch /
+# name_based_assessment / HasCEMMatch no longer exist -- see pipeline_architecture.md for why.
+
+# WRONG: treating UNDERGRAD_UNIVERSITY as a medical-school identifier. There isn't one in this data.
+
+# WRONG: computing an "observable cohort pass rate" as IS_PLE_PASSER / IS_OBSERVABLE_COHORT rows
+# without also restricting to IS_BEST_OBSERVABLE_RECORD -- IS_OBSERVABLE_COHORT is a row-level
+# flag (88,144 sittings); person-level rates need the best-record restriction too.
+```
+
+## Removed, renamed, and added columns (vs. the pre-remediation 54-column file)
+
+**Removed (6):**
+
+| Column | Why |
+|---|---|
+| `IS_PLE_ANALYSIS_SAFE` | Byte-identical duplicate of `IS_PLE_PASSER`. Replaced by `IS_OBSERVABLE_COHORT`. |
+| `NMA_College` | Redundant free-text duplicate of the university column, differing only in punctuation/casing but with different cardinality (3,251 vs 2,907) — a grouping hazard. |
+| `AllRawComponentsPresent` | Constant (one distinct value) — zero information. |
+| `CalcVsDerivedMismatch` | Constant (one distinct value) — zero information. |
+| `name_based_assessment` | Non-null for only 871/178,927 rows (0.5%), never consulted by the citizenship tier logic, and contradicts the final `CITIZENSHIP_FINAL` label in 23 of those 871 rows. |
+| `HasCEMMatch` | Byte-identical to `HasTRUErawScores` (both True for the same 178,882 rows). Two columns encoding one condition is the exact defect class (RC-1) this remediation targets; `HasTRUErawScores` was kept as the clearer name. |
+
+**Renamed (4)** — all four now carry an `UNDERGRAD_` prefix to make the undergraduate-not-medical-school scope structurally explicit:
+`UNIVERSITY` -> `UNDERGRAD_UNIVERSITY`, `UNI_TYPE` -> `UNDERGRAD_UNI_TYPE`,
+`UNI_LOCATION` -> `UNDERGRAD_UNI_LOCATION`, `CourseGroup` -> `UNDERGRAD_COURSE_GROUP`.
+No compatibility alias was kept — a silent alias would defeat the purpose of the rename.
+
+**Added (5):** `IS_OBSERVABLE_COHORT`, `PERSON_KEY_AMBIGUOUS`, `IS_BEST_OBSERVABLE_RECORD`,
+`PLE_MATCH_OUTCOME`, `PLE_YEAR_UNCERTAIN` — all documented above.
+
+**Dtype-corrected (2):** `HasTRUErawScores`, `StoredVsDerivedMismatch` — were stored as `str`
+(`bool("False") is True`, silently inverting truthiness checks), now nullable pandas `boolean`.
+
+Net: 54 - 6 + 5 = 53.
 
 ## Pipeline Outputs Referenced
 
-| Stage | Output | Description |
-|-------|--------|-------------|
-| **P1** | `NMAT_FINAL.parquet` (101 cols) | After cleaning, score recalibration, university normalization |
-| **P2** | `NMAT_Ultima.parquet` (115 cols) | After PLE matching — superseded by Exodus |
-| **P2** | `PLE_MATCH_MASTER.csv` (43,601 rows) | One canonical match record per PLE passer |
-| **P2** | `PLE_PASSERS_IN_NMAT.csv` (36,305 rows) | Best-record PLE passers only |
-| **P3** | `analysis_output/` (95 files) | Pipeline 3 analysis outputs |
-| **P4** | **`NMAT_Exodus.parquet`** (54 cols) | **Final output — this file** |
-| **P4** | `NMAT_Exodus.parquet.bak` (118 cols) | Full column backup |
+| Stage | Output | Rows x Cols |
+|-------|--------|------|
+| P1 | `NMAT_FINAL.parquet` | 178,927 x 101 |
+| P2 | `NMAT_Ultima.parquet` | 178,927 x 119 |
+| P2 | `PLE_MATCH_MASTER.csv` | one row per matched PLE record |
+| P4 | `NMAT_Exodus.parquet.bak` | 178,927 x 118 (full backup, pre-slim) |
+| P5 | **`NMAT_Exodus.parquet`** | **178,927 x 53 — this file** |
+
+See `pipeline_architecture.md` for the full 5-pipeline chain, including the two most consequential
+defects found during remediation (RC-0, the matcher's hard percentile floor; O-24, the dead DOB
+check) and their measured effect on this file's `IS_PLE_PASSER` numbers.
 
 ---
 
-## Version History
-
-| Date | Change | Details |
-|------|--------|---------|
-| 2026-07-27 | Initial 54-col lite version | Columns reduced from 118 to 54 after usage audit. 64 unused columns removed. Size reduced 62.4% (27.9 MB → 10.5 MB). |
-| 2026-07-27 | `PercentileBin` replaces `PercentileDecile` | Bin labels changed from D1-D10 to B1-B10 (left-closed intervals). Renamed during BIN_REFACTOR. |
-| 2026-07-27 | `CITIZENSHIP_FINAL`, `FOREIGNER_STATUS` added | Pipeline 4 citizenship integration. 3-tier hierarchy. |
-| 2026-07-07 | DE-FUZZY refactor | All fuzzy matching removed from Pipeline 2. Deterministic-only PLE matching. |
-| 2026-06-23 | `TotalRawScoreTRUE` recalculation | TRUE scores computed from 8 components. Stored totals found wrong in 42.2% of records. |
-
----
-
-*Comprehensive data dictionary for `dataset/NMAT_Exodus.parquet` (54 columns, 178,927 rows). Contextual descriptions reference the 4-pipeline architecture. See `pipeline_architecture.md` for full pipeline documentation.*
+*Data dictionary for `dataset/NMAT_Exodus.parquet` (53 columns, 178,927 rows), rewritten against
+the live file on 2026-08-14 as part of the post-remediation documentation pass. Every count in
+this document was verified by direct query against the parquet, not carried over from prior
+documentation.*

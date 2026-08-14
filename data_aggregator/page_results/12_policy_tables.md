@@ -1,6 +1,6 @@
 # Page 12: Policy Tables
 
-**Generated:** 2026-08-14 16:53
+**Generated:** 2026-08-14 16:58
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 

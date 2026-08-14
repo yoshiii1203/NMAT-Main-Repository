@@ -12,7 +12,8 @@ _REPO_ROOT = _HERE.parent
 
 ROOT = _REPO_ROOT / "dataset"
 EXODUS_PARQUET = ROOT / "NMAT_Exodus.parquet"
-EXODUS_CSV = ROOT / "NMAT_Exodus.csv"
+# EXODUS_CSV removed: dataset/NMAT_Exodus.csv was a 214 MB dead artefact with no
+# reader and no generator (Pipeline 4 writes NMAT_Exodus.csv.bak, a different file).
 REAL_FOREIGNERS = ROOT / "REAL_FOREIGNERS.csv"
 RESULTS_DIR = _HERE / "page_results"
 
