@@ -50,7 +50,7 @@ Present each as: what was wrong, why it mattered for this specific CMO question,
 ### 1.1 Pipeline 1 — score integrity
 
 The CEM-supplied `StoredRawTotal` disagreed with the sum of the 8 component subtest raw scores in
-**56,065 of the 99,316 records carrying a stored total (56.45%)** — never cite "42.2%," an older
+**56,065 of the 99,316 records carrying a stored total (56.45%)**. "42.2%" is the SAME mismatch counted over the whole CEM file (107,422/254,308) — a different population, not an error. An older
 figure that divided the mismatch count by the wrong denominator (a unique-examinee count instead of
 the stored-total-bearing row count). `TotalRawScoreTRUE`, recalculated from the 8 components, is the
 canonical value and is arithmetically exact (0 mismatches across 178,882 non-null rows). Every

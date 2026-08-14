@@ -30,9 +30,11 @@ Authoritative values — assert against these, hardcode nowhere:
 sittings 178,927 | unique examinees 134,869 | observable cohort (people) 69,503
 observable linkage 45.44% | confirmed PLE passers 49,086 | ambiguous PERSON_KEYs 6,148
 PLE_YEAR_UNCERTAIN 110 | stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
-repeat takers 33,713   (people with >1 distinct APPNO_CLEAN -- the row-count form gives
-                        33,714 because one record is duplicated outright:
-                        "VENTANILLA, GLEN TAN||" / appno 1073584 / 2007)
+repeat takers 33,713   (people with >1 distinct APPNO_CLEAN -- the row-count form gives 33,714
+                        because appno 1073584 "VENTANILLA, GLEN TAN||" / 2007 carries TWO rows
+                        with different score sets, percentiles 98 and 80, same test date:
+                        a source collision, not a duplicated row)
+confirmed PLE passers  49,086 SITTINGS = 37,420 distinct people. Cite the one you mean.
 linkage by bin: B1 11.6  B2 22.7  B3 29.3  B4 36.0  B5 45.6
                 B6 50.4  B7 53.6  B8 55.0  B9 61.6  B10 71.0
 ```
@@ -48,6 +50,35 @@ cd streamlit_dashboard/CHED_relevant_dashboard && streamlit run dashboard.py
 Each dashboard has an **Export Complete Dashboard** expander producing one Markdown document with
 every chart's values as a data table. Both can also be regenerated headlessly by running their
 `export_markdown.py` directly. `docs/HANDOFF_TESTING_GUIDE.md` is the per-tab acceptance checklist.
+
+## READ THIS BEFORE CITING ANY LINKAGE NUMBER
+
+**`PLE_DATA.csv` covers only 2011–2022.** Zero records before 2011, none after 2022. The median
+NMAT→PLE gap is 6 years, so every cohort is observed through a *different* window: 2014 examinees
+must pass within 8 years to appear at all, while 2006 examinees lose anyone who passed before 2011.
+`Year <= 2014` does **not** make the cohort comparable.
+
+This inflates every published linkage figure. At an equal 8-year horizon the observable linkage is
+**39.4%**, not 45.44%, and the apparent 54%→37% decline across years mostly disappears.
+
+Three defects compound on the headline. Applied in sequence:
+
+| below-40 linkage | value | n |
+|---|---|---|
+| published | 24.1% | 6,173 / 25,596 |
+| drop `-1` sentinel rows (see below) | 24.6% | 6,164 / 25,023 |
+| + equal 8-year exposure | 19.5% | 4,879 / 25,023 |
+| + drop contested-name people (**conservative floor**) | **17.9%** | 4,325 / 24,185 |
+
+B1, lowest decile: **795 published → 482 at the floor.** The gradient stays clean and monotone
+(B1 7.1 → B10 63.3), so **the conclusion survives — the 40th-percentile floor was not uniformly
+binding** — but the published precision does not. Cite a range, not "24.1%".
+
+Also: **`NMS_PER_num` uses `-1` as a sentinel** for 2,866 rows. They are correctly excluded from
+`PercentileBin` (NaN) but `-1 < 40` is true, so every naive `< 40` predicate swallows them.
+
+Full detail, including the contested-name double-crediting bug and six other confirmed defects:
+`.claude/audit/_PIPELINE_ACCURACY_AUDIT.md`.
 
 ## The two findings that matter most
 

@@ -46,7 +46,7 @@ corrected data. Full detail: `docs/pipeline_architecture.md` §7, `.claude/audit
 - **Pipeline 5 (`5_Slim_Exodus.py`) added** — the 118→53 column slim previously had no generating
   code at all; it is now explicit, deterministic, and self-asserting (structural hard-fail checks
   + non-blocking reference-count warnings, recorded in `dataset/EXODUS_MANIFEST.json`).
-- Corrected the "42.2% of stored totals were wrong" figure to **56.45% of the 99,316 records that
+- Clarified the stored-total mismatch: 42.24% of the whole CEM file (107,422/254,308) and **56.45% of the 99,316 NMAT-matched records that
   carry a stored total** (31.33% of all rows) — the old figure divided the mismatch count by the
   wrong (and separately wrong) denominator.
 - Result: `dataset/NMAT_Exodus.parquet`, 178,927 rows × **53 columns**, md5

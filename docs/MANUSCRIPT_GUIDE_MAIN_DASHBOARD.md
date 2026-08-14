@@ -61,11 +61,13 @@ Raw_Physics + Raw_SocialScience + Raw_Chemistry` and 0 mismatches for
 `PartIRawScoreTRUE + PartIIRawScoreTRUE == TotalRawScoreTRUE`, across all 178,882 non-null rows. Both
 identities are enforced as hard-fail invariants in `5_Slim_Exodus.py` and `tests/test_data_invariants.py`.
 
-**An older, widely-repeated figure — "42.2% of stored totals were incorrect" — is wrong.** It divided
-the mismatch count by an examinee-level denominator rather than by 99,316, the rows that actually
-carry a stored total. (56,065 / 133,558 gives 42.0%, near but not equal to the published 42.2%, so
-the exact original denominator is a reconstruction; what is certain is that it was not 99,316.) It
-appears in `CLAUDE.md`, `README.md`, and older audit
+**The widely-repeated "42.2% of stored totals were incorrect" figure is also correct — it is a
+different population.** `STU_RSCORE != STU_RSCORE_CALC` on 107,422 of 254,308 rows = 42.24% of the
+whole `CEM_DATA.csv`, versus 56.45% of the 99,316 NMAT-matched rows carrying a stored total. Cite
+either, but always name the denominator. **Do not claim the project discovered this**: CEM's own
+`STU_RSCORE_VALID` column already flags exactly those 107,422 rows as `INVALID`, a perfect predictor
+with zero exceptions — the recalculation reproduces a QA judgement the source system published. The
+figure appears in `CLAUDE.md`, `README.md`, and older audit
 documents; do not carry it into the manuscript. `dashboard.py` Tab 2 (line 978) states this
 explicitly and instructs "never state this as 42.2%."
 

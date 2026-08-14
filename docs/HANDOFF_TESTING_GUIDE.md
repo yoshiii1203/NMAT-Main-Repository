@@ -14,7 +14,8 @@ guide):
 sittings 178,927 | unique examinees 134,869 | observable cohort (people) 69,503
 observable linkage 45.44% | confirmed PLE passers (IS_PLE_PASSER) 49,086
 ambiguous PERSON_KEYs 6,148 | PLE_YEAR_UNCERTAIN 110
-stored-total mismatch 56,065 / 99,316 = 56.45%  (never "42.2%")
+stored-total mismatch 56,065 / 99,316 = 56.45%  ("42.2%" = same mismatch over the whole
+                       CEM file, 107,422/254,308 -- a different population, also correct)
 repeat takers 33,713 (25.0%) -- NOT 33,714; see the Known Issues note below
 linkage by bin: B1 11.6  B2 22.7  B3 29.3  B4 36.0  B5 45.6
                 B6 50.4  B7 53.6  B8 55.0  B9 61.6  B10 71.0
@@ -23,9 +24,10 @@ parquet md5 28b85ac53af13b4a2ef3ee93527c97c1 (all 3 copies + EXODUS_MANIFEST.jso
 
 **Repeat-taker count note:** `RESUME.md` says 33,714; the currently-running code in both dashboards
 says 33,713. Both dashboards define a repeat taker as a `PERSON_KEY` with more than one distinct
-`APPNO_CLEAN` (application-based). The row-count form is one higher because one NMAT record is
-duplicated outright in the source data (VENTANILLA, GLEN TAN, application 1073584, 2007) and gets
-counted as two applications only if you count rows, not distinct application numbers. The
+`APPNO_CLEAN` (application-based). The row-count form is one higher because one application number
+carries two rows with different score sets in the source data (VENTANILLA, GLEN TAN, application
+1073584, 2007, percentiles 98 and 80 on the same test date) and gets counted as two applications
+only if you count rows, not distinct application numbers. The
 application-based definition (33,713) is what both dashboards display and is the one to check
 against — treat 33,714 as superseded.
 
@@ -96,7 +98,7 @@ something regressed.
 | 1 | Executive Summary | Overview | Figure 1: 2×2 subplot (median raw score, Part I vs II, median percentile, volume bar) by year | Top metrics: **Examinees (best-record) 134,869**; Years covered 13; Median TRUE raw score **122.0**; Median percentile rank **50.0**; Repeat takers **33,713 (25.0%)**; Observable cohort **69,503**; PLE linkage rate, observable cohort **45.44%** |
 | 1 | Executive Summary | Composition | Two pie charts: course-group and university-type composition | Pie slice counts must sum to 134,869 |
 | 1 | Executive Summary | Quick Tables | Table 1: 6-row summary (median scores, top/bottom-bin share) | Top-bin share (B8–B10) and bottom-bin share (B1–B3) — cross-check against Tab 4's heatmap |
-| 2 | Data Integrity | — | Cohort-definition tables, raw-score validation, uni-type/course-group counts, PLE match-outcome breakdown | Metrics: **All NMAT rows 178,927**; Best-record rows **134,869**; Rows with TRUE raw scores **178,882**; Observable best-record rows **69,503**; Stored-vs-derived mismatch rate **56.45%**; Universities checked **2,907**; University pairing conflicts **0**. Caption states 56,065/99,316 mismatch explicitly, and *warns against citing "42.2%"* |
+| 2 | Data Integrity | — | Cohort-definition tables, raw-score validation, uni-type/course-group counts, PLE match-outcome breakdown | Metrics: **All NMAT rows 178,927**; Best-record rows **134,869**; Rows with TRUE raw scores **178,882**; Observable best-record rows **69,503**; Stored-vs-derived mismatch rate **56.45%**; Universities checked **2,907**; University pairing conflicts **0**. Caption states 56,065/99,316 mismatch explicitly; "42.2%" is the same mismatch over the whole CEM file (107,422/254,308), a different denominator rather than an error |
 | 3 | Trends & Stability | — | Figure 4 (same 2×2 subplot restricted to besttrend); 4 boxplots by year; Kruskal-Wallis table | No `st.metric`s. Caption states best-record volume is 60–92.6% of true sittings across years (non-uniform). Kruskal-Wallis table has 5 rows (Score, H, p_value, eta_squared) |
 | 4 | Score Bins & Background | By year | Heatmap (bins × years), stacked composition bar, top/bottom trend line | Heatmap rows must read B10 (top) → B1 (bottom); values should NOT look string-sorted (B1, B10, B2…) |
 | 4 | Score Bins & Background | University type | Heatmap, chi-square test, DuckDB facet bar, record listings, citizenship profiling block, foreigner-vs-Filipino comparison | Citizenship metrics: **Profiled no-PLE-match records 37,381**; **Foreigners 5,049**; **Filipinos 32,320**; **Distinct citizenship labels 43**. This DuckDB-backed sub-tab is where `import duckdb` (§1 gap) matters most — if it errors, that's the missing dependency |

@@ -18,8 +18,8 @@ do not port new features into them without an explicit ask: `RShiny_Dashboard/NM
 `dashboard.py.bak`.
 
 > **2026-08 remediation notice.** This file was rewritten against the corrected pipeline and
-> schema. If anything you read elsewhere in this repo's history says "54 columns", "42.2%
-> mismatch", or references `IS_PLE_ANALYSIS_SAFE`, `UNI_TYPE`, `CourseGroup`, or `NMA_College` —
+> schema. If anything you read elsewhere in this repo's history says "54 columns"
+> or references `IS_PLE_ANALYSIS_SAFE`, `UNI_TYPE`, `CourseGroup`, or `NMA_College` —
 > that predates this remediation and is superseded. See `docs/pipeline_architecture.md` §7 for the
 > two root-cause defects found and fixed (a hard percentile floor in the PLE matcher, and dead DOB
 > disambiguation code) and what they changed downstream.
@@ -121,8 +121,9 @@ Pipeline 1: Data Cleaning (1_Data_Cleaning_Pipeline.ipynb)
     • Validate university names via 4-tier matching (UNIVS.csv, incl. rapidfuzz — the ONLY
       fuzzy matching anywhere in this project)
     • Recalculate raw scores — stored totals disagree with the recalculated total in 56.45%
-      of the 99,316 records that carry a stored total (NOT "42.2%" — that figure used the
-      wrong denominator; see docs/pipeline_architecture.md)
+      of the 99,316 records that carry a stored total ("42.2%" is the SAME mismatch counted
+      over the whole CEM file, 107,422/254,308 — a different population, not an error;
+      see docs/pipeline_architecture.md)
     • Create percentile bins (B1 = lowest decile .. B10 = highest)
     → Output: NMAT_FINAL.csv (101 cols) — the file Pipeline 2 actually reads.
       (A NMAT_FINAL.parquet twin had zero readers and was removed in dataset cleanup.)
@@ -227,7 +228,10 @@ cut-off question is about — and both are removed. See `docs/pipeline_architect
 Stored `StoredRawTotal` values in CEM data disagree with the recalculated `TotalRawScoreTRUE` in
 **56.45% of the 99,316 records that carry a stored total** (31.33% of all rows). `TotalRawScoreTRUE`
 is recalculated by summing 8 component raw scores and is the canonical value. **The figure "42.2%"
-is wrong** (wrong denominator) and superseded wherever it appears in older material.
+is also correct** — it is the same mismatch counted over the whole `CEM_DATA.csv` (107,422 of
+254,308 rows). Two populations, not an error; always name the denominator. Note that CEM already
+flagged these itself: `STU_RSCORE_VALID` marks exactly those rows `INVALID`, zero exceptions either
+way, so the recalculation reproduces a pre-existing CEM QA judgement rather than discovering it.
 
 ### `PERSON_KEY` Is a Weak Identity Key
 Built from normalized name + a coarse birthdate fragment (14.09% of rows have no birthdate

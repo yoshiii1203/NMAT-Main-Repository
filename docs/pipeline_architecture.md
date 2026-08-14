@@ -115,13 +115,14 @@ not expect it on disk.
   (stored) and `STU_RSCORE_CALC` (calculated). The stored total disagrees with the recalculated
   total (`TotalRawScoreTRUE`, the sum of 8 component subscores) in **56,065 of the 99,316 rows
   that have a stored total at all — 56.45%** (31.33% of all 178,927 rows). **The figure "42.2%"
-  that appears throughout older project documentation is wrong**: it divided the mismatch count by
-  an examinee-level denominator rather than by 99,316, the population that actually has a stored
-  total to compare against. (56,065 / 133,558 gives 42.0%, near but not equal to the published
-  42.2%, so the exact original denominator is a reconstruction; what is certain is that it was
-  not 99,316.) If you have seen
-  "42.2%" cited elsewhere in this project's history, it has been superseded — use 56.45% (of
-  rows with a stored total) or 31.33% (of all rows), and always name the denominator.
+  seen elsewhere in this project is **also correct — it is a different population.** Measured on
+  `CEM_DATA.csv`: `STU_RSCORE != STU_RSCORE_CALC` on **107,422 of 254,308 rows = 42.24% of the
+  whole CEM file**, versus **56.45% of the 99,316 NMAT-matched rows that carry a stored total**
+  (31.33% of all 178,927 rows). Neither figure supersedes the other; always name the denominator.
+  **CEM had already flagged every one of them**: `STU_RSCORE_VALID` marks exactly those 107,422
+  rows `INVALID`, a perfect predictor with zero exceptions in either direction. The recalculation
+  therefore reproduces a QA judgement the source system already published — it is correct and worth
+  doing, but "we discovered that 42.2% were wrong" overstates its novelty.
 - **`PercentileBin`** created via `pd.cut()`, labels `B1`-`B10`, left-closed intervals. **`B1` is
   the lowest decile, `B10` the highest** — confirmed monotonic against mean raw score.
 - **Course group classification** into 6 categories via keyword matching.
@@ -414,7 +415,7 @@ current.**
 | `IS_BEST_OBSERVABLE_RECORD` added | The correct observable-cohort flag; do not substitute `IS_BEST_NMAT_RECORD & (Year<=2014)`, which drops 3,721 people. |
 | `PERSON_KEY_AMBIGUOUS` added | Exposes, rather than hides, ~4.56% (6,148) detectable name-collision risk in the underlying `PERSON_KEY`. |
 | Undergraduate-institution renames | `UNIVERSITY`/`UNI_TYPE`/`UNI_LOCATION`/`CourseGroup` -> `UNDERGRAD_*`, because this data has no medical-school identifier at all — see `data_dictionary.md`. |
-| Stored-total mismatch corrected | 56.45% of rows with a stored total (not "42.2%" of all records — see §2). |
+| Stored-total mismatch corrected | 56.45% of the 99,316 rows with a stored total; equivalently 42.24% of the whole CEM file (107,422/254,308). Both correct — name the denominator. See §2. |
 | Pipeline 5 added | The previously-undocumented, code-less slimming step now has a real, asserted script. |
 
 ---

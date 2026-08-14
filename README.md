@@ -75,7 +75,7 @@ flowchart LR
 **Key operations:**
 - Clean and standardize application numbers
 - Normalize university names via 4-tier matching against UNIVS.csv (2,981 verified, 1,386 unmatched) — the only fuzzy (`rapidfuzz`) matching anywhere in the project
-- Recalculate TRUE raw scores from 8 component subtests. Stored totals disagree with the recalculated total in **56.45% of the 99,316 records that carry a stored total** (31.33% of all rows). The commonly-cited "42.2%" figure divided the mismatch count by the wrong denominator and is superseded — see `docs/pipeline_architecture.md`.
+- Recalculate TRUE raw scores from 8 component subtests. Stored totals disagree with the recalculated total in **56.45% of the 99,316 records that carry a stored total** (31.33% of all rows). The "42.2%" figure seen elsewhere is also correct — it is the same mismatch measured over the whole CEM file (107,422 of 254,308 rows). Neither supersedes the other; always name the denominator. CEM had already flagged these rows itself via `STU_RSCORE_VALID`.
 - Classify universities as Public/Private/Foreign, course groups into 6 categories
 - Create `PercentileBin` bins (B1–B10, B1 = lowest decile)
 - **Output:** `NMAT_FINAL.csv` (101 columns) — the file Pipeline 2 reads. A `NMAT_FINAL.parquet` twin was removed in a 2026-08 dataset-hygiene cleanup; it had no readers.
@@ -294,7 +294,7 @@ dashboard work.
 |----------|---------|
 | **Deterministic-only PLE matching** | No fuzzy/`rapidfuzz` matching in Pipeline 2 (university-name matching in Pipeline 1 still uses it — see `docs/pipeline_architecture.md`). |
 | **No score-based identity resolution** | A hard percentile-floor step in the PLE disambiguator (RC-0) was found to be suppressing matches for exactly the below-40th-percentile population under study, and was removed. See `docs/pipeline_architecture.md` §7. |
-| **TRUE raw score recalculation** | Stored raw score totals disagree with the recalculated total in 56.45% of the 99,316 records that carry a stored total (**not** "42.2%" — that figure used the wrong denominator and is superseded). |
+| **TRUE raw score recalculation** | Stored raw score totals disagree with the recalculated total in 56.45% of the 99,316 records that carry a stored total (the "42.2%" figure is the same mismatch over the whole CEM file, 107,422/254,308 — a different population, not an error). |
 | **5-pipeline chain** | Pipeline 5 (`5_Slim_Exodus.py`) is new — it gives the previously code-less 118→53 column slim an explicit, asserted, reproducible implementation. |
 | **`REAL_FOREIGNERS.csv` integration** | Pipeline 4 implements a 3-tier citizenship hierarchy with `REAL_FOREIGNERS.csv` as ground truth. |
 | **Observable cohort, done correctly** | Use `IS_BEST_OBSERVABLE_RECORD` (69,503 people), never `IS_BEST_NMAT_RECORD & (Year <= 2014)` (65,782 — silently drops 3,721 people). |
