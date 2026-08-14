@@ -1,6 +1,6 @@
 # NMAT Performance Evidence for CHED Cut-Off Policy Review
 
-> Complete Markdown export generated 2026-07-31 16:32. Every number below is computed by the same functions the live dashboard renders from (`ched_common.py`) — this document is a faithful transcript, not a paraphrase.
+> Complete Markdown export generated 2026-08-14 16:50. Every number below is computed by the same functions the live dashboard renders from (`ched_common.py`) — this document is a faithful transcript, not a paraphrase.
 
 **Source:** NMAT_Exodus.parquet, 178,927 rows x 53 columns.
 
@@ -134,11 +134,11 @@ B1 is the lowest decile (0-9), B10 the highest (90-100).
 
 ---
 
-![University Type Composition Pie Chart](../viz/01_uni_type_pie.png)
+![University Type Composition Pie Chart](01_uni_type_pie.png)
 
-![Course Group Composition Pie Chart](../viz/01_course_group_pie.png)
+![Course Group Composition Pie Chart](01_course_group_pie.png)
 
-![Annual Trend Chart: Examinee Volume and Median NMAT Percentile](../viz/01_annual_trend.png)
+![Annual Trend Chart: Examinee Volume and Median NMAT Percentile](01_annual_trend.png)
 
 
 # Tab 2 — B4+ vs B5+ Thresholds
@@ -313,11 +313,11 @@ This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' do
 
 ---
 
-![Score Bin Distribution Heatmap by Year](../viz/02_bin_heatmap.png)
+![Score Bin Distribution Heatmap by Year](02_bin_heatmap.png)
 
-![Top Bins vs Bottom Bins Trend](../viz/02_top_bottom_trend.png)
+![Top Bins vs Bottom Bins Trend](02_top_bottom_trend.png)
 
-![B4 Examinees by Institution Type](../viz/02_b4_group.png)
+![B4 Examinees by Institution Type](02_b4_group.png)
 
 
 # Tab 3 — PLE-Passer Linkage
@@ -450,13 +450,13 @@ Under strict matching criteria, 23,128 of 41,289 (56.0%) Filipino B5+ observable
 
 ---
 
-![PLE Linkage Rate by Score Bin](../viz/03_ple_linkage_bin.png)
+![PLE Linkage Rate by Score Bin](03_ple_linkage_bin.png)
 
-![PLE Linkage Rate by NMAT Year](../viz/03_ple_linkage_year.png)
+![PLE Linkage Rate by NMAT Year](03_ple_linkage_year.png)
 
-![PLE Linkage Rate by Course Group](../viz/03_ple_linkage_course.png)
+![PLE Linkage Rate by Course Group](03_ple_linkage_course.png)
 
-![PLE Linkage Rate by University Type](../viz/03_ple_linkage_uni.png)
+![PLE Linkage Rate by University Type](03_ple_linkage_uni.png)
 
 
 # Tab 4 — Institution and Foreign Context
@@ -544,13 +544,13 @@ These are NMAT examinees, not enrolled medical students.
 
 ---
 
-![NMAT Percentile Distribution by University Type - Box Plot](../viz/04_uni_box.png)
+![NMAT Percentile Distribution by University Type - Box Plot](04_uni_box.png)
 
-![Bin Distribution by University Type Heatmap](../viz/04_uni_bin_heatmap.png)
+![Bin Distribution by University Type Heatmap](04_uni_bin_heatmap.png)
 
-![Top-Bin Share by University Type](../viz/04_top_bin_uni.png)
+![Top-Bin Share by University Type](04_top_bin_uni.png)
 
-![Top 10 Foreign Nationalities](../viz/04_foreign_top10.png)
+![Top 10 Foreign Nationalities](04_foreign_top10.png)
 
 
 # Tab 5 — Key Evidence for Policy Review

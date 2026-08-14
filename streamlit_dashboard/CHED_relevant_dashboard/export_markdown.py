@@ -13,7 +13,10 @@ Public function: build_full_markdown(df_all, df_best, df_obs, viz_dir) -> str
 
 import hashlib
 import os
+import sys
 from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import numpy as np
 import pandas as pd
@@ -792,3 +795,15 @@ def build_full_markdown(df_all, df_best, df_obs, viz_dir=None, md_dir=None):
     lines.append(_self_check_block(df_all, source_path))
 
     return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    # Headless regeneration, same code path as the dashboard's export button.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _all, _best, _obs = cc.load_and_validate()
+    _md = build_full_markdown(_all, _best, _obs, viz_dir=os.path.join(_here, "viz"))
+    _out = os.path.join(_here, "complete_markdown", "CHED_NMAT_Dashboard_Complete.md")
+    os.makedirs(os.path.dirname(_out), exist_ok=True)
+    with open(_out, "w", encoding="utf-8") as fh:
+        fh.write(_md)
+    print(f"wrote {_out}  ({len(_md):,} chars)")

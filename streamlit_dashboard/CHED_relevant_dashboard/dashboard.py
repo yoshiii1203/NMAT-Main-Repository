@@ -10,7 +10,14 @@ export_markdown.py so the dashboard and the exported document can never
 silently disagree.
 """
 
+import os
+import sys
 import warnings
+
+# Streamlit's own runner puts the script directory on sys.path, but AppTest and
+# `python dashboard.py` from another cwd do not.  Make the sibling imports work
+# regardless of how this file is launched.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pandas as pd
 import plotly.express as px

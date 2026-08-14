@@ -1,6 +1,6 @@
 # Page 13: CHED Compliance — CMO No. __, s. 2026
 
-**Generated:** 2026-07-31 16:32
+**Generated:** 2026-08-14 16:53
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
