@@ -62,8 +62,12 @@ EXPECTED_ROWS = 178_927  # structural -- row count must never change in a slim s
 EXPECTED_UNIQUE_PERSONS = 134_869
 EXPECTED_BEST_OBSERVABLE = 69_503
 EXPECTED_AMBIGUOUS_KEYS = 6_148
-EXPECTED_PLE_PASSERS = 49_986
-LINKAGE_RATE_BAND = (0.454, 0.458)
+# 2026-08 chain re-run after the Pipeline 2 double-crediting fix (get_ple_info()
+# name fallback) and the Pipeline 1 -1-sentinel fix. Passer sittings 49,086 ->
+# 47,485; observable linkage 45.44% -> 43.31%. The old 49_986 here was doubly
+# stale: it predated even the RC-0 percentile-floor fix.
+EXPECTED_PLE_PASSERS = 47_485
+LINKAGE_RATE_BAND = (0.431, 0.435)
 
 RAW_8 = [
     "Raw_Biology", "Raw_Chemistry", "Raw_InductiveReasoning", "Raw_PerceptualAcuity",

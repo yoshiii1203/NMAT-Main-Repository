@@ -1,6 +1,6 @@
 # D4 — forensic_audit/ consolidation log
 
-**Status: DONE, final.** Ran against `dataset/NMAT_Exodus.parquet`, md5 `28b85ac53af13b4a2ef3ee93527c97c1`
+**Status: DONE, final.** Ran against `dataset/NMAT_Exodus.parquet`, md5 `72b2808bb8bb9c3594980c5735f814e1`
 (178,927 rows × 53 cols) — confirmed against the orchestrator's stated final md5. This is post the
 `disambiguate()` Step-4 matcher-suppression fix (verified directly by reading
 `2_PLE_Matching_Pipeline.ipynb`: `PERCENTILE_FLOOR` is now an unused, explicitly-commented historical
@@ -138,7 +138,7 @@ was substantially a T2 artifact.
 ```
 Ran end-to-end 4 times total during this task (2 to catch/fix my own bugs, 2 to track the pipeline's
 own data changes), exit code 0 each time, ~30-60s. Final md5 of the input parquet matches the
-orchestrator's stated `28b85ac53af13b4a2ef3ee93527c97c1`. Output files:
+orchestrator's stated `72b2808bb8bb9c3594980c5735f814e1`. Output files:
 `forensic_audit_summary.csv`, `forensic_audit_selection_effect.csv`,
 `forensic_audit_contingency_2x2.csv`, `forensic_audit_name_check_results.csv` (2,371 rows),
 `forensic_audit_exceptions.csv` (532 rows — 36 unresolved mismatches + 5 ambiguous-source conflicts +

@@ -11,7 +11,7 @@ the disagreement is written down rather than smoothed over.
 
 | Area | State | Evidence |
 |---|---|---|
-| Data layer | **Done** | `dataset/NMAT_Exodus.parquet` 178,927 x 53, md5 `28b85ac53af13b4a2ef3ee93527c97c1`, three byte-identical copies enforced by `5_Slim_Exodus.py` |
+| Data layer | **Done** | `dataset/NMAT_Exodus.parquet` 178,927 x 53, md5 `72b2808bb8bb9c3594980c5735f814e1`, three byte-identical copies enforced by `5_Slim_Exodus.py` |
 | Pipelines 1–5 | **Done** | Chain re-executed end to end; notebooks executed and saved, so nothing is stale |
 | Test suite | **Done** | `pytest tests/` -> 36 passed |
 | CHED dashboard | **Done** | AppTest 0 exceptions, 18 metrics / 19 dataframes / 6 tabs |

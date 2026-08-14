@@ -4,7 +4,7 @@ Scope owned: `streamlit_dashboard/CHED_relevant_dashboard/{dashboard.py, export_
 Python used throughout: `./.venv/Scripts/python.exe`.
 
 Final data: `NMAT_Exodus.parquet`, **178,927 rows x 53 columns**, md5
-`28b85ac53af13b4a2ef3ee93527c97c1` (confirmed via direct hash after the
+`72b2808bb8bb9c3594980c5735f814e1` (confirmed via direct hash after the
 orchestrator's final parquet regeneration, mid-task).
 
 ## New file: `ched_common.py`
@@ -157,7 +157,7 @@ that could not fail; `tests/` supersedes them per instructions).
 `cc.compute_tab5_finding_texts()` — removes a third copy of the same
 drift-prone logic (audit 06 F1/F5 root cause).
 
-## Verification run (final parquet, md5 `28b85ac53af13b4a2ef3ee93527c97c1`)
+## Verification run (final parquet, md5 `72b2808bb8bb9c3594980c5735f814e1`)
 
 ```
 py_compile dashboard.py export_markdown.py ched_common.py ched_compute/*.py -> OK (no output = success)
@@ -191,7 +191,7 @@ and final-parquet re-run).
 Regenerated `complete_markdown/CHED_NMAT_Dashboard_Complete.md` from the
 final parquet. Export integrity block:
 ```
-| Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
+| Source parquet md5 | 72b2808bb8bb9c3594980c5735f814e1 |
 | Rows / cols | 178,927 / 53 |
 | Tabs exported | 6 / 6 |
 | Charts exported as data | 15 / 15 |

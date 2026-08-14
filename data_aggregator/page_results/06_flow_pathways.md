@@ -1,6 +1,6 @@
 # Page 6: Flow Pathways Analysis (Page 06)
 
-**Generated:** 2026-08-14 17:29
+**Generated:** 2026-08-14 18:07
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -11,7 +11,7 @@
 ---
 
 **Subsets used:**
-- **uni** (UNDERGRAD_UNI_TYPE flow): besttrend, UNDERGRAD_UNI_TYPE in [Public, Private, Foreign] — 133,477 records
+- **uni** (UNDERGRAD_UNI_TYPE flow): besttrend, UNDERGRAD_UNI_TYPE in [Public, Private, Foreign] — 133,315 records
 - **besttrend** (UNDERGRAD_COURSE_GROUP flow): best NMAT record, Year 2006-2018 — 134,869 records
 - **bestobservable** (Bin -> PLE flow): best attempt within Year<=2014 (IS_BEST_OBSERVABLE_RECORD) — 69,503 records
 
@@ -25,26 +25,26 @@ Source: `uni` subset (besttrend, Public/Private/Foreign)
 
 | UNDERGRAD_UNI_TYPE   | PercentileBin   |   count |
 |:---------------------|:----------------|--------:|
-| Public               | B1              |    2949 |
-| Public               | B2              |    2228 |
-| Public               | B3              |    2058 |
-| Public               | B4              |    2247 |
-| Public               | B5              |    2320 |
-| Public               | B6              |    2421 |
-| Public               | B7              |    2478 |
-| Public               | B8              |    2606 |
-| Public               | B9              |    3051 |
-| Public               | B10             |    4876 |
-| Private              | B1              |   12205 |
-| Private              | B2              |    9823 |
-| Private              | B3              |    9127 |
-| Private              | B4              |   10061 |
-| Private              | B5              |   10044 |
-| Private              | B6              |   10079 |
-| Private              | B7              |    9602 |
-| Private              | B8              |    9821 |
-| Private              | B9              |    9864 |
-| Private              | B10             |   10774 |
+| Public               | B1              |    2874 |
+| Public               | B2              |    2176 |
+| Public               | B3              |    2016 |
+| Public               | B4              |    2209 |
+| Public               | B5              |    2288 |
+| Public               | B6              |    2385 |
+| Public               | B7              |    2442 |
+| Public               | B8              |    2586 |
+| Public               | B9              |    3029 |
+| Public               | B10             |    4854 |
+| Private              | B1              |   12248 |
+| Private              | B2              |    9857 |
+| Private              | B3              |    9151 |
+| Private              | B4              |   10082 |
+| Private              | B5              |   10058 |
+| Private              | B6              |   10104 |
+| Private              | B7              |    9622 |
+| Private              | B8              |    9833 |
+| Private              | B9              |    9876 |
+| Private              | B10             |   10784 |
 | Foreign              | B1              |     262 |
 | Foreign              | B2              |     174 |
 | Foreign              | B3              |     140 |
@@ -62,8 +62,8 @@ Source: `uni` subset (besttrend, Public/Private/Foreign)
 
 | UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |    B4 |    B5 |    B6 |   B7 |   B8 |   B9 |   B10 |
 |:---------------------|------:|-----:|-----:|------:|------:|------:|-----:|-----:|-----:|------:|
-| Public               |  2949 | 2228 | 2058 |  2247 |  2320 |  2421 | 2478 | 2606 | 3051 |  4876 |
-| Private              | 12205 | 9823 | 9127 | 10061 | 10044 | 10079 | 9602 | 9821 | 9864 | 10774 |
+| Public               |  2874 | 2176 | 2016 |  2209 |  2288 |  2385 | 2442 | 2586 | 3029 |  4854 |
+| Private              | 12248 | 9857 | 9151 | 10082 | 10058 | 10104 | 9622 | 9833 | 9876 | 10784 |
 | Foreign              |   262 |  174 |  140 |   176 |   145 |   164 |  161 |  175 |  197 |   266 |
 
 ### 1c. Row percentages (within UNDERGRAD_UNI_TYPE)
@@ -72,8 +72,8 @@ Source: `uni` subset (besttrend, Public/Private/Foreign)
 
 | UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
 |:---------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
-| Public               | 10.83 | 8.18 | 7.56 | 8.25 | 8.52 | 8.89 |  9.1 | 9.57 |  11.2 |  17.9 |
-| Private              | 12.04 | 9.69 |    9 | 9.92 | 9.91 | 9.94 | 9.47 | 9.69 |  9.73 | 10.63 |
+| Public               |  10.7 |  8.1 | 7.51 | 8.22 | 8.52 | 8.88 | 9.09 | 9.63 | 11.28 | 18.07 |
+| Private              | 12.05 |  9.7 | 9.01 | 9.92 |  9.9 | 9.94 | 9.47 | 9.68 |  9.72 | 10.61 |
 | Foreign              | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
 
 ---
@@ -183,26 +183,26 @@ Source: `bestobservable` subset (besttrend, Year <= 2014)
 
 | PercentileBin   | PLE_STATUS_LABEL       |   count |
 |:----------------|:-----------------------|--------:|
-| B1              | Confirmed PLE passer   |     795 |
-| B1              | No confirmed PLE match |    6058 |
-| B2              | Confirmed PLE passer   |    1336 |
-| B2              | No confirmed PLE match |    4548 |
-| B3              | Confirmed PLE passer   |    1703 |
-| B3              | No confirmed PLE match |    4110 |
-| B4              | Confirmed PLE passer   |    2330 |
-| B4              | No confirmed PLE match |    4143 |
-| B5              | Confirmed PLE passer   |    3003 |
-| B5              | No confirmed PLE match |    3579 |
-| B6              | Confirmed PLE passer   |    3168 |
-| B6              | No confirmed PLE match |    3116 |
-| B7              | Confirmed PLE passer   |    3407 |
-| B7              | No confirmed PLE match |    2952 |
-| B8              | Confirmed PLE passer   |    3690 |
-| B8              | No confirmed PLE match |    3014 |
-| B9              | Confirmed PLE passer   |    4474 |
-| B9              | No confirmed PLE match |    2789 |
-| B10             | Confirmed PLE passer   |    7073 |
-| B10             | No confirmed PLE match |    2885 |
+| B1              | Confirmed PLE passer   |     740 |
+| B1              | No confirmed PLE match |    6113 |
+| B2              | Confirmed PLE passer   |    1219 |
+| B2              | No confirmed PLE match |    4665 |
+| B3              | Confirmed PLE passer   |    1551 |
+| B3              | No confirmed PLE match |    4262 |
+| B4              | Confirmed PLE passer   |    2155 |
+| B4              | No confirmed PLE match |    4318 |
+| B5              | Confirmed PLE passer   |    2852 |
+| B5              | No confirmed PLE match |    3730 |
+| B6              | Confirmed PLE passer   |    2976 |
+| B6              | No confirmed PLE match |    3308 |
+| B7              | Confirmed PLE passer   |    3214 |
+| B7              | No confirmed PLE match |    3145 |
+| B8              | Confirmed PLE passer   |    3534 |
+| B8              | No confirmed PLE match |    3170 |
+| B9              | Confirmed PLE passer   |    4323 |
+| B9              | No confirmed PLE match |    2940 |
+| B10             | Confirmed PLE passer   |    6946 |
+| B10             | No confirmed PLE match |    3012 |
 
 ### 3b. PLE status composition within each bin (row %)
 
@@ -210,16 +210,16 @@ Source: `bestobservable` subset (besttrend, Year <= 2014)
 
 | PercentileBin   |   Confirmed PLE passer |   No confirmed PLE match |
 |:----------------|-----------------------:|-------------------------:|
-| B1              |                   11.6 |                     88.4 |
-| B2              |                  22.71 |                    77.29 |
-| B3              |                   29.3 |                     70.7 |
-| B4              |                     36 |                       64 |
-| B5              |                  45.62 |                    54.38 |
-| B6              |                  50.41 |                    49.59 |
-| B7              |                  53.58 |                    46.42 |
-| B8              |                  55.04 |                    44.96 |
-| B9              |                   61.6 |                     38.4 |
-| B10             |                  71.03 |                    28.97 |
+| B1              |                   10.8 |                     89.2 |
+| B2              |                  20.72 |                    79.28 |
+| B3              |                  26.68 |                    73.32 |
+| B4              |                  33.29 |                    66.71 |
+| B5              |                  43.33 |                    56.67 |
+| B6              |                  47.36 |                    52.64 |
+| B7              |                  50.54 |                    49.46 |
+| B8              |                  52.71 |                    47.29 |
+| B9              |                  59.52 |                    40.48 |
+| B10             |                  69.75 |                    30.25 |
 
 ### 3c. Confirmed PLE linkage rate by bin
 
@@ -227,16 +227,16 @@ Source: `bestobservable` subset (besttrend, Year <= 2014)
 
 | PercentileBin   |   Confirmed PLE Passers |   Total in Bin |   PLE Linkage Rate (%) |
 |:----------------|------------------------:|---------------:|-----------------------:|
-| B1              |                     795 |           6853 |                   11.6 |
-| B2              |                    1336 |           5884 |                  22.71 |
-| B3              |                    1703 |           5813 |                   29.3 |
-| B4              |                    2330 |           6473 |                     36 |
-| B5              |                    3003 |           6582 |                  45.62 |
-| B6              |                    3168 |           6284 |                  50.41 |
-| B7              |                    3407 |           6359 |                  53.58 |
-| B8              |                    3690 |           6704 |                  55.04 |
-| B9              |                    4474 |           7263 |                   61.6 |
-| B10             |                    7073 |           9958 |                  71.03 |
+| B1              |                     740 |           6853 |                   10.8 |
+| B2              |                    1219 |           5884 |                  20.72 |
+| B3              |                    1551 |           5813 |                  26.68 |
+| B4              |                    2155 |           6473 |                  33.29 |
+| B5              |                    2852 |           6582 |                  43.33 |
+| B6              |                    2976 |           6284 |                  47.36 |
+| B7              |                    3214 |           6359 |                  50.54 |
+| B8              |                    3534 |           6704 |                  52.71 |
+| B9              |                    4323 |           7263 |                  59.52 |
+| B10             |                    6946 |           9958 |                  69.75 |
 
 ---
 
@@ -248,12 +248,12 @@ Source: `uni` subset (besttrend, Public/Private/Foreign)
 
 | UNDERGRAD_UNI_TYPE   | PercentileBin   |   Count |
 |:---------------------|:----------------|--------:|
-| Private              | B10             |   10774 |
-| Private              | B9              |    9864 |
-| Private              | B8              |    9821 |
-| Public               | B10             |    4876 |
-| Public               | B9              |    3051 |
-| Public               | B8              |    2606 |
+| Private              | B10             |   10784 |
+| Private              | B9              |    9876 |
+| Private              | B8              |    9833 |
+| Public               | B10             |    4854 |
+| Public               | B9              |    3029 |
+| Public               | B8              |    2586 |
 | Foreign              | B10             |     266 |
 | Foreign              | B9              |     197 |
 | Foreign              | B8              |     175 |
@@ -262,12 +262,12 @@ Source: `uni` subset (besttrend, Public/Private/Foreign)
 
 |   Rank | UNDERGRAD_UNI_TYPE   | PercentileBin   |   Count |
 |-------:|:---------------------|:----------------|--------:|
-|      1 | Private              | B10             |   10774 |
-|      2 | Private              | B9              |    9864 |
-|      3 | Private              | B8              |    9821 |
-|      4 | Public               | B10             |    4876 |
-|      5 | Public               | B9              |    3051 |
-|      6 | Public               | B8              |    2606 |
+|      1 | Private              | B10             |   10784 |
+|      2 | Private              | B9              |    9876 |
+|      3 | Private              | B8              |    9833 |
+|      4 | Public               | B10             |    4854 |
+|      5 | Public               | B9              |    3029 |
+|      6 | Public               | B8              |    2586 |
 |      7 | Foreign              | B10             |     266 |
 |      8 | Foreign              | B9              |     197 |
 |      9 | Foreign              | B8              |     175 |
@@ -281,12 +281,12 @@ Source: `uni` subset (besttrend, Public/Private/Foreign)
 | Foreign              | B10             |     266 |
 | Foreign              | B8              |     175 |
 | Foreign              | B9              |     197 |
-| Private              | B10             |   10774 |
-| Private              | B8              |    9821 |
-| Private              | B9              |    9864 |
-| Public               | B10             |    4876 |
-| Public               | B8              |    2606 |
-| Public               | B9              |    3051 |
+| Private              | B10             |   10784 |
+| Private              | B8              |    9833 |
+| Private              | B9              |    9876 |
+| Public               | B10             |    4854 |
+| Public               | B8              |    2586 |
+| Public               | B9              |    3029 |
 
 ---
 
@@ -360,8 +360,8 @@ Source: `besttrend` subset
 | UNDERGRAD_UNI_TYPE   |   Total N |   Top Bin N |   Top Bin Rate (%) |
 |:---------------------|----------:|------------:|-------------------:|
 | Foreign              |      1892 |         638 |              33.72 |
-| Private              |    103669 |       30459 |              29.38 |
-| Public               |     27916 |       10533 |              37.73 |
+| Private              |    103885 |       30493 |              29.35 |
+| Public               |     27538 |       10469 |              38.02 |
 
 ### 6b. Top-bin rate by UNDERGRAD_COURSE_GROUP
 
@@ -382,23 +382,23 @@ Source: `besttrend` subset
 
 | UNDERGRAD_UNI_TYPE   | UNDERGRAD_COURSE_GROUP       |   Total N |   Top Bin N |   Top Bin Rate (%) |
 |:---------------------|:-----------------------------|----------:|------------:|-------------------:|
-| Public               | Education                    |       776 |         479 |              61.73 |
-| Public               | Engineering & Technology     |       160 |          91 |              56.88 |
+| Public               | Education                    |       748 |         472 |               63.1 |
+| Public               | Engineering & Technology     |       156 |          90 |              57.69 |
 | Foreign              | Engineering & Technology     |        28 |          14 |                 50 |
-| Private              | Engineering & Technology     |       555 |         274 |              49.37 |
-| Public               | Other                        |      2241 |        1004 |               44.8 |
+| Private              | Engineering & Technology     |       558 |         274 |               49.1 |
+| Public               | Other                        |      2133 |         988 |              46.32 |
 | Foreign              | Natural Sciences             |       608 |         265 |              43.59 |
 | Foreign              | Other                        |       189 |          80 |              42.33 |
-| Public               | Natural Sciences             |      9836 |        3946 |              40.12 |
-| Private              | Natural Sciences             |     30582 |       10378 |              33.93 |
-| Public               | Medical & Allied             |     11507 |        3890 |              33.81 |
-| Public               | Social & Behavioral Sciences |      3396 |        1123 |              33.07 |
-| Private              | Other                        |      5853 |        1813 |              30.98 |
+| Public               | Natural Sciences             |      9782 |        3928 |              40.16 |
+| Public               | Medical & Allied             |     11338 |        3871 |              34.14 |
+| Private              | Natural Sciences             |     30609 |       10387 |              33.93 |
+| Public               | Social & Behavioral Sciences |      3381 |        1120 |              33.13 |
+| Private              | Other                        |      5915 |        1821 |              30.79 |
 | Foreign              | Social & Behavioral Sciences |       221 |          65 |              29.41 |
-| Private              | Medical & Allied             |     51357 |       14082 |              27.42 |
-| Private              | Social & Behavioral Sciences |     12709 |        3254 |               25.6 |
+| Private              | Medical & Allied             |     51456 |       14092 |              27.39 |
+| Private              | Social & Behavioral Sciences |     12715 |        3255 |               25.6 |
 | Foreign              | Medical & Allied             |       764 |         195 |              25.52 |
-| Private              | Education                    |      2613 |         658 |              25.18 |
+| Private              | Education                    |      2632 |         664 |              25.23 |
 | Foreign              | Education                    |        82 |          19 |              23.17 |
 
 ### 6d. Course composition within each UNDERGRAD_UNI_TYPE
@@ -413,18 +413,18 @@ Source: `besttrend` subset
 | Foreign              | Other                        |     189 |                                9.99 |
 | Foreign              | Education                    |      82 |                                4.33 |
 | Foreign              | Engineering & Technology     |      28 |                                1.48 |
-| Private              | Medical & Allied             |   51357 |                               49.54 |
-| Private              | Natural Sciences             |   30582 |                                29.5 |
-| Private              | Social & Behavioral Sciences |   12709 |                               12.26 |
-| Private              | Other                        |    5853 |                                5.65 |
-| Private              | Education                    |    2613 |                                2.52 |
-| Private              | Engineering & Technology     |     555 |                                0.54 |
-| Public               | Medical & Allied             |   11507 |                               41.22 |
-| Public               | Natural Sciences             |    9836 |                               35.23 |
-| Public               | Social & Behavioral Sciences |    3396 |                               12.17 |
-| Public               | Other                        |    2241 |                                8.03 |
-| Public               | Education                    |     776 |                                2.78 |
-| Public               | Engineering & Technology     |     160 |                                0.57 |
+| Private              | Medical & Allied             |   51456 |                               49.53 |
+| Private              | Natural Sciences             |   30609 |                               29.46 |
+| Private              | Social & Behavioral Sciences |   12715 |                               12.24 |
+| Private              | Other                        |    5915 |                                5.69 |
+| Private              | Education                    |    2632 |                                2.53 |
+| Private              | Engineering & Technology     |     558 |                                0.54 |
+| Public               | Medical & Allied             |   11338 |                               41.17 |
+| Public               | Natural Sciences             |    9782 |                               35.52 |
+| Public               | Social & Behavioral Sciences |    3381 |                               12.28 |
+| Public               | Other                        |    2133 |                                7.75 |
+| Public               | Education                    |     748 |                                2.72 |
+| Public               | Engineering & Technology     |     156 |                                0.57 |
 
 
 ---

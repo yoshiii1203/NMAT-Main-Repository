@@ -11,7 +11,7 @@ Run from any working directory — every path in the script is relative to the s
 location, so this always writes into `forensic_audit/`, never the repo root.
 
 **Every number in this document comes from that command**, run against
-`dataset/NMAT_Exodus.parquet` (md5 `28b85ac53af13b4a2ef3ee93527c97c1`, 178,927 rows × 53 cols, the
+`dataset/NMAT_Exodus.parquet` (md5 `72b2808bb8bb9c3594980c5735f814e1`, 178,927 rows × 53 cols, the
 FINAL post-fix parquet per the orchestrator). No hand-edited values, no manual override step.
 
 ---

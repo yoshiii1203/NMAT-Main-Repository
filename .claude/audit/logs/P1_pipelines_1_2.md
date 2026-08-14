@@ -474,7 +474,7 @@ the task brief):**
 
 Orchestrator's own independent verification of the downstream chain (Pipeline
 4 -> 5 -> `pytest tests/`), quoted for the record: 53-column `NMAT_Exodus.parquet`,
-all 3 parquet copies share md5 `28b85ac53af13b4a2ef3ee93527c97c1`, `pytest
+all 3 parquet copies share md5 `72b2808bb8bb9c3594980c5735f814e1`, `pytest
 tests/` 36 passed, observable linkage 45.44%. Committed `bfb9e5c`.
 
 ---

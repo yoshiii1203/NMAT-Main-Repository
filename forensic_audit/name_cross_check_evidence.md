@@ -10,7 +10,7 @@ This document supersedes the version dated 2026-07-28. That version's headline *
 mismatches" is withdrawn** — see `forensic_audit/_superseded/README.md` for why it was not
 reproducible, and Section 6 below for the corrected number.
 
-**Data version:** `dataset/NMAT_Exodus.parquet`, md5 `28b85ac53af13b4a2ef3ee93527c97c1`, post-fix
+**Data version:** `dataset/NMAT_Exodus.parquet`, md5 `72b2808bb8bb9c3594980c5735f814e1`, post-fix
 (the `2_PLE_Matching_Pipeline.ipynb` `disambiguate()` Step-4 matcher-suppression bug — see
 `forensic_audit_report.md` §0b — is removed in this data). That fix does not change this document's
 figures in substance: it only affects `EXACT`-method name-collision groups, and this document's

@@ -4,12 +4,12 @@ Section,Metric,Value
 1,"PERSON_KEY_AMBIGUOUS keys, dataset-wide",6148.0
 1,PERSON_KEY_AMBIGUOUS people within best_obs,2400.0
 1,best_obs_clean (ambiguous excluded),67103.0
-2,B4 linkage rate pct (best_obs_clean),36.15
-2,B5 linkage rate pct (best_obs_clean),45.86
-2,B4->B5 jump (points),9.71
-4,"APPNO-based matched rows, current parquet",2867.0
-4,coverage pct (matched in PLE_MATCH_MASTER.csv),82.7
-4,genuine_mismatch raw (checked pop.),55.0
-4,genuine_mismatch after normaliser (checked pop.),36.0
-4,"genuine_mismatch raw, low-score(<40) subset",13.0
-4,"genuine_mismatch after normaliser, low-score(<40) subset",10.0
+2,B4 linkage rate pct (best_obs_clean),33.32
+2,B5 linkage rate pct (best_obs_clean),43.48
+2,B4->B5 jump (points),10.159999999999997
+4,"APPNO-based matched rows, current parquet",3057.0
+4,coverage pct (matched in PLE_MATCH_MASTER.csv),76.28
+4,genuine_mismatch raw (checked pop.),50.0
+4,genuine_mismatch after normaliser (checked pop.),35.0
+4,"genuine_mismatch raw, low-score(<40) subset",12.0
+4,"genuine_mismatch after normaliser, low-score(<40) subset",9.0

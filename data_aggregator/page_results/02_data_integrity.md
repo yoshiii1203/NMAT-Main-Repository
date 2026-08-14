@@ -1,6 +1,6 @@
 # Page 2: Data Integrity and Cohort Definition Checks
 
-**Generated:** 2026-08-14 17:29
+**Generated:** 2026-08-14 18:07
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -31,8 +31,8 @@ Each row defines one analytic subset used in later pages. Counts are rows, not n
 | One best NMAT record per person               |      134869 | One best NMAT record per person               |              75.38 |
 | Best-record rows within 2006-2018             |      134869 | Best-record rows within 2006-2018             |              75.38 |
 | Best-record rows in the observable PLE window |       69503 | Best-record rows in the observable PLE window |              38.84 |
-| Confirmed PLE-matched NMAT rows               |       49086 | Confirmed PLE-matched NMAT rows               |              27.43 |
-| Confirmed PLE-matched best-record persons     |       37365 | Confirmed PLE-matched best-record persons     |              20.88 |
+| Confirmed PLE-matched NMAT rows               |       47485 | Confirmed PLE-matched NMAT rows               |              26.54 |
+| Confirmed PLE-matched best-record persons     |       35746 | Confirmed PLE-matched best-record persons     |              19.98 |
 
 ---
 
@@ -77,13 +77,22 @@ This table checks whether each standardized university name maps consistently to
 
 **Universities checked:** 2,907
 
-**University pairing conflicts:** 0
+**University pairing conflicts:** 2
+
+### Pairing conflicts (showing all)
+
+| UNDERGRAD_UNIVERSITY    |   records |   n_uni_types |   n_locations | uni_types                        | locations       |
+|:------------------------|----------:|--------------:|--------------:|:---------------------------------|:----------------|
+| NOT SPECIFIED/UNLISTED  |       561 |             3 |             2 | Not Specified | Private | Public | Local | Unknown |
+| OTHERS (PLEASE SPECIFY) |        25 |             2 |             2 | Not Specified | Private          | Local | Unknown |
 
 ### University type distribution across all universities
 
 |   Num UNI_TYPEs |   Universities |
 |----------------:|---------------:|
-|               1 |           2907 |
+|               1 |           2905 |
+|               2 |              1 |
+|               3 |              1 |
 
 ---
 
@@ -95,10 +104,10 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 | UNDERGRAD_UNI_TYPE   |   Count |   Share (%) |
 |:---------------------|--------:|------------:|
-| Private              |  137476 |       76.83 |
-| Public               |   37304 |       20.85 |
+| Private              |  137711 |       76.96 |
+| Public               |   36890 |       20.62 |
 | Foreign              |    2315 |        1.29 |
-| Not Specified        |    1832 |        1.02 |
+| Not Specified        |    2011 |        1.12 |
 
 ### Table 7: Distribution of Course Group (all rows)
 
@@ -115,8 +124,8 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 | PLE_STATUS_LABEL       |   Count |   Share (%) |
 |:-----------------------|--------:|------------:|
-| No confirmed PLE match |  129841 |       72.57 |
-| Confirmed PLE passer   |   49086 |       27.43 |
+| No confirmed PLE match |  131442 |       73.46 |
+| Confirmed PLE passer   |   47485 |       26.54 |
 
 ### Table 9: Distribution of PLE Match Outcome (all rows)
 
@@ -124,17 +133,17 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 | PLE_MATCH_OUTCOME         |   Count |   Share (%) |
 |:--------------------------|--------:|------------:|
-| no_match                  |  121623 |       67.97 |
-| accepted                  |   49086 |       27.43 |
-| rejected_ambiguous_person |    8216 |        4.59 |
+| no_match                  |  123233 |       68.87 |
+| accepted                  |   47485 |       26.54 |
+| rejected_ambiguous_person |    8207 |        4.59 |
 | rejected                  |       2 |           0 |
 
 ### Table 10: Distribution of PLE Year Uncertainty (all rows)
 
 | PLE_YEAR_UNCERTAIN   |   Count |   Share (%) |
 |:---------------------|--------:|------------:|
-| False                |  178817 |       99.94 |
-| True                 |     110 |        0.06 |
+| False                |  178848 |       99.96 |
+| True                 |      79 |        0.04 |
 
 ---
 
@@ -177,5 +186,5 @@ Values are row counts under the current filters (full unfiltered dataset).
 
 | IS_PLE_PASSER   |   Count |   Share (%) |
 |:----------------|--------:|------------:|
-| False           |  129841 |       72.57 |
-| True            |   49086 |       27.43 |
+| False           |  131442 |       73.46 |
+| True            |   47485 |       26.54 |

@@ -1,6 +1,6 @@
 # Page 5: University Type Analysis (Page 05)
 
-**Generated:** 2026-08-14 17:29
+**Generated:** 2026-08-14 18:07
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -12,7 +12,7 @@
 
 **Subset:** besttrend filtered to UNDERGRAD_UNI_TYPE in [Public, Private, Foreign]
 
-**Total records:** 130,494
+**Total records:** 130,334
 
 ---
 
@@ -25,8 +25,8 @@
 | UNDERGRAD_UNI_TYPE   | UNDERGRAD_UNI_LOCATION   |   Count |   Percent of Total |
 |:---------------------|:-------------------------|--------:|-------------------:|
 | Foreign              | International            |    1860 |               1.43 |
-| Private              | Local                    |  101400 |               77.7 |
-| Public               | Local                    |   27234 |              20.87 |
+| Private              | Local                    |  101615 |              77.97 |
+| Public               | Local                    |   26859 |              20.61 |
 
 ### 1b. Count matrix with margins
 
@@ -35,9 +35,9 @@
 | UNDERGRAD_UNI_TYPE   |   International |   Local |    All |
 |:---------------------|----------------:|--------:|-------:|
 | Foreign              |            1860 |       0 |   1860 |
-| Private              |               0 |  101400 | 101400 |
-| Public               |               0 |   27234 |  27234 |
-| All                  |            1860 |  128634 | 130494 |
+| Private              |               0 |  101615 | 101615 |
+| Public               |               0 |   26859 |  26859 |
+| All                  |            1860 |  128474 | 130334 |
 
 ### 1c. Row percentages (within UNDERGRAD_UNI_TYPE)
 
@@ -56,8 +56,8 @@
 | UNDERGRAD_UNI_TYPE   |   International |   Local |
 |:---------------------|----------------:|--------:|
 | Foreign              |             100 |       0 |
-| Private              |               0 |   78.83 |
-| Public               |               0 |   21.17 |
+| Private              |               0 |   79.09 |
+| Public               |               0 |   20.91 |
 
 ---
 
@@ -70,8 +70,8 @@
 | UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |    B4 |    B5 |    B6 |   B7 |   B8 |   B9 |   B10 |   Total |
 |:---------------------|------:|-----:|-----:|------:|------:|------:|-----:|-----:|-----:|------:|--------:|
 | Foreign              |   262 |  174 |  140 |   176 |   145 |   164 |  161 |  175 |  197 |   266 |    1860 |
-| Private              | 12205 | 9823 | 9127 | 10061 | 10044 | 10079 | 9602 | 9821 | 9864 | 10774 |  101400 |
-| Public               |  2949 | 2228 | 2058 |  2247 |  2320 |  2421 | 2478 | 2606 | 3051 |  4876 |   27234 |
+| Private              | 12248 | 9857 | 9151 | 10082 | 10058 | 10104 | 9622 | 9833 | 9876 | 10784 |  101615 |
+| Public               |  2874 | 2176 | 2016 |  2209 |  2288 |  2385 | 2442 | 2586 | 3029 |  4854 |   26859 |
 
 ### 2b. Bin percentages by UNDERGRAD_UNI_TYPE
 
@@ -80,8 +80,8 @@
 | UNDERGRAD_UNI_TYPE   |    B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |    B9 |   B10 |
 |:---------------------|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|------:|
 | Foreign              | 14.09 | 9.35 | 7.53 | 9.46 |  7.8 | 8.82 | 8.66 | 9.41 | 10.59 |  14.3 |
-| Private              | 12.04 | 9.69 |    9 | 9.92 | 9.91 | 9.94 | 9.47 | 9.69 |  9.73 | 10.63 |
-| Public               | 10.83 | 8.18 | 7.56 | 8.25 | 8.52 | 8.89 |  9.1 | 9.57 |  11.2 |  17.9 |
+| Private              | 12.05 |  9.7 | 9.01 | 9.92 |  9.9 | 9.94 | 9.47 | 9.68 |  9.72 | 10.61 |
+| Public               |  10.7 |  8.1 | 7.51 | 8.22 | 8.52 | 8.88 | 9.09 | 9.63 | 11.28 | 18.07 |
 
 ---
 
@@ -92,8 +92,8 @@
 | UNDERGRAD_UNI_TYPE   |   Total N |   Top Bin (B8-B10) Count |   Top Bin Share (%) |
 |:---------------------|----------:|-------------------------:|--------------------:|
 | Foreign              |      1860 |                      638 |                34.3 |
-| Private              |    101400 |                    30459 |               30.04 |
-| Public               |     27234 |                    10533 |               38.68 |
+| Private              |    101615 |                    30493 |               30.01 |
+| Public               |     26859 |                    10469 |               38.98 |
 
 ### 3b. Top bin share by UNDERGRAD_UNI_TYPE x UNDERGRAD_UNI_LOCATION
 
@@ -102,8 +102,8 @@
 | UNDERGRAD_UNI_TYPE   | UNDERGRAD_UNI_LOCATION   |   Total N |   Top Bin Count |   Top Bin Share (%) |
 |:---------------------|:-------------------------|----------:|----------------:|--------------------:|
 | Foreign              | International            |      1860 |             638 |                34.3 |
-| Private              | Local                    |    101400 |           30459 |               30.04 |
-| Public               | Local                    |     27234 |           10533 |               38.68 |
+| Private              | Local                    |    101615 |           30493 |               30.01 |
+| Public               | Local                    |     26859 |           10469 |               38.98 |
 
 ---
 
@@ -135,10 +135,10 @@
 | Foreign              | Filipino           |  1134 |                  60 |                130 |
 | Foreign              | Likely Foreigner   |    13 |                  27 |                103 |
 | Foreign              | Verified Foreigner |   713 |                  36 |                114 |
-| Private              | Filipino           | 84055 |                  54 |                125 |
-| Private              | Verified Foreigner | 17345 |                  24 |                 99 |
-| Public               | Filipino           | 23011 |                  63 |                133 |
-| Public               | Verified Foreigner |  4223 |                  24 |                 99 |
+| Private              | Filipino           | 84228 |                  54 |                125 |
+| Private              | Verified Foreigner | 17387 |                  24 |                 99 |
+| Public               | Filipino           | 22727 |                  63 |                133 |
+| Public               | Verified Foreigner |  4132 |                  24 |                 99 |
 
 **Table 05-11. Bin distribution among foreign examinees by FOREIGNER_STATUS**
 
@@ -156,15 +156,15 @@
 
 | UNDERGRAD_UNI_TYPE   |      N |   Median Percentile |   Mean Percentile |   Std Percentile |   Median Raw Total |   Mean Raw Total |   Std Raw Total |   Median GPS |   Median APT |   Median SA |   Q25 Percentile |   Q75 Percentile |   Q25 Raw Total |   Q75 Raw Total |
 |:---------------------|-------:|--------------------:|------------------:|-----------------:|-------------------:|-----------------:|----------------:|-------------:|-------------:|------------:|-----------------:|-----------------:|----------------:|----------------:|
-| Public               |  27234 |                  57 |             54.56 |            31.09 |                127 |           128.91 |           34.83 |          518 |          517 |         516 |               27 |               83 |             103 |             154 |
-| Private              | 101400 |                  49 |             48.99 |            29.51 |                121 |           121.94 |           30.73 |          498 |          503 |         494 |               23 |               75 |              99 |             143 |
+| Public               |  26859 |                  57 |             54.78 |            31.07 |                127 |           129.07 |           34.86 |          518 |          520 |         517 |             27.5 |               84 |             103 |             155 |
+| Private              | 101615 |                  49 |             48.96 |            29.51 |                121 |           121.93 |           30.73 |          498 |          503 |         494 |               23 |               75 |              99 |             143 |
 | Foreign              |   1860 |                  52 |             50.43 |            31.38 |                124 |           125.34 |           34.47 |        504.5 |        503.5 |         503 |               21 |               79 |              99 |             150 |
 
 ### 5b. Median standard subtest scores by UNDERGRAD_UNI_TYPE
 
 **Table 05-13. Median standard subtest scores by university type**
 
-| Subtest      |   Public (n=27,234) |   Private (n=101,400) |   Foreign (n=1,860) |
+| Subtest      |   Public (n=26,859) |   Private (n=101,615) |   Foreign (n=1,860) |
 |:-------------|--------------------:|----------------------:|--------------------:|
 | Verbal       |                 515 |                   500 |                 499 |
 | Inductive    |                 529 |                   516 |                 523 |
@@ -173,13 +173,13 @@
 | Biology      |                 515 |                   494 |                 500 |
 | Physics      |                 523 |                   500 |                 512 |
 | Social       |                 510 |                   500 |                 494 |
-| Chemistry    |                 511 |                   494 |                 500 |
+| Chemistry    |                 512 |                   494 |                 500 |
 
 ### 5c. Median raw subtest scores by UNDERGRAD_UNI_TYPE
 
 **Table 05-14. Median raw subtest scores by university type**
 
-| Subtest      |   Public (n=27,232) |   Private (n=101,368) |   Foreign (n=1,855) |
+| Subtest      |   Public (n=26,857) |   Private (n=101,583) |   Foreign (n=1,855) |
 |:-------------|--------------------:|----------------------:|--------------------:|
 | Verbal       |                  16 |                    16 |                  16 |
 | Inductive    |                  18 |                    18 |                  18 |
@@ -200,17 +200,17 @@
 
 | Score Variable                |   H-statistic |      p-value |   Eta-squared | Effect Size   |   Groups compared |   Total N |
 |:------------------------------|--------------:|-------------:|--------------:|:--------------|------------------:|----------:|
-| NMS_PER_num (Percentile Rank) |       762.139 | 3.18844e-166 |        0.0058 | Negligible    |                 3 |    130494 |
+| NMS_PER_num (Percentile Rank) |       821.601 | 3.90526e-179 |        0.0063 | Negligible    |                 3 |    130334 |
 
 ### 6b. Post-hoc pairwise comparisons (Mann-Whitney U)
 
 **Table 05-16. Post-hoc Mann-Whitney U pairwise comparisons**
 
-| Group 1   | Group 2   |   U-statistic |      p-value |   Effect size (r) |     N1 |     N2 |
-|:----------|:----------|--------------:|-------------:|------------------:|-------:|-------:|
-| Public    | Private   |   1.53101e+09 | 7.00871e-168 |           -0.1088 |  27234 | 101400 |
-| Public    | Foreign   |   2.72905e+07 |   2.1256e-08 |           -0.0775 |  27234 |   1860 |
-| Private   | Foreign   |   9.16838e+07 |    0.0398492 |            0.0278 | 101400 |   1860 |
+| Group 1   | Group 2   |   U-statistic |     p-value |   Effect size (r) |     N1 |     N2 |
+|:----------|:----------|--------------:|------------:|------------------:|-------:|-------:|
+| Public    | Private   |   1.51963e+09 | 7.9198e-181 |           -0.1136 |  26859 | 101615 |
+| Public    | Foreign   |   2.70168e+07 | 3.76638e-09 |           -0.0816 |  26859 |   1860 |
+| Private   | Foreign   |   9.18365e+07 |   0.0367945 |            0.0282 | 101615 |   1860 |
 
 ### 6c. Kruskal-Wallis by subtest (standard scores)
 
@@ -218,36 +218,36 @@
 
 | Subtest      |   H-statistic |      p-value |   Eta-squared |   Groups |   Total N |
 |:-------------|--------------:|-------------:|--------------:|---------:|----------:|
-| Verbal       |       243.758 |  1.17144e-53 |        0.0019 |        3 |    130494 |
-| Inductive    |       272.773 |  5.86336e-60 |        0.0021 |        3 |    130494 |
-| Quantitative |       624.473 | 2.49664e-136 |        0.0048 |        3 |    130494 |
-| Perceptual   |       152.684 |  7.00152e-34 |        0.0012 |        3 |    130494 |
-| Biology      |       921.439 | 8.16625e-201 |         0.007 |        3 |    130494 |
-| Physics      |       802.081 | 6.76683e-175 |        0.0061 |        3 |    130494 |
-| Social       |       298.982 |  1.19347e-65 |        0.0023 |        3 |    130494 |
-| Chemistry    |       932.624 | 3.04219e-203 |        0.0071 |        3 |    130494 |
+| Verbal       |         260.3 |  2.99571e-57 |         0.002 |        3 |    130334 |
+| Inductive    |       298.953 |  1.21103e-65 |        0.0023 |        3 |    130334 |
+| Quantitative |       670.452 | 2.58935e-146 |        0.0051 |        3 |    130334 |
+| Perceptual   |       178.512 |  1.72394e-39 |        0.0014 |        3 |    130334 |
+| Biology      |       984.722 | 1.48003e-214 |        0.0075 |        3 |    130334 |
+| Physics      |       834.922 | 4.99927e-182 |        0.0064 |        3 |    130334 |
+| Social       |       310.956 |  2.99745e-68 |        0.0024 |        3 |    130334 |
+| Chemistry    |       1002.07 | 2.52705e-218 |        0.0077 |        3 |    130334 |
 
 ---
 
 ## 7. Medical & Allied vs Other Courses by UNDERGRAD_UNI_TYPE
 
-Stacked percentages sum to 100% within each university type. Uses 133,477 examinees (does not require a percentile bin — dashboard.py Figure 16).
+Stacked percentages sum to 100% within each university type. Uses 133,315 examinees (does not require a percentile bin — dashboard.py Figure 16).
 
 **Figure 16 data. Medical & Allied vs Other Courses by university type (row %)**
 
 | UNDERGRAD_UNI_TYPE   |   Medical & Allied |   Other Courses |
 |:---------------------|-------------------:|----------------:|
 | Foreign              |              40.38 |           59.62 |
-| Private              |              49.54 |           50.46 |
-| Public               |              41.22 |           58.78 |
+| Private              |              49.53 |           50.47 |
+| Public               |              41.17 |           58.83 |
 
 ---
 
 ## 8. University Listings by UNDERGRAD_UNI_TYPE
 
-Each row is the standardized university name, cleaned location, and applicant count, over 133,477 examinees (does not require a percentile bin, so this includes applicants dropped from the bin-dependent tables above — dashboard.py Table 17).
+Each row is the standardized university name, cleaned location, and applicant count, over 133,315 examinees (does not require a percentile bin, so this includes applicants dropped from the bin-dependent tables above — dashboard.py Table 17).
 
-### 8.1 Public Universities (215 institutions, 27,916 applicants)
+### 8.1 Public Universities (215 institutions, 27,538 applicants)
 
 **Table 17 (Public, first 200 of 215)**
 
@@ -266,7 +266,6 @@ Each row is the standardized university name, cleaned location, and applicant co
 | BICOL UNIVERSITY - MAIN                                                             | Local                    |                740 |
 | UNIVERSITY OF THE PHILIPPINES - BAGUIO                                              | Local                    |                693 |
 | UNIVERSITY OF THE PHILIPPINES - VISAYAS                                             | Local                    |                674 |
-| NOT SPECIFIED/UNLISTED                                                              | Local                    |                513 |
 | UNIVERSITY OF THE PHILIPPINES - LOS BANOS LAGUNA                                    | Local                    |                487 |
 | UNIVERSITY OF THE PHILIPPINES - MINDANAO                                            | Local                    |                363 |
 | WEST VISAYAS STATE UNIVERSITY ILOILO                                                | Local                    |                360 |
@@ -289,6 +288,7 @@ Each row is the standardized university name, cleaned location, and applicant co
 | CENTRAL LUZON STATE UNIVERSITY                                                      | Local                    |                140 |
 | UNIVERSITY OF THE PHILIPPINES - MANILA - SCHOOL OF HEALTH SCIENCES                  | Local                    |                140 |
 | UNIVERSITY OF SOUTHERN MINDANAO - MAIN                                              | Local                    |                138 |
+| NOT SPECIFIED/UNLISTED                                                              | Local                    |                135 |
 | SOUTHERN LUZON STATE UNIVERSITY - MAIN                                              | Local                    |                121 |
 | UNIVERSITY OF SOUTHEASTERN PHILIPPINES - MAIN                                       | Local                    |                118 |
 | UNIVERSITY OF EASTERN PHILIPPINES                                                   | Local                    |                107 |
@@ -456,9 +456,9 @@ Each row is the standardized university name, cleaned location, and applicant co
 
 > Full listing: [05_university_listings_public.csv](05_university_listings_public.csv) (215 rows)
 
-### 8.2 Private Universities (798 institutions, 103,669 applicants)
+### 8.2 Private Universities (800 institutions, 103,885 applicants)
 
-**Table 17 (Private, first 200 of 798)**
+**Table 17 (Private, first 200 of 800)**
 
 | UNDERGRAD_UNIVERSITY                                                                  | UNDERGRAD_UNI_LOCATION   |   total_applicants |
 |:--------------------------------------------------------------------------------------|:-------------------------|-------------------:|
@@ -526,8 +526,8 @@ Each row is the standardized university name, cleaned location, and applicant co
 | UNIVERSIDAD DE STA. ISABEL                                                            | Local                    |                302 |
 | RIVERSIDE COLLEGE                                                                     | Local                    |                301 |
 | MOUNTAIN VIEW COLLEGE                                                                 | Local                    |                294 |
-| NOTRE DAME UNIVERSITY                                                                 | Local                    |                277 |
 | UNIVERSITY OF NEGROS OCCIDENTAL-RECOLETOS                                             | Local                    |                277 |
+| NOTRE DAME UNIVERSITY                                                                 | Local                    |                277 |
 | MIRIAM COLLEGE                                                                        | Local                    |                257 |
 | UNIVERSITY OF THE VISAYAS                                                             | Local                    |                254 |
 | ATENEO DE NAGA UNIVERSITY                                                             | Local                    |                253 |
@@ -539,6 +539,7 @@ Each row is the standardized university name, cleaned location, and applicant co
 | SILLIMAN UNIVERSITY DUMAGUETE CITY                                                    | Local                    |                227 |
 | SAINT MARY'S UNIVERSITY                                                               | Local                    |                219 |
 | CAPITOL MEDICAL CENTER COLLEGES                                                       | Local                    |                217 |
+| NOT SPECIFIED/UNLISTED                                                                | Local                    |                214 |
 | ST. LOUIS UNIVERSITY BAGUIO CITY                                                      | Local                    |                208 |
 | ARELLANO UNIVERSITY - MANILA                                                          | Local                    |                203 |
 | COLEGIO SAN AGUSTIN - BACOLOD                                                         | Local                    |                198 |
@@ -554,8 +555,8 @@ Each row is the standardized university name, cleaned location, and applicant co
 | NEW ERA UNIVERSITY                                                                    | Local                    |                171 |
 | HOLY NAME UNIVERSITY                                                                  | Local                    |                159 |
 | ST. PAUL UNIVERSITY - MANILA (ST. PAUL UNIVERITY SYSTEM)                              | Local                    |                159 |
-| UNIVERSITY OF SAN CARLOS CEBU CITY                                                    | Local                    |                158 |
 | ST. SCHOLASTICA'S COLLEGE                                                             | Local                    |                158 |
+| UNIVERSITY OF SAN CARLOS CEBU CITY                                                    | Local                    |                158 |
 | PINES CITY COLLEGES                                                                   | Local                    |                154 |
 | UNIVERSITY OF LA SALETTE                                                              | Local                    |                152 |
 | SOUTHVILLE INTERNATIONAL SCHOOL AND COLLEGES                                          | Local                    |                151 |
@@ -574,18 +575,18 @@ Each row is the standardized university name, cleaned location, and applicant co
 | COLEGIO DE SAN JUAN DE LETRAN                                                         | Local                    |                121 |
 | CHINESE GENERAL HOSPITAL COLLEGE OF NURSING AND LIBERAL ARTS                          | Local                    |                119 |
 | UNIVERSITY OF PANGASINAN                                                              | Local                    |                119 |
-| EMILIO AGUINALDO COLLEGE MANILA                                                       | Local                    |                117 |
 | SAN JUAN DE DIOS EDUCATIONAL FOUNDATION                                               | Local                    |                117 |
+| EMILIO AGUINALDO COLLEGE MANILA                                                       | Local                    |                117 |
 | DIVINE WORD COLLEGE OF LAOAG                                                          | Local                    |                116 |
-| WESLEYAN UNIVERSITY - PHILIPPINES (CABANATUAN)                                        | Local                    |                109 |
 | ST. PAUL UNIVERSITY - MANILA                                                          | Local                    |                109 |
+| WESLEYAN UNIVERSITY - PHILIPPINES (CABANATUAN)                                        | Local                    |                109 |
 | CENTRAL LUZON DOCTORS' HOSPITAL EDUCATIONAL INSTITUTION                               | Local                    |                108 |
 | UNIVERSITY OF BAGUIO BAGUIO CITY                                                      | Local                    |                106 |
 | HOLY ANGEL UNIVERSITY                                                                 | Local                    |                105 |
 | CAPITOL UNIVERSITY                                                                    | Local                    |                104 |
 | CENTRAL PHILIPPINE UNIVERSITY ILOILO                                                  | Local                    |                104 |
-| FEU - EAST ASIA COLLEGE                                                               | Local                    |                101 |
 | GLOBAL CITY INNOVATIVE COLLEGE                                                        | Local                    |                101 |
+| FEU - EAST ASIA COLLEGE                                                               | Local                    |                101 |
 | UNIVERSITY OF ST. LA SALLE BACOLOD CITY                                               | Local                    |                 99 |
 | ST. JUDE COLLEGE                                                                      | Local                    |                 95 |
 | FATHER SATURNINO M. URIOS UNIVERSITY                                                  | Local                    |                 91 |
@@ -597,15 +598,15 @@ Each row is the standardized university name, cleaned location, and applicant co
 | ILIGAN MEDICAL CENTER COLLEGE                                                         | Local                    |                 86 |
 | COLLEGE OF THE HOLY SPIRIT OF MANILA                                                  | Local                    |                 83 |
 | HOLY INFANT COLLEGE                                                                   | Local                    |                 80 |
-| SOUTHEAST ASIAN COLLEGE                                                               | Local                    |                 78 |
-| EASTER COLLEGE                                                                        | Local                    |                 78 |
 | REMEDIOS T. ROMUALDEZ MEM. SCH. - MMC                                                 | Local                    |                 78 |
-| DR. CARLOS S. LANTING COLLEGE                                                         | Local                    |                 76 |
-| WORLD CITI COLLEGES QUEZON CITY                                                       | Local                    |                 76 |
+| EASTER COLLEGE                                                                        | Local                    |                 78 |
+| SOUTHEAST ASIAN COLLEGE                                                               | Local                    |                 78 |
 | VIRGEN MILAGROSA UNIV. FOUNDATION - SAN CARLOS CITY PANG.                             | Local                    |                 76 |
+| WORLD CITI COLLEGES QUEZON CITY                                                       | Local                    |                 76 |
+| DR. CARLOS S. LANTING COLLEGE                                                         | Local                    |                 76 |
 | THE PHILIPPINE WOMEN'S UNIVERSITY SYSTEM - MANILA                                     | Local                    |                 75 |
-| METROPOLITAN HOSPITAL COLLEGE OF NURSING                                              | Local                    |                 74 |
 | CENTRAL PHILIPPINE ADVENTIST COLLEGE                                                  | Local                    |                 74 |
+| METROPOLITAN HOSPITAL COLLEGE OF NURSING                                              | Local                    |                 74 |
 | BRENT HOSPITAL AND COLLEGES                                                           | Local                    |                 73 |
 | ST. ALEXIUS COLLEGE                                                                   | Local                    |                 71 |
 | MANILA ADVENTIST MEDICAL CENTER AND COLLEGES                                          | Local                    |                 71 |
@@ -615,8 +616,8 @@ Each row is the standardized university name, cleaned location, and applicant co
 | NOTRE DAME OF JOLO COLLEGE                                                            | Local                    |                 65 |
 | LYCEUM NORTHWESTERN DAGUPAN CITY                                                      | Local                    |                 64 |
 | UNIVERSITY OF THE CORDILLERAS (BCF)                                                   | Local                    |                 63 |
-| ASSUMPTION COLLEGE                                                                    | Local                    |                 62 |
 | LA CONSOLACION COLLEGE - MANILA                                                       | Local                    |                 62 |
+| ASSUMPTION COLLEGE                                                                    | Local                    |                 62 |
 | DE LA SALLE - LIPA BATANGAS                                                           | Local                    |                 61 |
 | UNIVERSITY OF THE EAST - RAMON MAGSAYSAY MEM. MEDICAL CENTER                          | Local                    |                 60 |
 | MANILA DOCTORS COLLEGE U.N. AVENUE MANILA                                             | Local                    |                 59 |
@@ -624,46 +625,45 @@ Each row is the standardized university name, cleaned location, and applicant co
 | SACRED HEART COLLEGE OF LUCENA                                                        | Local                    |                 57 |
 | BUTUAN DOCTORS COLLEGE                                                                | Local                    |                 57 |
 | NOTRE DAME UNIVERSITY COTABATO CITY                                                   | Local                    |                 56 |
-| ST. PAUL UNIVERSITY DUMAGUETE                                                         | Local                    |                 55 |
 | DIPOLOG MEDICAL CENTER COLLEGE FOUNDATION                                             | Local                    |                 55 |
+| ST. PAUL UNIVERSITY DUMAGUETE                                                         | Local                    |                 55 |
 | OUR LADY OF FATIMA UNIVERSITY - LAGRO QUEZON CITY                                     | Local                    |                 53 |
 | MIRIAM COLLEGE FOUNDATION INC.                                                        | Local                    |                 52 |
 | BAGUIO CENTRAL UNIVERSITY                                                             | Local                    |                 52 |
 | SAN LORENZO RUIZ COLLEGE OF ORMOC                                                     | Local                    |                 51 |
-| SOUTH SEED - LPDH COLLEGE                                                             | Local                    |                 50 |
 | MINDANAO SANITARIUM & HOSPITAL COLLEGE ILIGAN CITY                                    | Local                    |                 50 |
+| SOUTH SEED - LPDH COLLEGE                                                             | Local                    |                 50 |
 | NAGA COLLEGE FOUNDATION                                                               | Local                    |                 50 |
 | CEBU DOCTOR'S UNIVERSITY COLLEGE OF MEDICINE - MANDAUE CITY CEBU                      | Local                    |                 49 |
 | SAN JUAN DE DIOS EDUCATIONAL FOUNDATION INC.                                          | Local                    |                 48 |
-| PILAR COLLEGE                                                                         | Local                    |                 47 |
 | DE LA SALLE - COLLEGE OF SAINT BENILDE                                                | Local                    |                 47 |
-| MAPUA INSTITUTE OF TECHNOLOGY - MANILA                                                | Local                    |                 46 |
+| PILAR COLLEGE                                                                         | Local                    |                 47 |
 | MOUNTAIN VIEW COLLEGE BUKIDNON                                                        | Local                    |                 46 |
+| MAPUA INSTITUTE OF TECHNOLOGY - MANILA                                                | Local                    |                 46 |
 | PHILIPPINE WOMEN'S UNIVERSITY TAFT AVENUE MANILA                                      | Local                    |                 46 |
 | PHILIPPINE CHRISTIAN UNIVERSITY                                                       | Local                    |                 45 |
 | MEDINA COLLEGE                                                                        | Local                    |                 45 |
 | LYCEUM OF THE PHILIPPINES - LAGUNA                                                    | Local                    |                 45 |
-| UNIVERSITY OF PERPETUAL HELP SYSTEM - BINAN LAGUNA                                    | Local                    |                 44 |
 | UNIVERSITY OF PERPETUAL HELP SYSTEM - LAGUNA                                          | Local                    |                 44 |
 | NOTRE DAME OF DADIANGAS COLLEGE GEN. SANTOS                                           | Local                    |                 44 |
 | UNIVERSITY OF THE ASSUMPTION                                                          | Local                    |                 44 |
+| UNIVERSITY OF PERPETUAL HELP SYSTEM - BINAN LAGUNA                                    | Local                    |                 44 |
 | BROKENSHIRE COLLEGE DAVAO CITY                                                        | Local                    |                 43 |
 | UNIVERSITY OF CAGAYAN VALLEY                                                          | Local                    |                 43 |
 | UNIVERSITY OF THE VISAYAS - MANDAUE                                                   | Local                    |                 42 |
-| FILAMER CHRISTIAN UNIVERSITY                                                          | Local                    |                 41 |
 | LA CONSOLACION COLLEGE                                                                | Local                    |                 41 |
+| FILAMER CHRISTIAN UNIVERSITY                                                          | Local                    |                 41 |
 | YAMAN LAHI FOUNDATION - EMILIO AGUINALDO COLLEGE                                      | Local                    |                 40 |
 | ST. JUDE COLLEGE MANILA                                                               | Local                    |                 39 |
 | LOURDES COLLEGE                                                                       | Local                    |                 39 |
 | UNIVERSIDAD DE STA. ISABEL NAGA CITY                                                  | Local                    |                 39 |
 | UNIVERSITY OF BOHOL                                                                   | Local                    |                 37 |
-| NUEVA ECIJA COLLEGES                                                                  | Local                    |                 37 |
 | NEW ERA UNIVERSITY QUEZON CITY                                                        | Local                    |                 37 |
-| NORTHWESTERN UNIVERSITY                                                               | Local                    |                 36 |
+| NUEVA ECIJA COLLEGES                                                                  | Local                    |                 37 |
+| DAVAO MEDICAL SCHOOL FOUNDATION INC.                                                  | Local                    |                 36 |
 | ILIGAN MEDICAL CENTER ILIGAN CITY                                                     | Local                    |                 36 |
-| UNIVERSITY OF LUZON                                                                   | Local                    |                 36 |
 
-> Full listing: [05_university_listings_private.csv](05_university_listings_private.csv) (798 rows)
+> Full listing: [05_university_listings_private.csv](05_university_listings_private.csv) (800 rows)
 
 ### 8.3 Foreign Universities (533 institutions, 1,892 applicants)
 

@@ -1,6 +1,6 @@
 # Page 8: Repeat-Taker Patterns and Score Change
 
-**Generated:** 2026-08-14 17:29
+**Generated:** 2026-08-14 18:07
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -58,17 +58,17 @@ Among repeat takers with score data on both first and last attempt.
 
 | Indicator                       |   Value |
 |:--------------------------------|--------:|
-| Repeat-taker persons (analytic) |   33702 |
-| Improved percentile rank (%)    |   77.65 |
-| Improved raw score (%)          |   73.58 |
-| Improved GPS (%)                |   78.83 |
+| Repeat-taker persons (analytic) |   33620 |
+| Improved percentile rank (%)    |   76.43 |
+| Improved raw score (%)          |   73.66 |
+| Improved GPS (%)                |   78.94 |
 | Median percentile change        |      11 |
 | Median raw score change         |      12 |
 | Median GPS change               |      46 |
-| Mean percentile change          |   13.52 |
-| Mean raw score change           |   13.15 |
-| Mean GPS change                 |   47.29 |
-| Q25 percentile change           |       2 |
+| Mean percentile change          |   13.41 |
+| Mean raw score change           |   13.19 |
+| Mean GPS change                 |    47.4 |
+| Q25 percentile change           |       1 |
 | Q75 percentile change           |      25 |
 | Q25 raw score change            |       0 |
 | Q75 raw score change            |      26 |
@@ -77,12 +77,11 @@ Among repeat takers with score data on both first and last attempt.
 
 ### First-Last Detail (per person)
 
-**Preview: first 100 of 33,702 rows (population: repeat takers with score data on both first and last attempt, n=33,702)**
+**Preview: first 100 of 33,620 rows (population: repeat takers with score data on both first and last attempt, n=33,620)**
 
 | PERSON_KEY                                      |   n_attempts |   first_year |   last_year |   first_pct |   last_pct |   pct_improvement |   first_raw |   last_raw |   raw_improvement |   first_gps |   last_gps |   gps_improvement |
 |:------------------------------------------------|-------------:|-------------:|------------:|------------:|-----------:|------------------:|------------:|-----------:|------------------:|------------:|-----------:|------------------:|
 | ANGLOPEZ, MAE THERESE DE JOSE||                 |            2 |         2009 |        2010 |           0 |         94 |                94 |         189 |        189 |                 0 |           0 |        658 |               658 |
-| SAAYA SANTHOSH||04/19/1996                      |            2 |         2016 |        2017 |          -1 |         88 |                89 |          51 |        170 |               119 |         200 |        615 |               415 |
 | STO DOMINGO, WEIJIN N A||06/20/1994             |            2 |         2013 |        2013 |          12 |         99 |                87 |          96 |        184 |                88 |         383 |        723 |               340 |
 | CEREZO, HARRY JOHN||                            |            2 |         2009 |        2010 |           0 |         87 |                87 |         176 |        176 |                 0 |           0 |        613 |               613 |
 | ADECER, HANICOLE MORTIZ||                       |            2 |         2007 |        2008 |           7 |         93 |                86 |          78 |        178 |               100 |         355 |        645 |               290 |
@@ -95,7 +94,6 @@ Among repeat takers with score data on both first and last attempt.
 | GADHAVI, LAKHAMA MANGABHAI||11/8/1993           |            3 |         2014 |        2015 |           1 |         82 |                81 |          66 |        153 |                87 |         264 |        592 |               328 |
 | JONGRATANAVANICH, WATCHARAPORN||1/4/1984        |            3 |         2012 |        2014 |           4 |         85 |                81 |          78 |        142 |                64 |         327 |        603 |               276 |
 | PRADO, JOSE PAOLO BARAWID||06/18/1994           |            2 |         2013 |        2014 |          10 |         91 |                81 |          87 |        150 |                63 |         373 |        635 |               262 |
-| SINGH, SHRISTI||9/7/1995                        |            2 |         2014 |        2015 |          -1 |         79 |                80 |          55 |        150 |                95 |         212 |        582 |               370 |
 | THAMBI, PRIYANKA USHA||05/19/1992               |            3 |         2011 |        2013 |           1 |         81 |                80 |          62 |        152 |                90 |         271 |        589 |               318 |
 | BAMBHAROLIYA, VIVEK BIPINBHAI||10/24/1994       |            5 |         2013 |        2017 |           6 |         86 |                80 |          81 |        168 |                87 |         348 |        610 |               262 |
 | ANSARI, SAJJAD HUSSAIN||04/15/1995              |            2 |         2017 |        2018 |           4 |         84 |                80 |          83 |        142 |                59 |         322 |        599 |               277 |
@@ -112,7 +110,6 @@ Among repeat takers with score data on both first and last attempt.
 | RAJKUMAR, GIFTSON JOHN||03/29/1997              |            2 |         2015 |        2015 |           1 |         78 |                77 |          73 |        134 |                61 |         280 |        577 |               297 |
 | LEE, JI HWAN||4/1/1999                          |            2 |         2017 |        2018 |          14 |         91 |                77 |          99 |        152 |                53 |         391 |        635 |               244 |
 | ESCUETA, ALEXANDRIA VILLARICO||10/15/1993       |            4 |         2013 |        2015 |           2 |         78 |                76 |          75 |        148 |                73 |         293 |        579 |               286 |
-| JAIN, SHUBHAM SUNIL||05/21/1996                 |            2 |         2015 |        2015 |          -1 |         75 |                76 |          60 |        131 |                71 |         212 |        568 |               356 |
 | GANDLA, SUDHEER KUMAR||9/6/1989                 |            2 |         2010 |        2012 |           6 |         82 |                76 |          83 |        140 |                57 |         345 |        592 |               247 |
 | BELIM, FATIMA ABDULKARIM||05/13/1997            |            2 |         2016 |        2017 |           1 |         76 |                75 |          61 |        154 |                93 |         274 |        572 |               298 |
 | DEQUITO, KRISTEL JOY LINAO||5/9/1994            |            4 |         2015 |        2017 |           3 |         78 |                75 |          66 |        156 |                90 |         304 |        578 |               274 |
@@ -120,7 +117,6 @@ Among repeat takers with score data on both first and last attempt.
 | MACATIGUE, MONIQUE BANTUG||12/17/1992           |            2 |         2012 |        2017 |           5 |         80 |                75 |          79 |        158 |                79 |         333 |        585 |               252 |
 | RAJULAPATI, GOVINDARAJA||05/13/1996             |            3 |         2014 |        2015 |           2 |         77 |                75 |          70 |        147 |                77 |         288 |        575 |               287 |
 | THAKOR, JAIMINI GULABSINH||09/22/1996           |            2 |         2014 |        2015 |           7 |         82 |                75 |          78 |        153 |                75 |         352 |        592 |               240 |
-| KOPPOLU, SOWMITRA PALLAV||08/29/1993            |            3 |         2014 |        2015 |          -1 |         74 |                75 |          56 |        130 |                74 |         200 |        565 |               365 |
 | BELLAMKONDA, AJAY KUMAR||9/8/1994               |            2 |         2012 |        2013 |           4 |         79 |                75 |          77 |        140 |                63 |         321 |        582 |               261 |
 | BEARIS, NIKKI JILL NIEVA||06/30/1993            |            2 |         2013 |        2014 |           9 |         84 |                75 |          86 |        142 |                56 |         368 |        599 |               231 |
 | DIALOGO, AL GIAN MENDOZA||08/31/1993            |            2 |         2014 |        2015 |           9 |         84 |                75 |          85 |        141 |                56 |         368 |        597 |               229 |
@@ -134,12 +130,10 @@ Among repeat takers with score data on both first and last attempt.
 | HIDALGO, JEDD JOSE MICKAEL MADRONIO||01/21/1993 |            3 |         2013 |        2015 |           9 |         83 |                74 |          85 |        140 |                55 |         363 |        594 |               231 |
 | GATDULA, EMANUEL FETIZA||11/28/1992             |            2 |         2013 |        2015 |          18 |         91 |                73 |          94 |        168 |                74 |         407 |        635 |               228 |
 | MARQUINO, ALYANA FRANCESCA BAUTISTA||3/4/1995   |            3 |         2014 |        2015 |          18 |         91 |                73 |          94 |        165 |                71 |         407 |        632 |               225 |
-| PACKIAMUTHU, PRISHKA||06/15/1997                |            2 |         2015 |        2015 |          -1 |         72 |                73 |          57 |        128 |                71 |         200 |        559 |               359 |
 | DY, FRECHELLE LAINE TACTAY||12/11/1991          |            2 |         2012 |        2013 |           6 |         79 |                73 |          81 |        150 |                69 |         343 |        582 |               239 |
 | KATTA, REVANTH||03/25/1996                      |            2 |         2014 |        2015 |           6 |         79 |                73 |          82 |        150 |                68 |         348 |        582 |               234 |
 | BORRA, RAVALI||01/28/1996                       |            2 |         2015 |        2015 |          18 |         91 |                73 |         100 |        153 |                53 |         407 |        633 |               226 |
 | GERONIMO, MONA LEIGH LEVISTE||03/24/1992        |            5 |         2011 |        2013 |          27 |         99 |                72 |         105 |        197 |                92 |         439 |        726 |               287 |
-| VYAS, SMIT NILESHKUMAR||07/31/1995              |            2 |         2014 |        2015 |          -1 |         71 |                72 |          57 |        143 |                86 |         212 |        557 |               345 |
 | BAWANKAR, SUMIT SUNIL||12/11/1994               |            3 |         2016 |        2017 |           8 |         80 |                72 |          90 |        160 |                70 |         356 |        585 |               229 |
 | TUMAMPOS, BEA DESIREE DE LEON||8/9/1993         |            2 |         2012 |        2014 |          23 |         95 |                72 |          98 |        159 |                61 |         425 |        663 |               238 |
 | ALCAZAREN, PETERSIAN MAGSULIT||2/9/1993         |            3 |         2012 |        2014 |          21 |         93 |                72 |          97 |        155 |                58 |         420 |        645 |               225 |
@@ -154,7 +148,6 @@ Among repeat takers with score data on both first and last attempt.
 | BELADIYA, MAHIPAL KISHORBHAI||10/29/1994        |            5 |         2013 |        2017 |           3 |         74 |                71 |          72 |        152 |                80 |         307 |        565 |               258 |
 | BHELE, TRISHA||1/10/1993                        |            2 |         2012 |        2013 |           2 |         73 |                71 |          70 |        142 |                72 |         288 |        560 |               272 |
 | OBALDO, JEZREEL MAE JIMENEZ||02/20/1996         |            3 |         2016 |        2018 |          17 |         88 |                71 |          89 |        161 |                72 |         406 |        620 |               214 |
-| PETER, LIDIYA||10/8/1996                        |            2 |         2015 |        2015 |          -1 |         70 |                71 |          60 |        126 |                66 |         212 |        552 |               340 |
 | COMENDADOR, MAIU LIWEN BURDIOS||6/5/1992        |            3 |         2013 |        2018 |           5 |         76 |                71 |          79 |        134 |                55 |         337 |        572 |               235 |
 | MANGROBANG, RAUL JR RAMOS||6/9/1993             |            2 |         2013 |        2013 |          16 |         87 |                71 |          98 |        151 |                53 |         402 |        615 |               213 |
 | GANTA, RAVITEJA||10/6/1995                      |            2 |         2014 |        2014 |          10 |         81 |                71 |          87 |        138 |                51 |         373 |        589 |               216 |
@@ -181,8 +174,15 @@ Among repeat takers with score data on both first and last attempt.
 | REYES, LOUISA CARMINA REJANO||8/2/1994          |            3 |         2013 |        2015 |          16 |         85 |                69 |         100 |        154 |                54 |         402 |        603 |               201 |
 | GAUTAM, BIBEK||5/6/1992                         |            3 |         2012 |        2015 |           6 |         75 |                69 |          81 |        131 |                50 |         343 |        568 |               225 |
 | VIRPARIA, DARVIN GIRISHBHAI||08/14/1996         |            2 |         2015 |        2015 |           3 |         72 |                69 |          79 |        128 |                49 |         310 |        559 |               249 |
+| YADAV, ASHOK KUMAR||07/13/1994                  |            2 |         2015 |        2015 |           7 |         76 |                69 |          89 |        132 |                43 |         352 |        571 |               219 |
+| IBRAHIM, SITTIENOR SARIP||9/3/1995              |            3 |         2015 |        2017 |           4 |         72 |                68 |          69 |        150 |                81 |         323 |        557 |               234 |
+| SYED, MUJIF||6/5/1995                           |            4 |         2015 |        2017 |           6 |         74 |                68 |          73 |        153 |                80 |         344 |        565 |               221 |
+| ALOJIPAN, JAN HARVEY CUNANAN||01/20/1997        |            2 |         2015 |        2017 |          12 |         80 |                68 |          81 |        159 |                78 |         384 |        585 |               201 |
+| LIWAG, NIKKI LOPEZ||5/8/1994                    |            4 |         2015 |        2017 |           9 |         77 |                68 |          78 |        155 |                77 |         368 |        575 |               207 |
+| AGHARA, SHRADHDHA SOMJI||2/1/1998               |            3 |         2016 |        2017 |          24 |         92 |                68 |         108 |        177 |                69 |         428 |        638 |               210 |
+| CANELA, KARLO JANS ZARA||08/17/1993             |            2 |         2015 |        2016 |          11 |         79 |                68 |          93 |        160 |                67 |         378 |        580 |               202 |
 
-> Full detail: [08_first_last_detail.csv](08_first_last_detail.csv) (33,702 rows, 13 cols)
+> Full detail: [08_first_last_detail.csv](08_first_last_detail.csv) (33,620 rows, 13 cols)
 
 
 ---
@@ -244,7 +244,7 @@ All recorded attempts for persons with more than one NMAT application.
 | ABAD, AINA GENE CRUZ||06/25/1997                  |    1031700678 |   2017 |                 115 |            32 |       452 |                  56 |                   59 | B4              | No confirmed PLE match | Private              | Natural Sciences             |
 | ABAD, AINA GENE CRUZ||06/25/1997                  |    1031807544 |   2018 |                  80 |             5 |       337 |                  54 |                   26 | B1              | No confirmed PLE match | Public               | Natural Sciences             |
 | ABAD, AINA GENE CRUZ||06/25/1997                  |    1101809800 |   2018 |                 102 |            33 |       457 |                  54 |                   48 | B4              | No confirmed PLE match | Public               | Natural Sciences             |
-| ABAD, ALBERT CAISIP||09/28/1990                   |    2121003323 |   2010 |                 131 |            56 |       514 |                  65 |                   66 | B6              | No confirmed PLE match | Private              | Natural Sciences             |
+| ABAD, ALBERT CAISIP||09/28/1990                   |    2121003323 |   2010 |                 131 |            56 |       514 |                  65 |                   66 | B6              | Confirmed PLE passer   | Private              | Natural Sciences             |
 | ABAD, ALBERT CAISIP||09/28/1990                   |        400428 |   2010 |                 105 |            16 |       399 |                  52 |                   53 | B2              | Confirmed PLE passer   | Private              | Natural Sciences             |
 | ABAD, ANGELLIE NIKKA SALIVIO||7/10/1996           |    1031800980 |   2018 |                 152 |            91 |       635 |                  90 |                   62 | B10             | No confirmed PLE match | Public               | Other                        |
 | ABAD, ANGELLIE NIKKA SALIVIO||7/10/1996           |    1101801542 |   2018 |                 150 |            81 |       586 |                  86 |                   64 | B9              | No confirmed PLE match | Public               | Other                        |
@@ -330,17 +330,17 @@ All recorded attempts for persons with more than one NMAT application.
 
 Attempt histories exclusively for records matched deterministically via application number (PLE_MATCH_METHOD in MANUAL_APPNO_MATCH, DETERMINISTIC_APPNO), rather than by exact name.
 
-**population: all NMAT rows | n=2,867**
+**population: all NMAT rows | n=3,057**
 
 | PERSON_KEY                                              |   APPNO_CLEAN |   Year |   TotalRawScoreTRUE |   NMS_PER_num | PLE_STATUS_LABEL     |
 |:--------------------------------------------------------|--------------:|-------:|--------------------:|--------------:|:---------------------|
 | ABAD, ALBERT CAISIP||09/28/1990                         |        400428 |   2010 |                 105 |            16 | Confirmed PLE passer |
+| ABAD, ALBERT CAISIP||09/28/1990                         |    2121003323 |   2010 |                 131 |            56 | Confirmed PLE passer |
 | ABAD, JOSHUA KIM E||05/17/1996                          |    1101509313 |   2015 |                 121 |            65 | Confirmed PLE passer |
 | ABAD, MA JUSTINE DAYANNE CERCADO||09/17/1995            |    1101507389 |   2015 |                 123 |            67 | Confirmed PLE passer |
-| ABADIER, AILEEN MESTIDIO||                              |       1061740 |   2007 |                  90 |            14 | Confirmed PLE passer |
-| ABALOS, RODRIGO JR SAPIANDANTE||07/21/1990              |    1121007739 |   2010 |                 152 |            78 | Confirmed PLE passer |
 | ABALOS, RODRIGO JUNIOR SAPIANDANTE||                    |        411600 |   2010 |                 167 |            81 | Confirmed PLE passer |
 | ABANA, MA EDISA CRUZ||                                  |       1003803 |   2009 |                 126 |            47 | Confirmed PLE passer |
+| ABANILLA, LYRA JOY LUCAS||01/14/1989                    |    1121103068 |   2011 |                 139 |            63 | Confirmed PLE passer |
 | ABANILLA, LYRA JOY LUCAS||01/14/1989                    |    1121209623 |   2012 |                 155 |            93 | Confirmed PLE passer |
 | ABARA, MA VICTORIA LOBENDINO||05/14/1996                |    1101504711 |   2015 |                 139 |            82 | Confirmed PLE passer |
 | ABBARIAO, MA JESICCA DULIN||9/4/1993                    |    1121213166 |   2012 |                  82 |             6 | Confirmed PLE passer |
@@ -357,16 +357,16 @@ Attempt histories exclusively for records matched deterministically via applicat
 | ABORKA, MA AYANNE BALDEVIA||03/31/1994                  |    1101506240 |   2015 |                 159 |            94 | Confirmed PLE passer |
 | ABORQUE, JESUS CESARIO JR JAVINES||                     |       1000742 |   2009 |                 145 |            70 | Confirmed PLE passer |
 | ABOY, MA EDILLA TERESA RATILLA||                        |       1092757 |   2008 |                 131 |            59 | Confirmed PLE passer |
-| ABOY, MA EDILLA TERESA RATILLA||04/23/1988              |    2121001487 |   2010 |                 148 |            74 | Confirmed PLE passer |
 | ABREA, MA JESSA ALITALIA CARABUENA||                    |        410137 |   2010 |                 111 |            21 | Confirmed PLE passer |
-| ABREU, IARA MARIE ANN ABARQUEZ||05/27/1992              |    1041300496 |   2013 |                  63 |            -1 | Confirmed PLE passer |
+| ABREU, IARA MARIE ANN ABARQUEZ||05/27/1992              |    1041300496 |   2013 |                  63 |           nan | Confirmed PLE passer |
 | ABRIGO, MA ASTRID VILLAROYA||                           |       1052640 |   2006 |                  92 |            11 | Confirmed PLE passer |
 | ABRIL, JOANNA BLANCA C JUAN||                           |        410765 |   2010 |                 184 |            91 | Confirmed PLE passer |
 | ABUAN, GERLIE PARINGIT||                                |       1082059 |   2007 |                 123 |            47 | Confirmed PLE passer |
 | ABUEG, MICHELLE RENEE||                                 |       1001133 |   2009 |                 186 |            97 | Confirmed PLE passer |
-| ABUEVA, AILEEN CRYSTEL DIMAYACYAC||                     |       1083653 |   2008 |                 121 |            41 | Confirmed PLE passer |
 | ABUTIN, MA VICTORIA MIANO||                             |       1052977 |   2006 |                 125 |            49 | Confirmed PLE passer |
 | ABUTIN, MA VICTORIA MIANO||                             |       1071027 |   2006 |                 140 |            63 | Confirmed PLE passer |
+| ACEDO, RODY MAE OBLIGADO||05/14/1993                    |    1111306143 |   2013 |                  93 |            16 | Confirmed PLE passer |
+| ACEDO, RODY MAE OBLIGADO||05/14/1993                    |    1111406909 |   2014 |                 100 |            29 | Confirmed PLE passer |
 | ACEDO, RODY MAE OBLIGADO||05/14/1993                    |    1031504216 |   2015 |                 126 |            54 | Confirmed PLE passer |
 | ACLAN, ARRIANE KHAY SACENDONCILLO||06/15/1989           |    1031712565 |   2017 |                 141 |            63 | Confirmed PLE passer |
 | ACLAN, MA ANA PATRICIA CUETO||08/21/1991                |    1121004428 |   2010 |                 148 |            74 | Confirmed PLE passer |
@@ -381,6 +381,7 @@ Attempt histories exclusively for records matched deterministically via applicat
 | ADA, MA MICHELLE BELTRAN||02/27/1993                    |    1111312215 |   2013 |                 148 |            86 | Confirmed PLE passer |
 | ADAYA, MA MILDRED BOBADILLA||2/8/1993                   |    1121108002 |   2011 |                 159 |            81 | Confirmed PLE passer |
 | ADAYA, MA MILDRED BOBADILLA||2/8/1993                   |    1031203526 |   2012 |                 168 |            89 | Confirmed PLE passer |
+| ADDUN, EDZEL JANE JARITO||1/12/1987                     |    1121212414 |   2012 |                  93 |            16 | Confirmed PLE passer |
 | ADDUN, EDZEL JANE JARITO||1/12/1987                     |    1041303533 |   2013 |                 140 |            69 | Confirmed PLE passer |
 | ADELAN, MARIA ROTELLE SALVADOR||02/16/1996              |    1101508295 |   2015 |                 151 |            90 | Confirmed PLE passer |
 | ADIONG, FELINA JUSTINE VANO||10/8/1996                  |    1101601948 |   2016 |                 159 |            86 | Confirmed PLE passer |
@@ -400,6 +401,7 @@ Attempt histories exclusively for records matched deterministically via applicat
 | AGRUPIS, KRISTAL AN CASTANEDA||                         |       1071156 |   2006 |                 179 |            93 | Confirmed PLE passer |
 | AGRUPIS, KRISTAL AN CASTANEDA||                         |       1054814 |   2007 |                 174 |            86 | Confirmed PLE passer |
 | AGUDA, MARY GRACE SIMANGON||03/30/1987                  |    1041403588 |   2014 |                 124 |            63 | Confirmed PLE passer |
+| AGUDO, SHELLEY VANESSA DELA CRUZ||10/3/1992             |    1121101935 |   2011 |                 108 |            28 | Confirmed PLE passer |
 | AGUDO, SHELLEY VANESSA DELA CRUZ||10/3/1992             |    1041300751 |   2013 |                 131 |            60 | Confirmed PLE passer |
 | AGUELO, MA ISABEL SALA||12/3/1992                       |    1121106186 |   2011 |                 168 |            88 | Confirmed PLE passer |
 | AGUELO, MA ISABEL SALA||12/3/1992                       |    1031202030 |   2012 |                 171 |            90 | Confirmed PLE passer |
@@ -409,6 +411,8 @@ Attempt histories exclusively for records matched deterministically via applicat
 | AGUILAR, JEFF JUSTIN||11/28/1994                        |    1101505909 |   2015 |                 202 |           nan | Confirmed PLE passer |
 | AGUILAR, KATRINA ARIELLE ROJAS||5/3/1994                |    1101507482 |   2015 |                 143 |            85 | Confirmed PLE passer |
 | AGUIRRE, AYRA JHOANA GUIANAN||3/6/1988                  |    1041300207 |   2013 |                 185 |            97 | Confirmed PLE passer |
+| AGUIRRE, EUNICE CUENTO||11/25/1991                      |    1121001926 |   2010 |                 115 |            36 | Confirmed PLE passer |
+| AGUIRRE, EUNICE CUENTO||11/25/1991                      |    1041101262 |   2011 |                 105 |            27 | Confirmed PLE passer |
 | AGUIRRE, EUNICE CUENTO||11/25/1991                      |    1121101329 |   2011 |                 108 |            27 | Confirmed PLE passer |
 | AGUIRRE, MA JESSICA ELIZABETH ESPULGAR||9/1/1994        |    1111304915 |   2013 |                  87 |             9 | Confirmed PLE passer |
 | AGUIRRE, MA JESSICA ELIZABETH ESPULGAR||9/1/1994        |    1041400753 |   2014 |                 105 |            33 | Confirmed PLE passer |
@@ -423,17 +427,13 @@ Attempt histories exclusively for records matched deterministically via applicat
 | ALBANO, EMMANUEL JR ESCARLAN||8/4/1990                  |    2121000085 |   2010 |                 142 |            68 | Confirmed PLE passer |
 | ALBANO, MARIA ANGELINE PANTUA||                         |       1060769 |   2006 |                 106 |            26 | Confirmed PLE passer |
 | ALBESA, MA TRISHA ARIAS||4/9/1996                       |    1101511351 |   2015 |                 155 |            92 | Confirmed PLE passer |
+| ALCALA, ANGELLE KATHREEN TUBAN||04/25/1990              |    1121205605 |   2012 |                 106 |            35 | Confirmed PLE passer |
 | ALCALA, ANGELLE KATHREEN TUBAN||04/25/1990              |    1041406715 |   2014 |                 108 |            38 | Confirmed PLE passer |
 | ALCALDE, MA KATHRINA TERESA TONGCO||                    |       1073528 |   2007 |                 176 |            93 | Confirmed PLE passer |
 | ALCANO, MARY CHRISTINE PINO||                           |       1001740 |   2009 |                 107 |            25 | Confirmed PLE passer |
 | ALCANTARA, ALEXIS ANNE CONTADO||01/23/1996              |    1041600384 |   2016 |                 138 |            57 | Confirmed PLE passer |
-| ALCANTARA, MARK ANGELO MANDAL||                         |       1093750 |   2009 |                 200 |            99 | Confirmed PLE passer |
 | ALCANTARA, RANIEL JOHN LUQUE||11/11/1998                |    1031809024 |   2018 |                 119 |            55 | Confirmed PLE passer |
 | ALCANZO, JAN HILARY ABELLO||05/29/1990                  |    1041102518 |   2011 |                 180 |            96 | Confirmed PLE passer |
-| ALCARAZ, ADRIAN M||04/22/1993                           |    1101813952 |   2018 |                  98 |            27 | Confirmed PLE passer |
-| ALCAZAR, ELIZABETH GRACE ALMADIN||                      |       1090183 |   2009 |                 154 |            79 | Confirmed PLE passer |
-| ALCAZAR, ESTHER RUTH DE LOS REYES||5/12/1990            |    1121106368 |   2011 |                 134 |            56 | Confirmed PLE passer |
-| ALCID, MA ARABELLA JAFFNA CABE||11/29/1993              |    1041301690 |   2013 |                 134 |            63 | Confirmed PLE passer |
 
-> Full detail: [08_appno_match_histories.csv](08_appno_match_histories.csv) (2,867 rows)
+> Full detail: [08_appno_match_histories.csv](08_appno_match_histories.csv) (3,057 rows)
 

@@ -38,7 +38,7 @@ EXPECTED_AMBIGUOUS_KEYS = 6_148
 # 49,086 after removing the PERCENTILE_FLOOR=40 hard filter from disambiguate() step 4,
 # which had been refusing to match below-40 examinees in name-collision groups (RC-0).
 # Was 49,986 pre-fix. Composition shifted toward low bins - that is the point.
-EXPECTED_PLE_PASSERS = 49_086
+EXPECTED_PLE_PASSERS = 47_485  # 49,086 -> 47,485 after the get_ple_info() double-crediting fix
 # 52 = 54 baseline - 5 removed (4 contract + name_based_assessment, Task 1
 # item 2) + 3 added. Orchestrator-approved into the contract (was originally
 # flagged as a deviation; see .claude/audit/logs/P2_pipelines_4_5_tests.md).
@@ -169,10 +169,11 @@ def test_naive_best_and_year_filter_is_not_equivalent_to_best_observable(df):
 
 
 def test_observable_linkage_rate_in_documented_band(df):
-    """45.4-45.8% per contract section 8. The naive-filter shortcut gives
-    46.69%, safely outside this band, so this test catches its return."""
+    """43.1-43.5% after the 2026-08 double-crediting fix (was 45.4-45.8%). The
+    naive IS_BEST_NMAT_RECORD & Year<=2014 shortcut lands well outside this
+    band, so this test still catches its return."""
     rate = df.loc[df["IS_BEST_OBSERVABLE_RECORD"], "IS_PLE_PASSER"].mean()
-    assert 0.454 <= rate <= 0.458, f"observable linkage rate {rate*100:.2f}% outside [45.4%, 45.8%]"
+    assert 0.431 <= rate <= 0.435, f"observable linkage rate {rate*100:.2f}% outside [43.1%, 43.5%]"
 
 
 # --------------------------------------------------------------------------
@@ -255,9 +256,13 @@ def test_ple_linkage_metadata_is_not_nested_with_passer_flag(df):
         "matching pipeline changed for the better (update docs) or a regression "
         "silently made these two columns redundant (investigate)."
     )
-    if (year_not_passer, passer_no_year) != (8_218, 2_775):
+    # 2026-08: (8_218, 2_775) -> (8_209, 3_005) after the get_ple_info()
+    # double-crediting fix. All 3,005 no-year passers are MANUAL_APPNO_MATCH,
+    # which hardcodes a null PLE year by design; the count rose because
+    # PERSON_KEY propagation now spreads those matches to sibling sittings.
+    if (year_not_passer, passer_no_year) != (8_209, 3_005):
         pytest.fail(
-            f"non-nested counts changed from documented (8218, 2775) to "
+            f"non-nested counts changed from documented (8209, 3005) to "
             f"({year_not_passer}, {passer_no_year}). This may be legitimate if "
             f"P1's matching cascade changed -- update EXPECTED and contract "
             f"section 7 together, don't just silence this test."

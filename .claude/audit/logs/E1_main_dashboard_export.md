@@ -6,7 +6,7 @@ Agent E1. Scope: `streamlit_dashboard/main_dashboard/` only. No git commands run
 
 **Retraction:** my "58 columns / schema drift" finding in round 1 was wrong, per the
 orchestrator's direct verification (parquet is 178,927 x 53, md5
-`28b85ac53af13b4a2ef3ee93527c97c1`, confirmed independently below). 58 is
+`72b2808bb8bb9c3594980c5735f814e1`, confirmed independently below). 58 is
 `len(df_raw.columns)` **after** `ensure_required_columns()` derives 5 columns at load
 time (`YEAR_INT`, `SEX_CLEAN`, `IS_BOARD_OBSERVABLE_COHORT`, `HAS_CONFIRMED_PLE`,
 `PLE_STATUS_LABEL`). There is no upstream schema drift. I did not act on the
@@ -98,7 +98,7 @@ Export self-check block (from the regenerated document, verbatim):
 # Export Integrity
 | check | result |
 |---|---|
-| Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
+| Source parquet md5 | 72b2808bb8bb9c3594980c5735f814e1 |
 | Rows / cols (source parquet on disk) | 178,927 / 53 |
 | Derived columns added at load time | 5 (YEAR_INT, SEX_CLEAN, IS_BOARD_OBSERVABLE_COHORT, HAS_CONFIRMED_PLE, PLE_STATUS_LABEL) |
 | Tabs exported | 13 / 13 |
@@ -236,7 +236,7 @@ Export self-check block (from the generated document):
 # Export Integrity
 | check | result |
 |---|---|
-| Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
+| Source parquet md5 | 72b2808bb8bb9c3594980c5735f814e1 |
 | Rows / cols | 178,927 / 58 |
 | Tabs exported | 13 / 13 |
 | Charts exported as data | 7 / 7 |

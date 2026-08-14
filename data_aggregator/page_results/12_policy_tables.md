@@ -1,6 +1,6 @@
 # Page 12: Policy Tables
 
-**Generated:** 2026-08-14 17:29
+**Generated:** 2026-08-14 18:07
 
 **Data source:** NMAT_Exodus.parquet (Pipeline 4)
 
@@ -18,15 +18,15 @@ PLE status distribution across NMAT years for the observable best-record cohort 
 
 |   Year |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |
 |-------:|----------------------------:|------------------------:|-------------------------:|--------------------------:|
-|   2006 |                        3698 |                    2005 |                     1693 |                     54.22 |
-|   2007 |                        3690 |                    1832 |                     1858 |                     49.65 |
-|   2008 |                        4965 |                    2583 |                     2382 |                     52.02 |
-|   2009 |                        7461 |                    3757 |                     3704 |                     50.36 |
-|   2010 |                        8623 |                    4534 |                     4089 |                     52.58 |
-|   2011 |                        8842 |                    3918 |                     4924 |                     44.31 |
-|   2012 |                        9405 |                    4006 |                     5399 |                     42.59 |
-|   2013 |                        9867 |                    4210 |                     5657 |                     42.67 |
-|   2014 |                       12952 |                    4736 |                     8216 |                     36.57 |
+|   2006 |                        3698 |                    1973 |                     1725 |                     53.35 |
+|   2007 |                        3690 |                    1784 |                     1906 |                     48.35 |
+|   2008 |                        4965 |                    2438 |                     2527 |                      49.1 |
+|   2009 |                        7461 |                    3054 |                     4407 |                     40.93 |
+|   2010 |                        8623 |                    4070 |                     4553 |                      47.2 |
+|   2011 |                        8842 |                    3889 |                     4953 |                     43.98 |
+|   2012 |                        9405 |                    3979 |                     5426 |                     42.31 |
+|   2013 |                        9867 |                    4188 |                     5679 |                     42.44 |
+|   2014 |                       12952 |                    4730 |                     8222 |                     36.52 |
 
 ---
 ## 2. PLE Alignment by Course Group
@@ -37,12 +37,12 @@ PLE status and median percentile rank by course group (observable best-record co
 
 | UNDERGRAD_COURSE_GROUP       |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |   median_percentile_rank |
 |:-----------------------------|----------------------------:|------------------------:|-------------------------:|--------------------------:|-------------------------:|
-| Education                    |                        3188 |                    1699 |                     1489 |                     53.29 |                       53 |
-| Other                        |                        6612 |                    3201 |                     3411 |                     48.41 |                       55 |
-| Medical & Allied             |                       38144 |                   17833 |                    20311 |                     46.75 |                       48 |
-| Natural Sciences             |                       16512 |                    6994 |                     9518 |                     42.36 |                       63 |
-| Engineering & Technology     |                         318 |                     118 |                      200 |                     37.11 |                       71 |
-| Social & Behavioral Sciences |                        4729 |                    1736 |                     2993 |                     36.71 |                       63 |
+| Education                    |                        3188 |                    1452 |                     1736 |                     45.55 |                       53 |
+| Medical & Allied             |                       38144 |                   17240 |                    20904 |                      45.2 |                       49 |
+| Other                        |                        6612 |                    2756 |                     3856 |                     41.68 |                       55 |
+| Natural Sciences             |                       16512 |                    6849 |                     9663 |                     41.48 |                       64 |
+| Engineering & Technology     |                         318 |                     116 |                      202 |                     36.48 |                       71 |
+| Social & Behavioral Sciences |                        4729 |                    1692 |                     3037 |                     35.78 |                       63 |
 
 ---
 ## 3. PLE Alignment by University Type
@@ -53,9 +53,9 @@ PLE status and median percentile rank by university type (Public, Private, Forei
 
 | UNDERGRAD_UNI_TYPE   |   n_observable_best_records |   confirmed_ple_passers |   no_confirmed_ple_match |   confirmed_ple_share_pct |   median_percentile_rank |
 |:---------------------|----------------------------:|------------------------:|-------------------------:|--------------------------:|-------------------------:|
-| Foreign              |                        1159 |                     258 |                      901 |                     22.26 |                       57 |
-| Private              |                       52821 |                   23757 |                    29064 |                     44.98 |                       50 |
-| Public               |                       14642 |                    7226 |                     7416 |                     49.35 |                       66 |
+| Foreign              |                        1159 |                     252 |                      907 |                     21.74 |                       57 |
+| Private              |                       53037 |                   22712 |                    30325 |                     42.82 |                       50 |
+| Public               |                       14263 |                    6757 |                     7506 |                     47.37 |                       68 |
 
 ---
 ## 4. Survival to Top Decile Bins (B8-B10) by Course Group

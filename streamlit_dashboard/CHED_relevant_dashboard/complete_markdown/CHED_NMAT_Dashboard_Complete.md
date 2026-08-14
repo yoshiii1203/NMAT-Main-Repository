@@ -1,6 +1,6 @@
 # NMAT Performance Evidence for CHED Cut-Off Policy Review
 
-> Complete Markdown export generated 2026-08-14 16:59. Every number below is computed by the same functions the live dashboard renders from (`ched_common.py`) — this document is a faithful transcript, not a paraphrase.
+> Complete Markdown export generated 2026-08-14 18:07. Every number below is computed by the same functions the live dashboard renders from (`ched_common.py`) — this document is a faithful transcript, not a paraphrase.
 
 **Source:** NMAT_Exodus.parquet, 178,927 rows x 53 columns.
 
@@ -21,7 +21,7 @@
 | Total NMAT sittings | 178,927 | all years | - |
 | Unique examinees | 134,869 | best-record | - |
 | Observable cohort | 69,503 | best attempt, Year<=2014 | >=~5yr PLE window |
-| Confirmed PLE passers (observable) | 31,581 | observable cohort | - |
+| Confirmed PLE passers (observable) | 30,105 | observable cohort | - |
 | Repeat takers | 33,713 (25%) | unique examinees | - |
 
 ---
@@ -33,7 +33,7 @@
 | Best-record examinees | 134,869 | one row per person | - |
 | Unique persons (PERSON_KEY) | 134,869 | one row per person | equal to best-record examinees by construction |
 | NMAT years covered | 13 | - | - |
-| Median NMAT percentile | 50.0 | best-record examinees | 0-99 scale, not a bin number |
+| Median NMAT percentile | 51.0 | best-record examinees | 0-99 scale, not a bin number |
 | Repeat takers | 33,713 (25%) | unique examinees | took NMAT more than once |
 
 ---
@@ -61,9 +61,9 @@ Two-panel chart: examinee count (bar) and median NMAT percentile, 0-99 scale (li
 |   2011 |       8,701 |                       52 |                     129 |
 |   2012 |       9,113 |                       54 |                     122 |
 |   2013 |       9,148 |                       60 |                     128 |
-|   2014 |      10,455 |                       57 |                     120 |
-|   2015 |      10,326 |                       52 |                     118 |
-|   2016 |      12,480 |                       48 |                     123 |
+|   2014 |      10,455 |                       59 |                     120 |
+|   2015 |      10,326 |                       54 |                     118 |
+|   2016 |      12,480 |                       49 |                     123 |
 |   2017 |      23,948 |                       44 |                     118 |
 |   2018 |      22,333 |                       43 |                     111 |
 
@@ -80,10 +80,10 @@ Two-panel chart: examinee count (bar) and median NMAT percentile, 0-99 scale (li
 
 | UNDERGRAD_UNI_TYPE   |   Count |   Share (%) |
 |:---------------------|--------:|------------:|
-| Private              | 103,669 |        76.9 |
-| Public               |  27,916 |        20.7 |
+| Private              | 103,885 |          77 |
+| Public               |  27,538 |        20.4 |
 | Foreign              |   1,892 |         1.4 |
-| Not Specified        |   1,392 |           1 |
+| Not Specified        |   1,554 |         1.1 |
 
 ---
 
@@ -197,10 +197,10 @@ Row percentages. Rows = NMAT years, columns = score bins (B1 lowest, B10 highest
 
 | University Type   |   Best-record examinees |   B4+ count |   B4+ (%) |   B5+ count |   B5+ (%) |   B4-only count |   B4-only (%) |
 |:------------------|------------------------:|------------:|----------:|------------:|----------:|----------------:|--------------:|
-| Public            |                  27,234 |      19,999 |      73.4 |      17,752 |      65.2 |           2,247 |           8.3 |
-| Private           |                 101,400 |      70,245 |      69.3 |      60,184 |      59.4 |          10,061 |           9.9 |
+| Public            |                  26,859 |      19,793 |      73.7 |      17,584 |      65.5 |           2,209 |           8.2 |
+| Private           |                 101,615 |      70,359 |      69.2 |      60,277 |      59.3 |          10,082 |           9.9 |
 | Foreign           |                   1,860 |       1,284 |        69 |       1,108 |      59.6 |             176 |           9.5 |
-| Not Specified     |                   1,351 |         909 |      67.3 |         804 |      59.5 |             105 |           7.8 |
+| Not Specified     |                   1,511 |       1,001 |      66.2 |         879 |      58.2 |             122 |           8.1 |
 **No medical-school identifier exists in this dataset.** `UNDERGRAD_UNI_TYPE` records the examinee's *undergraduate* institution, not the medical school they attended, and cannot serve as a proxy for CMO §IV.B's SUC-vs-PHEI distinction or for GIDA/IP disadvantage status. No PHEI-level, SUC-vs-PHEI, or per-institution PLE-performance claim can be made from any column in this file.
 
 
@@ -211,14 +211,14 @@ Row percentages. Rows = NMAT years, columns = score bins (B1 lowest, B10 highest
 
 | Metric | Value | Population | Note |
 |---|---|---|---|
-| Public B5+ count | 17,752 | public examinees, n=27,234 | 65.2% |
-| Public B4-only count | 2,247 | public examinees, n=27,234 | 8.3% |
-| Private B5+ count | 60,184 | private examinees, n=101,400 | 59.4% |
+| Public B5+ count | 17,584 | public examinees, n=26,859 | 65.5% |
+| Public B4-only count | 2,209 | public examinees, n=26,859 | 8.2% |
+| Private B5+ count | 60,277 | private examinees, n=101,615 | 59.3% |
 | Metric                      | Public         | Private        |
 |:----------------------------|:---------------|:---------------|
-| Total best-record examinees | 27,234         | 101,400        |
-| B5+ (Bin 5+)                | 17,752 (65.2%) | 60,184 (59.4%) |
-| B4-only                     | 2,247 (8.3%)   | 10,061 (9.9%)  |
+| Total best-record examinees | 26,859         | 101,615        |
+| B5+ (Bin 5+)                | 17,584 (65.5%) | 60,277 (59.3%) |
+| B4-only                     | 2,209 (8.2%)   | 10,082 (9.9%)  |
 Purely descriptive. Whether this band overlaps with GIDA/IP applicants cannot be determined from this dataset: GIDA/IP status is not recorded, 'public undergraduate institution' is not a GIDA/IP indicator, and 'public' is not equivalent to 'SUC' as the CMO uses the term. No claim about who benefits from the exception is supported by this data.
 
 
@@ -234,9 +234,9 @@ Purely descriptive. Whether this band overlaps with GIDA/IP applicants cannot be
 | UNDERGRAD_UNI_TYPE   |   count |   share (%) |
 |:---------------------|--------:|------------:|
 | Foreign              |     176 |         1.4 |
-| Not Specified        |     105 |         0.8 |
-| Private              |  10,061 |        79.9 |
-| Public               |   2,247 |        17.8 |
+| Not Specified        |     122 |           1 |
+| Private              |  10,082 |        80.1 |
+| Public               |   2,209 |        17.5 |
 
 ---
 
@@ -299,15 +299,15 @@ NOT pre-filtered on match status — population is the full B5+ observable cohor
 
 |   Year |   Total B5+ observable |   Confirmed PLE passers |   No confirmed PLE match |   Linkage rate (%) |   No-match share (%) |
 |-------:|-----------------------:|------------------------:|-------------------------:|-------------------:|---------------------:|
-|  2,006 |                  2,333 |                   1,495 |                      838 |               64.1 |                 35.9 |
-|  2,007 |                  2,274 |                   1,355 |                      919 |               59.6 |                 40.4 |
-|  2,008 |                  3,224 |                   2,012 |                    1,212 |               62.4 |                 37.6 |
-|  2,009 |                  4,660 |                   2,791 |                    1,869 |               59.9 |                 40.1 |
-|  2,010 |                  5,922 |                   3,715 |                    2,207 |               62.7 |                 37.3 |
-|  2,011 |                  5,634 |                   3,135 |                    2,499 |               55.6 |                 44.4 |
-|  2,012 |                  5,718 |                   3,186 |                    2,532 |               55.7 |                 44.3 |
-|  2,013 |                  6,025 |                   3,435 |                    2,590 |                 57 |                   43 |
-|  2,014 |                  7,360 |                   3,691 |                    3,669 |               50.1 |                 49.9 |
+|  2,006 |                  2,333 |                   1,479 |                      854 |               63.4 |                 36.6 |
+|  2,007 |                  2,274 |                   1,322 |                      952 |               58.1 |                 41.9 |
+|  2,008 |                  3,224 |                   1,927 |                    1,297 |               59.8 |                 40.2 |
+|  2,009 |                  4,660 |                   2,370 |                    2,290 |               50.9 |                 49.1 |
+|  2,010 |                  5,922 |                   3,360 |                    2,562 |               56.7 |                 43.3 |
+|  2,011 |                  5,634 |                   3,118 |                    2,516 |               55.3 |                 44.7 |
+|  2,012 |                  5,718 |                   3,173 |                    2,545 |               55.5 |                 44.5 |
+|  2,013 |                  6,025 |                   3,422 |                    2,603 |               56.8 |                 43.2 |
+|  2,014 |                  7,360 |                   3,674 |                    3,686 |               49.9 |                 50.1 |
 This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' does not mean 'failed the PLE' — the PLE source used for matching contains passers only.
 
 
@@ -332,16 +332,16 @@ This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' do
 
 | PercentileBin   | Range   |     N |   Confirmed |   Linkage Rate (%) |
 |:----------------|:--------|------:|------------:|-------------------:|
-| B1              | 0-9     | 6,853 |         795 |               11.6 |
-| B2              | 10-19   | 5,884 |       1,336 |               22.7 |
-| B3              | 20-29   | 5,813 |       1,703 |               29.3 |
-| B4              | 30-39   | 6,473 |       2,330 |                 36 |
-| B5              | 40-49   | 6,582 |       3,003 |               45.6 |
-| B6              | 50-59   | 6,284 |       3,168 |               50.4 |
-| B7              | 60-69   | 6,359 |       3,407 |               53.6 |
-| B8              | 70-79   | 6,704 |       3,690 |                 55 |
-| B9              | 80-89   | 7,263 |       4,474 |               61.6 |
-| B10             | 90-100  | 9,958 |       7,073 |                 71 |
+| B1              | 0-9     | 6,853 |         740 |               10.8 |
+| B2              | 10-19   | 5,884 |       1,219 |               20.7 |
+| B3              | 20-29   | 5,813 |       1,551 |               26.7 |
+| B4              | 30-39   | 6,473 |       2,155 |               33.3 |
+| B5              | 40-49   | 6,582 |       2,852 |               43.3 |
+| B6              | 50-59   | 6,284 |       2,976 |               47.4 |
+| B7              | 60-69   | 6,359 |       3,214 |               50.5 |
+| B8              | 70-79   | 6,704 |       3,534 |               52.7 |
+| B9              | 80-89   | 7,263 |       4,323 |               59.5 |
+| B10             | 90-100  | 9,958 |       6,946 |               69.8 |
 **Two caveats apply to this gradient, not one.** (1) *Admission selection:* examinees scoring lower on the NMAT were, on average, less likely to be admitted anywhere under the historical, non-uniform cutoffs individual schools actually applied, so lower linkage at the low end reflects **non-admission for at least part of the population, not solely lower ability or a lower chance of passing PLE had they been admitted.** (2) *Matching artefact, now corrected:* the PLE-matching pipeline's name-collision disambiguator previously applied a hard 40th-percentile floor when choosing among multiple same-name candidates, discarding candidates below percentile 40 and rejecting the match outright if none scored at or above 40 -- confined to name-collision groups (unique-name matches were never affected). This has been corrected upstream; every figure below reflects the corrected matcher. Note that the gradient does **not** show a sharp, isolated break at the 40th-percentile boundary -- the B4->B5 step is comparable in size to the B1->B2 and B9->B10 steps, i.e. the increase is roughly continuous across bins, not concentrated at one threshold. Neither this gradient nor any single step in it should be read as evidence about what a *new* cutoff would produce.
 
 
@@ -352,8 +352,8 @@ This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' do
 
 |                        |   ('TotalRawScoreTRUE', 'count') |   ('TotalRawScoreTRUE', 'median') |   ('TotalRawScoreTRUE', 'mean') |   ('TotalRawScoreTRUE', '<lambda_0>') |   ('TotalRawScoreTRUE', '<lambda_1>') |   ('NMS_PER_num', 'count') |   ('NMS_PER_num', 'median') |   ('NMS_PER_num', 'mean') |   ('NMS_PER_num', '<lambda_0>') |   ('NMS_PER_num', '<lambda_1>') |   ('PartIRawScoreTRUE', 'count') |   ('PartIRawScoreTRUE', 'median') |   ('PartIRawScoreTRUE', 'mean') |   ('PartIRawScoreTRUE', '<lambda_0>') |   ('PartIRawScoreTRUE', '<lambda_1>') |   ('PartIIRawScoreTRUE', 'count') |   ('PartIIRawScoreTRUE', 'median') |   ('PartIIRawScoreTRUE', 'mean') |   ('PartIIRawScoreTRUE', '<lambda_0>') |   ('PartIIRawScoreTRUE', '<lambda_1>') |
 |:-----------------------|---------------------------------:|----------------------------------:|--------------------------------:|--------------------------------------:|--------------------------------------:|---------------------------:|----------------------------:|--------------------------:|--------------------------------:|--------------------------------:|---------------------------------:|----------------------------------:|--------------------------------:|--------------------------------------:|--------------------------------------:|----------------------------------:|-----------------------------------:|---------------------------------:|---------------------------------------:|---------------------------------------:|
-| No confirmed PLE match |                           37,888 |                               114 |                           116.2 |                                    94 |                                   136 |                     37,758 |                          38 |                      42.1 |                              15 |                              66 |                           37,888 |                                62 |                            61.9 |                                    51 |                                    73 |                            37,888 |                                 52 |                             54.3 |                                     42 |                                     65 |
-| Confirmed PLE passer   |                           31,572 |                               139 |                             141 |                                   120 |                                   162 |                     30,988 |                          69 |                      64.6 |                              45 |                              88 |                           31,572 |                                74 |                            73.8 |                                    63 |                                    84 |                            31,572 |                                 66 |                             67.2 |                                     55 |                                     79 |
+| No confirmed PLE match |                           39,356 |                               115 |                           116.9 |                                    95 |                                   137 |                     38,663 |                          39 |                      43.1 |                              17 |                              68 |                           39,356 |                                62 |                            62.1 |                                    51 |                                    73 |                            39,356 |                                 53 |                             54.7 |                                     42 |                                     65 |
+| Confirmed PLE passer   |                           30,104 |                               140 |                           141.4 |                                   120 |                                   163 |                     29,510 |                          70 |                      65.2 |                              46 |                              89 |                           30,104 |                                74 |                            74.1 |                                    64 |                                    85 |                            30,104 |                                 66 |                             67.3 |                                     55 |                                     79 |
 
 ---
 
@@ -367,15 +367,15 @@ This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' do
 
 |   Year |      N |   Confirmed |   Median_percentile |   Linkage Rate (%) |
 |-------:|-------:|------------:|--------------------:|-------------------:|
-|  2,006 |  3,698 |       2,005 |                  53 |               54.2 |
-|  2,007 |  3,690 |       1,832 |                  52 |               49.6 |
-|  2,008 |  4,965 |       2,583 |                  54 |                 52 |
-|  2,009 |  7,461 |       3,757 |                  52 |               50.4 |
-|  2,010 |  8,623 |       4,534 |                  57 |               52.6 |
-|  2,011 |  8,842 |       3,918 |                  52 |               44.3 |
-|  2,012 |  9,405 |       4,006 |                  52 |               42.6 |
-|  2,013 |  9,867 |       4,210 |                  55 |               42.7 |
-|  2,014 | 12,952 |       4,736 |                  49 |               36.6 |
+|  2,006 |  3,698 |       1,973 |                  53 |               53.4 |
+|  2,007 |  3,690 |       1,784 |                  52 |               48.4 |
+|  2,008 |  4,965 |       2,438 |                  54 |               49.1 |
+|  2,009 |  7,461 |       3,054 |                  52 |               40.9 |
+|  2,010 |  8,623 |       4,070 |                  57 |               47.2 |
+|  2,011 |  8,842 |       3,889 |                  52 |                 44 |
+|  2,012 |  9,405 |       3,979 |                  53 |               42.3 |
+|  2,013 |  9,867 |       4,188 |                  57 |               42.4 |
+|  2,014 | 12,952 |       4,730 |                  51 |               36.5 |
 
 ---
 
@@ -384,12 +384,12 @@ This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' do
 
 | UNDERGRAD_COURSE_GROUP       |      N |   Confirmed |   Median_percentile |   Linkage Rate (%) |
 |:-----------------------------|-------:|------------:|--------------------:|-------------------:|
-| Education                    |  3,188 |       1,699 |                  53 |               53.3 |
-| Engineering & Technology     |    318 |         118 |                  71 |               37.1 |
-| Medical & Allied             | 38,144 |      17,833 |                  48 |               46.8 |
-| Natural Sciences             | 16,512 |       6,994 |                  63 |               42.4 |
-| Other                        |  6,612 |       3,201 |                  55 |               48.4 |
-| Social & Behavioral Sciences |  4,729 |       1,736 |                  63 |               36.7 |
+| Education                    |  3,188 |       1,452 |                  53 |               45.5 |
+| Engineering & Technology     |    318 |         116 |                  71 |               36.5 |
+| Medical & Allied             | 38,144 |      17,240 |                  49 |               45.2 |
+| Natural Sciences             | 16,512 |       6,849 |                  64 |               41.5 |
+| Other                        |  6,612 |       2,756 |                  55 |               41.7 |
+| Social & Behavioral Sciences |  4,729 |       1,692 |                  63 |               35.8 |
 
 ---
 
@@ -398,9 +398,9 @@ This is NMAT-to-PLE-passer linkage, not a PLE pass rate. 'No confirmed match' do
 
 | UNDERGRAD_UNI_TYPE   |      N |   Confirmed |   Median_percentile |   Linkage Rate (%) |
 |:---------------------|-------:|------------:|--------------------:|-------------------:|
-| Foreign              |  1,159 |         258 |                  57 |               22.3 |
-| Private              | 52,821 |      23,757 |                  50 |                 45 |
-| Public               | 14,642 |       7,226 |                  66 |               49.4 |
+| Foreign              |  1,159 |         252 |                  57 |               21.7 |
+| Private              | 53,037 |      22,712 |                  50 |               42.8 |
+| Public               | 14,263 |       6,757 |                  68 |               47.4 |
 Reflects the examinee's undergraduate institution type. No medical-school identifier exists in this dataset.
 
 
@@ -414,8 +414,8 @@ NOT the tautology in the prior version of this dashboard (which pre-filtered the
 | Metric | Value | Population | Note |
 |---|---|---|---|
 | B5+ Filipino population | 41,289 | Filipino, observable, B5+ | not pre-filtered on match status |
-| Confirmed under strict criteria | 23,128 | same population | confirmed + >=5yr gap |
-| Strict-criteria linkage rate | 56.0% | same population | genuinely can be <100% |
+| Confirmed under strict criteria | 22,146 | same population | confirmed + >=5yr gap |
+| Strict-criteria linkage rate | 53.6% | same population | genuinely can be <100% |
 | Median PLE year gap | 6 yrs | confirmed subset | - |
 
 ### Yearly Linkage Rate (Strict-Criteria Subset, B5+, Filipino)
@@ -427,25 +427,25 @@ NOT the tautology in the prior version of this dashboard (which pre-filtered the
 
 |   Year |   Total |   Confirmed (strict) |   No match |   Linkage Rate (%) |
 |-------:|--------:|---------------------:|-----------:|-------------------:|
-|  2,006 |   2,251 |                1,374 |        877 |                 61 |
-|  2,007 |   2,148 |                1,240 |        908 |               57.7 |
-|  2,008 |   3,092 |                1,891 |      1,201 |               61.2 |
-|  2,009 |   4,498 |                2,583 |      1,915 |               57.4 |
-|  2,010 |   5,723 |                3,469 |      2,254 |               60.6 |
-|  2,011 |   5,437 |                2,890 |      2,547 |               53.2 |
-|  2,012 |   5,524 |                2,991 |      2,533 |               54.1 |
-|  2,013 |   5,784 |                3,210 |      2,574 |               55.5 |
-|  2,014 |   6,832 |                3,480 |      3,352 |               50.9 |
+|  2,006 |   2,251 |                1,361 |        890 |               60.5 |
+|  2,007 |   2,148 |                1,212 |        936 |               56.4 |
+|  2,008 |   3,092 |                1,815 |      1,277 |               58.7 |
+|  2,009 |   4,498 |                2,177 |      2,321 |               48.4 |
+|  2,010 |   5,723 |                3,126 |      2,597 |               54.6 |
+|  2,011 |   5,437 |                2,870 |      2,567 |               52.8 |
+|  2,012 |   5,524 |                2,975 |      2,549 |               53.9 |
+|  2,013 |   5,784 |                3,178 |      2,606 |               54.9 |
+|  2,014 |   6,832 |                3,432 |      3,400 |               50.2 |
 
 ### Strict-Criteria B5+ Confirmed Passers by University Type
 
 | UNDERGRAD_UNI_TYPE   |      N |   Share (%) |
 |:---------------------|-------:|------------:|
-| Foreign              |    167 |         0.7 |
-| Not Specified        |    258 |         1.1 |
-| Private              | 16,937 |        73.2 |
-| Public               |  5,766 |        24.9 |
-Under strict matching criteria, 23,128 of 41,289 (56.0%) Filipino B5+ observable examinees are confirmed PLE passers with a >=5-year gap. This is a real, checkable comparison, not a tautology.
+| Foreign              |    166 |         0.7 |
+| Not Specified        |    277 |         1.3 |
+| Private              | 16,284 |        73.5 |
+| Public               |  5,419 |        24.5 |
+Under strict matching criteria, 22,146 of 41,289 (53.6%) Filipino B5+ observable examinees are confirmed PLE passers with a >=5-year gap. This is a real, checkable comparison, not a tautology.
 
 
 ---
@@ -467,8 +467,8 @@ Under strict matching criteria, 23,128 of 41,289 (56.0%) Filipino B5+ observable
 | UNDERGRAD_UNI_TYPE   |   N (best record, valid bin) |   Median %ile |   Q25 %ile |   Q75 %ile |   Median TRUE raw score |   Median GPS |
 |:---------------------|-----------------------------:|--------------:|-----------:|-----------:|------------------------:|-------------:|
 | Foreign              |                        1,860 |            52 |         21 |         79 |                     124 |        504.5 |
-| Private              |                      101,400 |            49 |         23 |         75 |                     121 |          498 |
-| Public               |                       27,234 |            57 |         27 |         83 |                     127 |          518 |
+| Private              |                      101,615 |            49 |         23 |         75 |                     121 |          498 |
+| Public               |                       26,859 |            57 |       27.5 |         84 |                     127 |          518 |
 Percentile medians use the same population as Tab 2/Tab 5 (best-record examinees with a valid percentile bin) — one null-handling policy shared across this document.
 
 
@@ -481,8 +481,8 @@ Five-number summary + n, not raw points, per export contract Rule 1.
 
 | Group   |       N |   Minimum |   Q25 |   Median |   Q75 |   Maximum |
 |:--------|--------:|----------:|------:|---------:|------:|----------:|
-| Public  |  27,234 |         0 |    27 |       57 |    83 |        99 |
-| Private | 101,400 |         0 |    23 |       49 |    75 |        99 |
+| Public  |  26,859 |         0 |  27.5 |       57 |    84 |        99 |
+| Private | 101,615 |         0 |    23 |       49 |    75 |        99 |
 | Foreign |   1,860 |         0 |    21 |       52 |    79 |        99 |
 
 ---
@@ -493,8 +493,8 @@ Five-number summary + n, not raw points, per export contract Rule 1.
 | UNDERGRAD_UNI_TYPE   |   B1 |   B2 |   B3 |   B4 |   B5 |   B6 |   B7 |   B8 |   B9 |   B10 |
 |:---------------------|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|
 | Foreign              | 14.1 |  9.3 |  7.5 |  9.5 |  7.8 |  8.8 |  8.7 |  9.4 | 10.6 |  14.3 |
-| Private              |   12 |  9.7 |    9 |  9.9 |  9.9 |  9.9 |  9.5 |  9.7 |  9.7 |  10.6 |
-| Public               | 10.8 |  8.2 |  7.6 |  8.2 |  8.5 |  8.9 |  9.1 |  9.6 | 11.2 |  17.9 |
+| Private              | 12.1 |  9.7 |    9 |  9.9 |  9.9 |  9.9 |  9.5 |  9.7 |  9.7 |  10.6 |
+| Public               | 10.7 |  8.1 |  7.5 |  8.2 |  8.5 |  8.9 |  9.1 |  9.6 | 11.3 |  18.1 |
 
 ---
 
@@ -503,9 +503,9 @@ Five-number summary + n, not raw points, per export contract Rule 1.
 
 | UNDERGRAD_UNI_TYPE   |   Total examinees |   Top B8-B10 count |   Top B8-B10 (%) |
 |:---------------------|------------------:|-------------------:|-----------------:|
-| Private              |           101,400 |             30,459 |             30.1 |
+| Private              |           101,615 |             30,493 |               30 |
 | Foreign              |             1,860 |                638 |             34.3 |
-| Public               |            27,234 |             10,533 |             38.7 |
+| Public               |            26,859 |             10,469 |               39 |
 
 ---
 
@@ -573,27 +573,27 @@ Public-undergraduate-institution examinees show a higher median NMAT percentile 
 
 ### NMAT-to-PLE-Passer Linkage Gradient
 
-NMAT-to-PLE-passer linkage rises roughly continuously with score bin, from 12% in the lowest bin (B1) to 71% in the highest bin (B10).  This historical gradient provides context for evaluating the relationship between NMAT scores and licensure outcomes, but is not a PLE pass rate. **Two caveats apply to this gradient, not one.** (1) *Admission selection:* examinees scoring lower on the NMAT were, on average, less likely to be admitted anywhere under the historical, non-uniform cutoffs individual schools actually applied, so lower linkage at the low end reflects **non-admission for at least part of the population, not solely lower ability or a lower chance of passing PLE had they been admitted.** (2) *Matching artefact, now corrected:* the PLE-matching pipeline's name-collision disambiguator previously applied a hard 40th-percentile floor when choosing among multiple same-name candidates, discarding candidates below percentile 40 and rejecting the match outright if none scored at or above 40 -- confined to name-collision groups (unique-name matches were never affected). This has been corrected upstream; every figure below reflects the corrected matcher. Note that the gradient does **not** show a sharp, isolated break at the 40th-percentile boundary -- the B4->B5 step is comparable in size to the B1->B2 and B9->B10 steps, i.e. the increase is roughly continuous across bins, not concentrated at one threshold. Neither this gradient nor any single step in it should be read as evidence about what a *new* cutoff would produce.
+NMAT-to-PLE-passer linkage rises roughly continuously with score bin, from 11% in the lowest bin (B1) to 70% in the highest bin (B10).  This historical gradient provides context for evaluating the relationship between NMAT scores and licensure outcomes, but is not a PLE pass rate. **Two caveats apply to this gradient, not one.** (1) *Admission selection:* examinees scoring lower on the NMAT were, on average, less likely to be admitted anywhere under the historical, non-uniform cutoffs individual schools actually applied, so lower linkage at the low end reflects **non-admission for at least part of the population, not solely lower ability or a lower chance of passing PLE had they been admitted.** (2) *Matching artefact, now corrected:* the PLE-matching pipeline's name-collision disambiguator previously applied a hard 40th-percentile floor when choosing among multiple same-name candidates, discarding candidates below percentile 40 and rejecting the match outright if none scored at or above 40 -- confined to name-collision groups (unique-name matches were never affected). This has been corrected upstream; every figure below reflects the corrected matcher. Note that the gradient does **not** show a sharp, isolated break at the 40th-percentile boundary -- the B4->B5 step is comparable in size to the B1->B2 and B9->B10 steps, i.e. the increase is roughly continuous across bins, not concentrated at one threshold. Neither this gradient nor any single step in it should be read as evidence about what a *new* cutoff would produce.
 
 
 ### The 40th-Percentile Floor Was Not Uniformly Binding
 
-**The 40th-percentile floor was not uniformly binding historically.** Under a strictly enforced 40th-percentile rule, confirmed PLE passers scoring below that floor (bins B1-B3) should barely exist. They do not: 11.6% of B1 (lowest-decile) examinees and 36.0% of B4 examinees in the observable cohort are confirmed PLE passers (795 confirmed passers in B1 alone). This implies the existing rule -- and by extension any single hard percentile floor -- was not uniformly applied or uniformly binding across the schools examinees actually attended between 2006 and 2014, which bears directly on CMO §IV.B.1's proposal to condition a PHEI's cut-off privilege on a single threshold.
+**The 40th-percentile floor was not uniformly binding historically.** Under a strictly enforced 40th-percentile rule, confirmed PLE passers scoring below that floor (bins B1-B3) should barely exist. They do not: 10.8% of B1 (lowest-decile) examinees and 33.3% of B4 examinees in the observable cohort are confirmed PLE passers (740 confirmed passers in B1 alone). This implies the existing rule -- and by extension any single hard percentile floor -- was not uniformly applied or uniformly binding across the schools examinees actually attended between 2006 and 2014, which bears directly on CMO §IV.B.1's proposal to condition a PHEI's cut-off privilege on a single threshold.
 
 
 ### Historical Linkage Trends
 
-The observable NMAT-to-PLE-passer linkage rate went from 54.2% in 2006 to 36.6% in 2014 across the observable cohort.  The 5-year rolling average was 43.7% as of 2014.  This measure reflects NMAT examinees later matched to PLE passer records and is not directly comparable to official PLE passing rates.  Later years have a shorter observed window for a match to appear even within the observable cohort, which can mechanically lower recent-year rates.
+The observable NMAT-to-PLE-passer linkage rate went from 53.4% in 2006 to 36.5% in 2014 across the observable cohort.  The 5-year rolling average was 42.5% as of 2014.  This measure reflects NMAT examinees later matched to PLE passer records and is not directly comparable to official PLE passing rates.  Later years have a shorter observed window for a match to appear even within the observable cohort, which can mechanically lower recent-year rates.
 
 
 ### Public-Institution Threshold Attainment (Descriptive Only)
 
-65.2% of public-undergraduate-institution examinees (17,752 of 27,234) score at Bin 5 or above; only 8.3% fall in the B4-only band the CMO exception addresses.  This is purely descriptive.  Whether this band overlaps with GIDA/IP applicants cannot be determined from this dataset -- GIDA/IP status is not recorded, and 'public undergraduate institution' is neither a GIDA/IP indicator nor equivalent to 'SUC' as the CMO uses the term.  No claim about who benefits from the exception can be supported by this data.
+65.5% of public-undergraduate-institution examinees (17,584 of 26,859) score at Bin 5 or above; only 8.2% fall in the B4-only band the CMO exception addresses.  This is purely descriptive.  Whether this band overlaps with GIDA/IP applicants cannot be determined from this dataset -- GIDA/IP status is not recorded, and 'public undergraduate institution' is neither a GIDA/IP indicator nor equivalent to 'SUC' as the CMO uses the term.  No claim about who benefits from the exception can be supported by this data.
 
 
 ### PLE Matching Sensitivity Check
 
-Restricting to the strictest defensible PLE match (confirmed passer, >=5-year gap, Filipino nationals, B5+ band) yields a linkage rate of 56.0% (23,128 of 41,289) -- genuinely lower than the broader B5+ linkage figures, because this population is not pre-filtered on match status.  This is a real, checkable comparison, not a tautology: it shows that loosening match criteria measurably raises the apparent linkage rate, which should be kept in mind when reading the less-strict figures elsewhere in this dashboard.
+Restricting to the strictest defensible PLE match (confirmed passer, >=5-year gap, Filipino nationals, B5+ band) yields a linkage rate of 53.6% (22,146 of 41,289) -- genuinely lower than the broader B5+ linkage figures, because this population is not pre-filtered on match status.  This is a real, checkable comparison, not a tautology: it shows that loosening match criteria measurably raises the apparent linkage rate, which should be kept in mind when reading the less-strict figures elsewhere in this dashboard.
 
 
 ### Foreign Examinee Presence
@@ -659,12 +659,12 @@ PLE-linked analyses use IS_BEST_OBSERVABLE_RECORD (each person's best attempt am
 
 ## Deterministic PLE Matching
 
-All PLE matching is deterministic; no fuzzy/rapidfuzz matching is used. PLE_MATCH_OUTCOME breakdown (all rows): accepted 49,086, rejected_ambiguous_person 8,216 (a name-collision candidate found but rejected as genuinely ambiguous, distinguished from a bare no_match), no_match 121,623. PLE_YEAR_UNCERTAIN flags 110 confirmed passers whose PLE year is not determinable (still counted as passers, excluded from year-specific figures). PLE_YEAR_PASSED / PLE_MATCH_METHOD / PLE_YEAR_GAP are diagnostic metadata, not authoritative passer counts, and do not nest inside IS_PLE_PASSER: non-null for 54,529 / 57,304 / 46,219 rows respectively.
+All PLE matching is deterministic; no fuzzy/rapidfuzz matching is used. PLE_MATCH_OUTCOME breakdown (all rows): accepted 47,485, rejected_ambiguous_person 8,207 (a name-collision candidate found but rejected as genuinely ambiguous, distinguished from a bare no_match), no_match 123,233. PLE_YEAR_UNCERTAIN flags 79 confirmed passers whose PLE year is not determinable (still counted as passers, excluded from year-specific figures). PLE_YEAR_PASSED / PLE_MATCH_METHOD / PLE_YEAR_GAP are diagnostic metadata, not authoritative passer counts, and do not nest inside IS_PLE_PASSER: non-null for 52,689 / 55,694 / 52,689 rows respectively.
 
 | Metric | Value | Population | Note |
 |---|---|---|---|
-| Confirmed PLE passers (all rows) | 49,086 | all rows | IS_PLE_PASSER |
-| Confirmed PLE passers (observable cohort) | 31,581 | observable cohort | - |
+| Confirmed PLE passers (all rows) | 47,485 | all rows | IS_PLE_PASSER |
+| Confirmed PLE passers (observable cohort) | 30,105 | observable cohort | - |
 **PLE-matching bias against below-40th-percentile examinees (disclosed).** Found during remediation. The name-collision disambiguator (`2_PLE_Matching_Pipeline.ipynb`, `disambiguate()` Step 4) previously applied a hard filter — not a tie-break — discarding every candidate scoring below the 40th NMAT percentile and rejecting the match outright if no candidate scored at or above 40. That constant, 40, is exactly the CMO threshold this dashboard evaluates. The effect is confined to name-collision groups (unique-name matches were never affected, which is why B1-B4 confirmed passers exist at all), now corrected upstream, but present in every below-B4/B5 linkage figure in this document.
 
 
@@ -706,24 +706,24 @@ The CMO ties cut-off privileges to a PHEI's own 5-year PLE performance and provi
 
 ### Selection Effect Across the Linkage Gradient
 
-Linkage rises roughly continuously with score bin (11.6% at B1 to 71.0% at B10) -- there is NOT a sharp, isolated break concentrated at the 40th-percentile boundary; the B4->B5 step (36.0% to 45.6%) is comparable in size to the steps on either side of it. Lower linkage at the low end reflects, in part, non-admission under the historical, non-uniform cutoffs individual schools actually applied between 2006 and 2014 -- not solely lower ability or a lower chance of passing PLE had those examinees been admitted. This gradient cannot be used to estimate how many additional PLE passers a new uniform cutoff would produce or exclude.
+Linkage rises roughly continuously with score bin (10.8% at B1 to 69.8% at B10) -- there is NOT a sharp, isolated break concentrated at the 40th-percentile boundary; the B4->B5 step (33.3% to 43.3%) is comparable in size to the steps on either side of it. Lower linkage at the low end reflects, in part, non-admission under the historical, non-uniform cutoffs individual schools actually applied between 2006 and 2014 -- not solely lower ability or a lower chance of passing PLE had those examinees been admitted. This gradient cannot be used to estimate how many additional PLE passers a new uniform cutoff would produce or exclude.
 
 
 ### The 40th-Percentile Floor Was Not Uniformly Binding (Disclosed)
 
-**The 40th-percentile floor was not uniformly binding historically.** Under a strictly enforced 40th-percentile rule, confirmed PLE passers scoring below that floor (bins B1-B3) should barely exist. They do not: 11.6% of B1 (lowest-decile) examinees and 36.0% of B4 examinees in the observable cohort are confirmed PLE passers (795 confirmed passers in B1 alone). This implies the existing rule -- and by extension any single hard percentile floor -- was not uniformly applied or uniformly binding across the schools examinees actually attended between 2006 and 2014, which bears directly on CMO §IV.B.1's proposal to condition a PHEI's cut-off privilege on a single threshold.
+**The 40th-percentile floor was not uniformly binding historically.** Under a strictly enforced 40th-percentile rule, confirmed PLE passers scoring below that floor (bins B1-B3) should barely exist. They do not: 10.8% of B1 (lowest-decile) examinees and 33.3% of B4 examinees in the observable cohort are confirmed PLE passers (740 confirmed passers in B1 alone). This implies the existing rule -- and by extension any single hard percentile floor -- was not uniformly applied or uniformly binding across the schools examinees actually attended between 2006 and 2014, which bears directly on CMO §IV.B.1's proposal to condition a PHEI's cut-off privilege on a single threshold.
 
 
 ### PLE-Matching Bias Against Below-40th-Percentile Examinees (Disclosed, Now Corrected)
 
-Found during remediation, not in the original audit. The PLE-matching pipeline's name-collision disambiguator (`2_PLE_Matching_Pipeline.ipynb`, `disambiguate()` Step 4) previously applied a **hard filter**, not a tie-break: when a person's name matched more than one candidate NMAT record, every candidate scoring below the 40th NMAT percentile was discarded outright, and the match was rejected entirely if no candidate scored at or above 40. That constant -- 40 -- is exactly the CMO threshold this dashboard is evaluating. The effect was confined to name-collision groups (unique-name matches were never affected) and has now been corrected upstream -- every number in this dashboard reflects the corrected matcher. `PLE_MATCH_OUTCOME` additionally distinguishes matches rejected as genuinely ambiguous (8,216 candidates, `rejected_ambiguous_person`) from `no_match`, so a reader can see where borderline candidates went rather than have them silently folded into 'no match'. `PLE_YEAR_UNCERTAIN` flags 110 confirmed passers whose PLE year is not determinable; these remain counted as passers but are excluded from any year-specific figure.
+Found during remediation, not in the original audit. The PLE-matching pipeline's name-collision disambiguator (`2_PLE_Matching_Pipeline.ipynb`, `disambiguate()` Step 4) previously applied a **hard filter**, not a tie-break: when a person's name matched more than one candidate NMAT record, every candidate scoring below the 40th NMAT percentile was discarded outright, and the match was rejected entirely if no candidate scored at or above 40. That constant -- 40 -- is exactly the CMO threshold this dashboard is evaluating. The effect was confined to name-collision groups (unique-name matches were never affected) and has now been corrected upstream -- every number in this dashboard reflects the corrected matcher. `PLE_MATCH_OUTCOME` additionally distinguishes matches rejected as genuinely ambiguous (8,207 candidates, `rejected_ambiguous_person`) from `no_match`, so a reader can see where borderline candidates went rather than have them silently folded into 'no match'. `PLE_YEAR_UNCERTAIN` flags 79 confirmed passers whose PLE year is not determinable; these remain counted as passers but are excluded from any year-specific figure.
 
 
 # Export Integrity
 
 | check | result |
 |---|---|
-| Source parquet md5 | 28b85ac53af13b4a2ef3ee93527c97c1 |
+| Source parquet md5 | 72b2808bb8bb9c3594980c5735f814e1 |
 | Rows / cols | 178,927 / 53 |
 | Tabs exported | 6 / 6 |
 | Charts exported as data | 15 / 15 |

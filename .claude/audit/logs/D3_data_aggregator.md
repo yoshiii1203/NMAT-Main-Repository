@@ -1,7 +1,7 @@
 # D3 — data_aggregator/ remediation log
 
 Scope: `data_aggregator/` only. Data: `dataset/NMAT_Exodus.parquet`, final regenerated
-version, md5 `28b85ac53af13b4a2ef3ee93527c97c1`, 178,927 rows x 53 cols (51 per the original
+version, md5 `72b2808bb8bb9c3594980c5735f814e1`, 178,927 rows x 53 cols (51 per the original
 schema contract + `PLE_MATCH_OUTCOME` + `PLE_YEAR_UNCERTAIN` added later by the orchestrator).
 All commands run with `./.venv/Scripts/python.exe`.
 

@@ -1,7 +1,7 @@
 # D1 — `streamlit_dashboard/main_dashboard/dashboard.py` remediation log
 
 File: `streamlit_dashboard/main_dashboard/dashboard.py` (3,207 lines -> 3,306 lines).
-Data: `streamlit_dashboard/main_dashboard/NMAT_Exodus.parquet`, final md5 `28b85ac53af13b4a2ef3ee93527c97c1`,
+Data: `streamlit_dashboard/main_dashboard/NMAT_Exodus.parquet`, final md5 `72b2808bb8bb9c3594980c5735f814e1`,
 178,927 rows x 53 cols (the schema evolved twice mid-task; see "Moving-target parquet" below).
 
 All numeric claims below were produced with `./.venv/Scripts/python.exe` against the final parquet.
@@ -237,7 +237,7 @@ tab logic; the `streamlit run` pass is included because the brief asked for it e
 does confirm the server itself boots without an import-time exception.
 
 Headline KPI cross-check against the orchestrator's final authoritative table, computed fresh from
-`streamlit_dashboard/main_dashboard/NMAT_Exodus.parquet` (md5 `28b85ac53af13b4a2ef3ee93527c97c1`):
+`streamlit_dashboard/main_dashboard/NMAT_Exodus.parquet` (md5 `72b2808bb8bb9c3594980c5735f814e1`):
 
 | Quantity | Expected | Actual | Match |
 |---|---|---|---|
@@ -263,7 +263,7 @@ the four renamed columns: zero.
 - The parquet changed twice during this task (schema grew 51 -> 52 -> 53 columns, and
   `IS_PLE_PASSER` changed value three times: 49,986 (original contract) -> 51,707 -> 49,086
   (final)). Every numeric claim in this log and in the dashboard's own captions is either computed
-  live from the dataframe or was re-verified against the final md5 `28b85ac53af13b4a2ef3ee93527c97c1`
+  live from the dataframe or was re-verified against the final md5 `72b2808bb8bb9c3594980c5735f814e1`
   file; nothing is pinned to an intermediate value.
 - Did not address the pre-existing, file-wide `use_container_width` deprecation warning (Streamlit
   1.56 wants `width=` instead) — out of scope for this remediation and present in effectively every
