@@ -151,7 +151,7 @@ All float64, 45 nulls each, 31 distinct values (item counts 0-30 per subtest).
 | # | Column | Type | Nulls | Description |
 |---|--------|------|------:|-------------|
 | 32 | `StoredRawTotal` | float64 | 79,611 (44.5%) | CEM's original stored raw total (`STU_RSCORE`). Present only when the CEM record carried a stored total (99,316 of 178,927 rows). |
-| 33 | `StoredVsDerivedMismatch` | **boolean** (nullable) | 79,611 | `True` when `StoredRawTotal != TotalRawScoreTRUE`, `False` when they agree, `NA` when no stored total exists. **56,065 of the 99,316 rows that carry a stored total disagree (56.45%)** — 31.33% of all 178,927 rows. Coerced from a string-typed column to pandas nullable `boolean` in Pipeline 5 (the old `str` dtype meant `bool("False") is True`, silently inverting every truthiness test). **The figure "42.2%" that appears throughout older project history is wrong** — it divided the 56,065 mismatch count by 133,558 (a stale, also-wrong best-record examinee count) instead of by 99,316 (the rows that actually have a stored total to compare against). Always state the denominator: "56.45% of the 99,316 records with a stored total." |
+| 33 | `StoredVsDerivedMismatch` | **boolean** (nullable) | 79,611 | `True` when `StoredRawTotal != TotalRawScoreTRUE`, `False` when they agree, `NA` when no stored total exists. **56,065 of the 99,316 rows that carry a stored total disagree (56.45%)** — 31.33% of all 178,927 rows. Coerced from a string-typed column to pandas nullable `boolean` in Pipeline 5 (the old `str` dtype meant `bool("False") is True`, silently inverting every truthiness test). **The figure "42.2%" that appears throughout older project history is wrong**: it divided the mismatch count by an examinee-level denominator rather than by 99,316, the rows that actually carry a stored total to compare against. (56,065 / 133,558 gives 42.0%, close to but not exactly the published 42.2%, so the original denominator is a near but unconfirmed reconstruction — what is certain is that it was not 99,316.) Always state the denominator: "56.45% of the 99,316 records with a stored total." |
 | 34 | `CalculatedRawTotal_Source` | float64 | 45 | CEM's own calculated raw total (`STU_RSCORE_CALC`). Identical to `TotalRawScoreTRUE` on every non-null row — confirms the recalculation logic, not just the stored total, was independently reproducible. |
 | 35 | `HasTRUErawScores` | **boolean** | 0 | `True` for 178,882 rows (99.97%), `False` for 45 — whether all 8 raw components were present to compute `TotalRawScoreTRUE`. Coerced from `str` in Pipeline 5, same fix as `StoredVsDerivedMismatch`. |
 
@@ -289,11 +289,15 @@ Net: 54 - 6 + 5 = 53.
 
 | Stage | Output | Rows x Cols |
 |-------|--------|------|
-| P1 | `NMAT_FINAL.parquet` | 178,927 x 101 |
+| P1 | `NMAT_FINAL.csv` | 178,927 x 101 (the file Pipeline 2 reads; a `NMAT_FINAL.parquet` twin had zero readers and was removed in dataset cleanup) |
 | P2 | `NMAT_Ultima.parquet` | 178,927 x 119 |
 | P2 | `PLE_MATCH_MASTER.csv` | one row per matched PLE record |
-| P4 | `NMAT_Exodus.parquet.bak` | 178,927 x 118 (full backup, pre-slim) |
+| P4 | `NMAT_Exodus.parquet.bak` | 178,927 x 118 — deliberately kept as the **only full-column audit trail** in the repo; do not delete |
 | P5 | **`NMAT_Exodus.parquet`** | **178,927 x 53 — this file** |
+
+A `dataset/NMAT_Exodus.csv` ("for manual inspection") used to exist alongside the parquet; it had
+zero code readers and was removed in the same cleanup. Do not expect it on disk, and do not
+regenerate it as a documentation target.
 
 See `pipeline_architecture.md` for the full 5-pipeline chain, including the two most consequential
 defects found during remediation (RC-0, the matcher's hard percentile floor; O-24, the dead DOB

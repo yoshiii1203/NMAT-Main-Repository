@@ -2,7 +2,14 @@
 
 **Descriptive and trend-based analysis of the Philippine National Medical Admission Test (NMAT), linked to Philippine Licensure Examination (PLE) outcomes and citizenship data.**
 
-**Final dataset:** `dataset/NMAT_Exodus.parquet` (178,927 rows × 54 columns, 10.5 MB)
+**Final dataset:** `dataset/NMAT_Exodus.parquet` (178,927 rows × 53 columns), md5 `28b85ac53af13b4a2ef3ee93527c97c1`, present as 3 byte-identical copies (`dataset/` + both live dashboard folders).
+
+> **2026-08 remediation notice.** This README was rewritten against the corrected pipeline and
+> schema. If you have an older copy of this project's documentation, note two corrections in
+> particular: the pipeline chain is **5 stages, not 4** (`5_Slim_Exodus.py` is new), and the PLE
+> matcher had a hard percentile-floor bug (fixed) that suppressed matches for exactly the
+> below-40th-percentile population this project studies — see `docs/pipeline_architecture.md` §7
+> for what changed and which older headline numbers it supersedes.
 
 ---
 
@@ -44,7 +51,9 @@ This project produces **descriptive and trend-based analysis reports** on NMAT p
 
 ## Pipeline Architecture
 
-The project uses **4 sequential pipelines** to transform raw data into the final analytic dataset:
+The project uses **5 sequential pipelines** to transform raw data into the final analytic dataset.
+Full detail, including two root-cause defects found and fixed in remediation, is in
+`docs/pipeline_architecture.md` — this section is a summary.
 
 ```mermaid
 flowchart LR
@@ -52,8 +61,10 @@ flowchart LR
     P1 --> P2["Pipeline 2<br/>PLE Matching"]
     P2 --> P3["Pipeline 3<br/>Statistical Analysis"]
     P2 --> P4["Pipeline 4<br/>Citizenship Integration"]
-    P4 --> EXO["NMAT_Exodus.parquet<br/>178,927 x 54 cols"]
-    EXO --> DASH["Streamlit Dashboard<br/>dashboard.py"]
+    P4 --> P5["Pipeline 5<br/>Slim Exodus"]
+    P5 --> EXO["NMAT_Exodus.parquet<br/>178,927 x 53 cols"]
+    EXO --> DASH1["main_dashboard/"]
+    EXO --> DASH2["CHED_relevant_dashboard/"]
     EXO --> AGG["Data Aggregator<br/>data_aggregator/"]
 ```
 
@@ -63,43 +74,32 @@ flowchart LR
 
 **Key operations:**
 - Clean and standardize application numbers
-- Normalize university names via 4-tier matching against UNIVS.csv (2,981 verified, 1,386 unmatched)
-- Recalculate TRUE raw scores from 8 component subtests (stored totals were wrong in **42.2%** of records)
+- Normalize university names via 4-tier matching against UNIVS.csv (2,981 verified, 1,386 unmatched) — the only fuzzy (`rapidfuzz`) matching anywhere in the project
+- Recalculate TRUE raw scores from 8 component subtests. Stored totals disagree with the recalculated total in **56.45% of the 99,316 records that carry a stored total** (31.33% of all rows). The commonly-cited "42.2%" figure divided the mismatch count by the wrong denominator and is superseded — see `docs/pipeline_architecture.md`.
 - Classify universities as Public/Private/Foreign, course groups into 6 categories
-- Create `PercentileDecile` bins (D1–D10)
-- **Output:** `NMAT_FINAL.parquet` (101 columns)
+- Create `PercentileBin` bins (B1–B10, B1 = lowest decile)
+- **Output:** `NMAT_FINAL.csv` (101 columns) — the file Pipeline 2 reads. A `NMAT_FINAL.parquet` twin was removed in a 2026-08 dataset-hygiene cleanup; it had no readers.
 
 ### Pipeline 2: PLE Matching (`2_PLE_Matching_Pipeline.ipynb`)
 
 **Inputs:** `NMAT_FINAL.csv`, `PLE_DATA.csv`, `PLE_UNMATCHED.csv`, `PLE_STILL_UNMATCHED.csv`
 
 **Key operations:**
-- **Deterministic-only matching** (after DE-FUZZY refactor — all fuzzy/rapidfuzz matching removed)
+- **Deterministic-only matching** — no fuzzy/rapidfuzz matching in this pipeline
 - 3-stage cascade: Manual AppNo recovery → Exact name match → Deterministic AppNo
-- 5-step disambiguator for multiple candidates: year-gap → DOB → latest year → percentile floor → tiebreak
-- Binary statuses only: "Confirmed PLE passer" / "No confirmed PLE match"
-- **Results:** 36,395 FINAL_MATCH (83.4% of PLE records)
-- **Output:** `NMAT_Ultima.parquet` (115 columns), `PLE_MATCH_MASTER.csv`, `PLE_PASSERS_IN_NMAT.csv`
+- Disambiguator for multiple candidates: year-gap → DOB/sex → latest year → **exactly one survivor accepted, two or more rejected as ambiguous**. Earlier versions of this pipeline had a hard percentile-floor step and a score-based tie-break here; both were identity-resolution bugs that pushed matching decisions onto the very outcome variable this project studies. Both are removed — see `docs/pipeline_architecture.md` §7 for the fix and its measured effect.
+- **Results:** `IS_PLE_PASSER = 49,086` (49,986 was the pre-fix figure; if you see 49,986 elsewhere it predates this fix)
+- **Output:** `NMAT_Ultima.parquet` (119 columns), `PLE_MATCH_MASTER.csv`
 
 ### Pipeline 3: Statistical Analysis (`3_NMAT_PLE_Analysis.ipynb`)
 
 **Input:** `NMAT_Ultima.parquet`
 
-**13 analysis sections** producing 95 output files (59 CSV + 36 PNG):
-
-| Section | Analysis | Statistical Tests |
-|---------|----------|-------------------|
-| 1–2 | Yearly trends & stability | Kruskal-Wallis, eta-squared |
-| 3–4 | Bin distributions by background | Kruskal-Wallis, Chi-square, Cramer's V |
-| 5 | Sankey flow pathways | Descriptive flow % |
-| 6 | PLE alignment | Mann-Whitney U, effect size r |
-| 7 | Repeat taker trajectories | Descriptive |
-| 8 | Subtest profiles | Mean standard scores, radar charts |
-| 9 | PLE linkage by uni type | Descriptive % |
-| 10 | PLE year gap | Descriptive |
-| 11 | Gender analysis | Mann-Whitney U, effect size r |
-| 12 | Dunn post-hoc tests | Bonferroni-adjusted |
-| 13 | Policy tables | PLE alignment by year/course/uni type |
+**13 analysis sections** producing ~95 output files (CSV + PNG) to `dataset/analysis_output/`:
+yearly trends & stability (Kruskal-Wallis), bin distributions by background (Chi-square), Sankey
+flow pathways, PLE alignment (Mann-Whitney U), repeat-taker trajectories, subtest profiles, gender
+analysis (Mann-Whitney U), Dunn post-hoc tests, and policy summary tables. This pipeline is
+analysis-only — it is not on the path that produces the shipped `NMAT_Exodus.parquet`.
 
 ### Pipeline 4: Citizenship Integration (`4_Citizenship_Integration.py`)
 
@@ -109,21 +109,26 @@ Implements a **3-tier hierarchy of truth:**
 
 | Tier | Source | Records | FOREIGNER_STATUS |
 |:----:|--------|--------:|------------------|
-| 1a | REAL_FOREIGNERS.csv (known nationality) | 32,402 | Verified Foreigner |
-| 1b | REAL_FOREIGNERS.csv (ambiguous nationality) | 99 | Verified Foreigner |
+| 1 | REAL_FOREIGNERS.csv (known nationality) | 32,345 | Verified Foreigner |
+| 1b | REAL_FOREIGNERS.csv (ambiguous → "Foreign (unspecified)") | 156 | Verified Foreigner |
 | 2 | Pseudo-citizenship (FOREIGN override) | 13 | Likely Foreigner |
 | 3 | Default Filipino | 146,413 | Filipino |
 
-**Key design:** Nationality canonicalization (129 raw values → 96 canonical). Cross-validation against 6 dimensions confirmed 100% key/name/year/score match.
+**Output:** `NMAT_Exodus.parquet.bak` — a wide (118-column) intermediate. This is **not** the
+shipped file.
 
-**Output:** `NMAT_Exodus.parquet` (final dataset)
+### Pipeline 5: Slim Exodus (`5_Slim_Exodus.py`) — new
 
-### Final Slimming: Exodus Lite
+Reads `NMAT_Exodus.parquet.bak`, selects/renames/coerces to the 53-column shipped schema, and
+writes the canonical `dataset/NMAT_Exodus.parquet` plus byte-identical copies into both live
+dashboard folders. Before this script existed, the shipped file's column selection had **no
+generating code at all** — it was hand-picked once and described only in prose. This script makes
+that step explicit, deterministic, and self-verifying: it asserts structural invariants (row/col
+counts, one best-record per person, dropped columns actually absent) and warns — without
+blocking — on drift in reference headline numbers, recording both in
+`dataset/EXODUS_MANIFEST.json`.
 
-After column usage audit of both `dashboard.py` and `data_aggregator/`, **64 unused columns were removed**:
-- CEM standard scores (8 cols), verification pipeline fields (12 cols), medical school choices (3 cols), personal info (8 cols), raw application fields (8 cols), college raw fields (8 cols), etc.
-
-**Result:** 118 → 54 columns, 27.9 MB → 10.5 MB (**62.4% smaller**)
+**Result:** 118 → 53 columns, 3 byte-identical copies, md5 `28b85ac53af13b4a2ef3ee93527c97c1`.
 
 ---
 
@@ -169,18 +174,29 @@ pip install -r requirements.txt
 
 ### 3. Data Files
 
-All data files go in `dataset/`. The final analytic file is `NMAT_Exodus.parquet` (54 columns). A full 118-column backup is at `NMAT_Exodus.parquet.bak`.
+All data files go in `dataset/`. The final analytic file is `NMAT_Exodus.parquet` (53 columns).
+The only full-column backup is `NMAT_Exodus.parquet.bak` (118 columns) — deliberately retained as
+the sole full-width audit trail; do not delete it. See `dataset/DATASET_MANIFEST.md` for the
+complete file-by-file classification (live input / regenerated / stale / dead) if you need to know
+whether a specific file in `dataset/` is safe to touch.
 
 ---
 
 ## Running the Pipeline
 
-### Option A: Quick Start (Skip Pipeline — Use Existing Exodus)
+### Option A: Quick Start (Skip Pipeline — Use an Existing Dashboard)
 
 ```bash
+cd streamlit_dashboard/main_dashboard
 streamlit run dashboard.py
 ```
-This reads directly from `dataset/NMAT_Exodus.parquet`. No pipeline re-run needed.
+or
+```bash
+cd streamlit_dashboard/CHED_relevant_dashboard
+streamlit run dashboard.py
+```
+Both read directly from their own copy of `dataset/NMAT_Exodus.parquet` (byte-identical to the
+canonical one). No pipeline re-run needed.
 
 ### Option B: One-Click Dependency Install
 
@@ -190,76 +206,101 @@ This reads directly from `dataset/NMAT_Exodus.parquet`. No pipeline re-run neede
 jupyter notebook 00_RUN_ME.ipynb
 ```
 
-It runs `pip install` for all pipeline dependencies (pandas, numpy, pyarrow, scipy, plotly, streamlit, etc.). Run this first if setting up from scratch. If you already installed via `requirements.txt`, you can skip it.
+Run this first if setting up from scratch. If you already installed via `requirements.txt`, you can skip it.
 
-### Option C: Re-run Individual Pipelines
+### Option C: Re-run the Full Pipeline Chain (1→2→3→4→5)
 
 ```bash
-# Pipeline 4 (fastest — citizenship enrichment only)
-.venv\Scripts\python.exe 4_Citizenship_Integration.py
-
-# Pipeline 1–3 in order
+# Pipelines 1–3 (notebooks)
 jupyter notebook 1_Data_Cleaning_Pipeline.ipynb
 jupyter notebook 2_PLE_Matching_Pipeline.ipynb
-jupyter notebook 3_NMAT_PLE_Analysis.ipynb
+jupyter notebook 3_NMAT_PLE_Analysis.ipynb    # analysis-only, not required for the dashboards
+
+# Pipeline 4 (citizenship enrichment)
+.venv\Scripts\python.exe 4_Citizenship_Integration.py
+
+# Pipeline 5 (slim to the shipped 53-column schema; writes both dashboard copies + manifest)
+.venv\Scripts\python.exe 5_Slim_Exodus.py
 ```
+Pipeline 5 must run after Pipeline 4 and before the dashboards will see updated data — it is the
+step that actually produces `dataset/NMAT_Exodus.parquet`.
 
 ### Option D: Run Data Aggregator (Generate Static Reports)
 
 ```bash
-cd data_aggregator
-.venv\Scripts\python.exe run_all.py
+.venv\Scripts\python.exe data_aggregator/run_all.py
 ```
+Runs from the repo root or from inside `data_aggregator/` — both resolve paths relative to the
+script, not the working directory. Produces 13 markdown reports in `data_aggregator/page_results/`
+(13/13 expected).
 
-This runs all 13 page scripts and produces markdown reports in `data_aggregator/page_results/`.
+### Verify
+
+```bash
+.venv\Scripts\python.exe -m pytest tests/ -q
+```
+36 passed is the expected, current state.
 
 ---
 
 ## Dashboards
 
-### Streamlit Dashboard (`dashboard.py`)
+**Two live dashboards** consume `NMAT_Exodus.parquet` directly:
+
+### Main Dashboard (`streamlit_dashboard/main_dashboard/dashboard.py`)
 
 ```bash
+cd streamlit_dashboard/main_dashboard
 streamlit run dashboard.py
 ```
 
-**12 pages:** Executive Summary, Data Integrity, Trends & Stability, Score Bins & Background, University Type, Flow & Pathways, PLE Alignment, Repeat Takers, Subtests & Profiles, Year Gap & Gender, Statistical Tests, Policy Tables & Export.
+**12 pages:** Executive Summary, Data Integrity, Trends & Stability, Score Bins & Background,
+University Type, Flow & Pathways, PLE Alignment, Repeat Takers, Subtests & Profiles, Year Gap &
+Gender, Statistical Tests, Policy Tables & Export.
 
-**Features:**
-- Sidebar filters: Year, University Type, Course Group, Sex, PLE Status
-- Interactive Plotly charts with hover tooltips
-- Download buttons for underlying CSV data
-- Citizenship section using `CITIZENSHIP_FINAL` and `FOREIGNER_STATUS` columns
+**Features:** sidebar filters (Year, University Type, Course Group, Sex, PLE Status), interactive
+Plotly charts, CSV download buttons, citizenship section using `CITIZENSHIP_FINAL` /
+`FOREIGNER_STATUS`.
 
-### R Shiny Dashboard (`RShiny_Dashboard/NMAT_Shiny/app.R`)
+### CHED-Relevant Dashboard (`streamlit_dashboard/CHED_relevant_dashboard/dashboard.py`)
 
-Same 12 pages, built in R Shiny. Requires R with `shiny`, `shinydashboard`, `arrow`, `plotly`, `dplyr`.
-
-```r
-# In RStudio or R console
-setwd("RShiny_Dashboard/NMAT_Shiny")
-shiny::runApp("app.R")
+```bash
+cd streamlit_dashboard/CHED_relevant_dashboard
+streamlit run dashboard.py
 ```
 
-### R Markdown Dashboard (`NMAT_Dashboard_v2.Rmd`)
+A focused variant built around the CMO §IV.B.1 cut-off question (30th vs 40th percentile),
+including the below-40th-percentile linkage finding described in `docs/pipeline_architecture.md` §7.
 
-Static HTML report version. Knit in RStudio.
+### Data Aggregator (`data_aggregator/`)
+
+Not interactive — generates the same analyses as static markdown, one file per dashboard page, for
+archiving or email distribution. See "Option D" above.
+
+### Legacy — not maintained
+
+`RShiny_Dashboard/NMAT_Shiny/app.R`, `RShiny_Dashboard/NMAT_Shiny/NMAT_Dashboard_v2.Rmd`,
+`reports/`, and the root `dashboard.py` / `dashboard.py.bak` are **retained for reference only**.
+They predate the schema/matcher remediation described in `docs/pipeline_architecture.md` and have
+not been updated against the current 53-column schema or the corrected PLE matcher. Do not run
+them expecting current numbers, and do not treat them as a maintained parity target for new
+dashboard work.
 
 ---
 
-## Key Decisions & Issues Faced
+## Key Decisions & Corrections
 
-| Decision | Problem | Solution |
-|----------|---------|----------|
-| **Deterministic over fuzzy matching** | Fuzzy PLE matching produced false positives at common Filipino surnames and was not auditable | Removed all `rapidfuzz` matching. Replaced with 3-stage deterministic AppNo matching only |
-| **TRUE raw score recalculation** | 42.2% of stored raw score totals in CEM data were incorrect | Recalculated `TotalRawScoreTRUE` by summing 8 component scores |
-| **4-pipeline separation** | Modifying earlier pipelines could break downstream consumers | Added Pipeline 4 as a final enrichment step |
-| **REAL_FOREIGNERS.csv integration** | Original Pipeline 4 omitted 32,501 ground-truth citizenship records | Rewrote Pipeline 4 with proper 3-tier hierarchy |
-| **Observable cohort** | Recent NMAT cohorts (2015+) haven't had time to take PLE → falsely depresses rates | All PLE analyses restricted to Year <= 2014 |
-| **Best-record deduplication** | 25% of examinees took NMAT 2+ times, violating independence assumptions | `IS_BEST_NMAT_RECORD` flag selects one record per person |
-| **Column slimming** | 118 columns, only 54 used by consumers | Removed 64 unused columns, reduced file size 62.4% |
-| **Emoji corruption** | Character-sanitization script replaced emojis in tab labels with "?" | Restored emoji icons from git history |
-| **Streamlit cache** | Dashboard served stale data from old parquet after migration | Added cache bust version key, updated data path |
+| Decision / correction | Detail |
+|----------|---------|
+| **Deterministic-only PLE matching** | No fuzzy/`rapidfuzz` matching in Pipeline 2 (university-name matching in Pipeline 1 still uses it — see `docs/pipeline_architecture.md`). |
+| **No score-based identity resolution** | A hard percentile-floor step in the PLE disambiguator (RC-0) was found to be suppressing matches for exactly the below-40th-percentile population under study, and was removed. See `docs/pipeline_architecture.md` §7. |
+| **TRUE raw score recalculation** | Stored raw score totals disagree with the recalculated total in 56.45% of the 99,316 records that carry a stored total (**not** "42.2%" — that figure used the wrong denominator and is superseded). |
+| **5-pipeline chain** | Pipeline 5 (`5_Slim_Exodus.py`) is new — it gives the previously code-less 118→53 column slim an explicit, asserted, reproducible implementation. |
+| **`REAL_FOREIGNERS.csv` integration** | Pipeline 4 implements a 3-tier citizenship hierarchy with `REAL_FOREIGNERS.csv` as ground truth. |
+| **Observable cohort, done correctly** | Use `IS_BEST_OBSERVABLE_RECORD` (69,503 people), never `IS_BEST_NMAT_RECORD & (Year <= 2014)` (65,782 — silently drops 3,721 people). |
+| **Best-record deduplication, unified rule** | `IS_BEST_NMAT_RECORD` now applies one selection rule to every person (highest percentile → latest year → lowest AppNo), not a different rule for PLE passers than for everyone else. |
+| **`UNDERGRAD_*` renames** | `UNIVERSITY`/`UNI_TYPE`/`UNI_LOCATION`/`CourseGroup` renamed to make explicit that this data describes the applicant's undergraduate degree — there is no medical-school identifier anywhere in the dataset. |
+| **Column slimming** | 118 → 53 columns in the shipped file (see `docs/data_dictionary.md` for the exact removed/renamed/added list). |
 
 ---
 
@@ -267,29 +308,37 @@ Static HTML report version. Knit in RStudio.
 
 ```
 dataset/
-└── NMAT_Exodus.parquet           # Final dataset (54 cols, 10.5 MB)
-└── NMAT_Exodus.parquet.bak       # Full column backup (118 cols, 27.9 MB)
+├── NMAT_Exodus.parquet             # Final dataset (53 cols), + 2 byte-identical copies in the dashboard folders
+├── NMAT_Exodus.parquet.bak         # Full 118-column audit-trail backup — the only one; do not delete
+├── EXODUS_MANIFEST.json            # Written by 5_Slim_Exodus.py: row/col counts, md5, column list, reference-count deltas
+└── DATASET_MANIFEST.md             # File-by-file classification of everything in dataset/
 
-pipeline_architecture.md          # Full pipeline documentation with Mermaid charts
-data_dictionary.md                # Comprehensive data dictionary (54 columns)
+docs/
+├── pipeline_architecture.md        # Full 5-pipeline documentation with Mermaid charts
+└── data_dictionary.md              # Comprehensive 53-column data dictionary
 
 data_aggregator/
-├── aggregate_all.py              # Master aggregator script
-├── run_all.py                    # Entry point
-├── page_01_*.py through page_13_*.py  # 13 analysis page scripts
-└── page_results/                 # Generated markdown reports
+├── aggregate_all.py                # Concatenates the 13 page outputs into 00_MASTER_REPORT.md
+├── run_all.py                      # Entry point — runs all 13 pages
+├── page_01_*.py through page_13_*.py
+└── page_results/                   # Generated markdown reports
 
-RShiny_Dashboard/NMAT_Shiny/
-├── app.R                         # R Shiny dashboard (~2,190 lines)
-├── NMAT_Dashboard_v2.Rmd         # R Markdown dashboard
-└── setup.R                       # R package installer
+streamlit_dashboard/
+├── main_dashboard/dashboard.py             # Live
+└── CHED_relevant_dashboard/dashboard.py    # Live
+
+tests/
+└── test_data_invariants.py         # pytest, 36 passed expected; asserts the schema contract
+
+RShiny_Dashboard/, reports/, dashboard.py   # Legacy, not maintained — see "Dashboards" above
 ```
 
 ---
 
 ## Data Dictionary
 
-See `data_dictionary.md` for the complete 54-column dictionary with pipeline context, interpretation snippets, and version history.
+See `docs/data_dictionary.md` for the complete 53-column dictionary with descriptions, verified
+value counts, and the removed/renamed/added column list versus the pre-remediation 54-column file.
 
 ---
 
@@ -318,4 +367,5 @@ This analysis is for descriptive and research purposes. It is not a substitute f
 
 ---
 
-*Generated from the 4-pipeline NMAT Analysis system. Full architecture documented in `pipeline_architecture.md`.*
+*Describes the 5-pipeline NMAT Analysis system as of the 2026-08 remediation. Full architecture
+documented in `docs/pipeline_architecture.md`.*

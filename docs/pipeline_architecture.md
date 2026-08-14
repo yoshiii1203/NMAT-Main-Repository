@@ -2,9 +2,15 @@
 
 ## End-to-End Data Transformation Documentation
 
-**Last updated:** 2026-07-27  
-**Final output:** `dataset/NMAT_Exodus.parquet` (54 columns, 10.5 MB)  
-**Total examinees:** 178,927 rows covering NMAT 2006–2018
+**Last updated:** 2026-08-14 (post-remediation rewrite)
+**Final output:** `dataset/NMAT_Exodus.parquet` (53 columns, 178,927 rows, md5 `28b85ac53af13b4a2ef3ee93527c97c1`)
+**Total examinees:** 178,927 exam sittings, 134,869 unique people, covering NMAT 2006-2018
+
+This document replaces an earlier version that described a 4-pipeline, 54-column system. That
+description no longer matches the code or the shipped file: the chain is **5 pipelines**, the
+shipped file is **53 columns**, and two of the pipeline's own defects — not merely documentation
+errors — were found and fixed during a 2026-07/08 remediation pass. This document describes the
+system as it exists now, and calls out what changed and why.
 
 ---
 
@@ -15,8 +21,9 @@
 3. [Pipeline 2: PLE Matching](#3-pipeline-2-ple-matching)
 4. [Pipeline 3: Statistical Analysis](#4-pipeline-3-statistical-analysis)
 5. [Pipeline 4: Citizenship Integration](#5-pipeline-4-citizenship-integration)
-6. [Final Dataset: NMAT_Exodus.parquet](#6-final-dataset-nmat_exodusparquet)
-7. [Key Decisions & Issues Faced](#7-key-decisions--issues-faced)
+6. [Pipeline 5: Slim Exodus](#6-pipeline-5-slim-exodus)
+7. [The Two Defects That Mattered Most](#7-the-two-defects-that-mattered-most)
+8. [Key Decisions & Corrections](#8-key-decisions--corrections)
 
 ---
 
@@ -25,295 +32,210 @@
 ```mermaid
 flowchart TB
     subgraph INPUTS["Raw Data Sources"]
-        A1["NMAT_CLEANED_DATA.csv<br/>178,927 rows x 29 cols"]
-        A2["CEM_DATA.csv<br/>254,308 rows x 36 cols"]
-        A3["UNIVS.csv<br/>3,022 rows x 8 cols"]
-        A4["PLE_DATA.csv<br/>43,630 rows"]
-        A5["REAL_FOREIGNERS.csv<br/>32,501 rows x 29 cols"]
-        A6["pseudo_citizenship_profiling_FINAL.csv<br/>871 rows x 13 cols"]
+        A1["NMAT_CLEANED_DATA.csv<br/>178,927 rows"]
+        A2["CEM_DATA.csv"]
+        A3["UNIVS.csv<br/>university reference"]
+        A4["PLE_DATA.csv / PLE_UNMATCHED.csv"]
+        A5["REAL_FOREIGNERS.csv<br/>32,501 rows"]
+        A6["pseudo_citizenship_profiling_FINAL.csv<br/>871 rows"]
     end
 
     subgraph P1["Pipeline 1: Data Cleaning"]
-        direction TB
-        B1["Clean & Standardize<br/>Application Numbers"]
-        B2["University Name<br/>Normalization via UNIVS"]
-        B3["TRUE Raw Score<br/>Recalculation<br/>(8 component subtests)"]
-        B4["PercentileDecile<br/>Binning (D1-D10)"]
-        B5["Course Group<br/>Classification"]
-        B1 --> B2 --> B3 --> B4 --> B5
+        B1["Clean AppNo"] --> B2["University normalization<br/>(4-tier, incl. rapidfuzz)"] --> B3["TRUE raw score<br/>recalculation"] --> B4["PercentileBin<br/>B1-B10"] --> B5["Course Group"]
     end
 
     subgraph P2["Pipeline 2: PLE Matching"]
-        direction TB
-        C1["Stage 0: Manual AppNo Recovery<br/>from PLE_UNMATCHED.csv"]
-        C2["Stage 1: Exact Name Match<br/>via NAME_NORM dictionary"]
-        C3["Stage 2: Deterministic AppNo<br/>from PLE_STILL_UNMATCHED.csv"]
-        C4["Disambiguator:<br/>Year gap + DOB + Latest Year<br/>+ Percentile Floor + Tiebreak"]
-        C1 --> C4
-        C2 --> C4
-        C3 --> C4
+        C1["3-stage deterministic<br/>match cascade"] --> C4["disambiguate():<br/>year-gap -> DOB/sex -> latest year<br/>NO score-based step"]
     end
 
     subgraph P3["Pipeline 3: Statistical Analysis"]
-        D1["Yearly Trends &<br/>Stability (Kruskal-Wallis)"]
-        D2["Demographic Comparisons<br/>(Uni Type, Course, Gender)"]
-        D3["PLE Alignment Analysis<br/>(Mann-Whitney U)"]
-        D4["Repeat Taker Patterns"]
-        D5["Subtest Profiles"]
-        D6["50+ CSV/PNG outputs<br/>in analysis_output/"]
-        D1 --> D6
-        D2 --> D6
-        D3 --> D6
-        D4 --> D6
-        D5 --> D6
+        D1["13 analysis sections<br/>-> dataset/analysis_output/"]
     end
 
     subgraph P4["Pipeline 4: Citizenship Integration"]
-        direction TB
-        E1["Tier 1: REAL_FOREIGNERS.csv<br/>32,501 ground-truth records"]
-        E2["Tier 2: Pseudo-Citizenship<br/>317 FOREIGN override records"]
-        E3["Tier 3: Default Filipino<br/>146,413 remaining records"]
-        E1 --> E4["3-Tier Hierarchy<br/>Resolution"]
-        E2 --> E4
-        E3 --> E4
+        E1["3-tier hierarchy:<br/>REAL_FOREIGNERS -> pseudo -> default Filipino"]
     end
 
-    subgraph OUTPUT["Final Outputs"]
-        F1["NMAT_Exodus.parquet<br/>178,927 rows x 54 cols<br/>10.5 MB"]
-        F2["NMAT_Exodus.parquet.bak<br/>Full 118-col backup<br/>27.9 MB"]
-        F3["dashboard.py / app.R<br/>Streamlit + R Shiny<br/>Consume Exodus directly"]
+    subgraph P5["Pipeline 5: Slim Exodus (NEW)"]
+        F1["Select/rename/coerce to the<br/>53-col contract schema<br/>+ structural & reference assertions"]
     end
 
     A1 & A2 & A3 --> P1
-    P1 --> B6["NMAT_FINAL.parquet<br/>178,927 x 101 cols"]
-    B6 & A4 --> P2
-    P2 --> C5["NMAT_Ultima.parquet<br/>178,927 x 115 cols"]
-    C5 --> P3
-    C5 & A5 & A6 --> P4
-    P4 --> F1
-    F1 --> F3
-    F1 -.->|Backup| F2
+    P1 --> M1["NMAT_FINAL.csv<br/>178,927 x 101"]
+    M1 & A4 --> P2
+    P2 --> M2["NMAT_Ultima.parquet<br/>178,927 x 119"]
+    M2 --> P3
+    M2 & A5 & A6 --> P4
+    P4 --> M3["NMAT_Exodus.parquet.bak<br/>178,927 x 118"]
+    M3 --> P5
+    P5 --> FINAL["NMAT_Exodus.parquet<br/>178,927 x 53<br/>+ 2 byte-identical dashboard copies"]
 ```
 
-**Total columns over time:**
-| Stage | File | Columns | Size |
-|-------|------|--------:|-----:|
-| Raw NMAT input | NMAT_CLEANED_DATA.csv | 29 | ~50 MB |
-| After Pipeline 1 | NMAT_FINAL.parquet | 101 | ~25 MB |
-| After Pipeline 2 | NMAT_Ultima.parquet | 115 | ~28 MB |
-| After Pipeline 4 | NMAT_Exodus.parquet | **54** | **10.5 MB** |
+Pipeline 3 (statistical analysis) reads Pipeline 2's output directly and writes its own
+`analysis_output/` artifacts; it is **not** on the path that produces the shipped Exodus file —
+Pipelines 4 and 5 branch off Pipeline 2's output independently.
+
+**Column counts over the chain:**
+
+| Stage | File | Columns |
+|-------|------|--------:|
+| Raw NMAT input | `NMAT_CLEANED_DATA.csv` | 29 |
+| After Pipeline 1 | `NMAT_FINAL.csv` | 101 |
+| After Pipeline 2 | `NMAT_Ultima.parquet` | 119 |
+| After Pipeline 4 | `NMAT_Exodus.parquet.bak` | 118 |
+| After Pipeline 5 | **`NMAT_Exodus.parquet`** | **53** |
+
+Pipeline 1 also writes a `dataset/output/NMAT_FINAL.parquet` twin; it has no reader anywhere in
+the repo (Pipeline 2 opens the `.csv`) and was removed in the 2026-08 dataset-hygiene cleanup — do
+not expect it on disk.
 
 ---
 
 ## 2. Pipeline 1: Data Cleaning & Score Recalibration
 
-**File:** `1_Data_Cleaning_Pipeline.ipynb`  
-**Status:** ✅ Working
+**File:** `1_Data_Cleaning_Pipeline.ipynb`
 
 ### Inputs
 
 | File | Rows | Description |
 |------|-----:|-------------|
 | `NMAT_CLEANED_DATA.csv` | 178,927 | Raw NMAT registration & score data |
-| `CEM_DATA.csv` | 254,308 | Component-level score records from CEM (testing center) |
-| `UNIVS.csv` | 3,022 | University reference table (canonical names, types, locations) |
+| `CEM_DATA.csv` | 254,308 | Component-level score records from the Center for Educational Measurement |
+| `UNIVS.csv` | ~3,022 | University reference table |
 
-```mermaid
-flowchart LR
-    subgraph I1["Inputs"]
-        N["NMAT_CLEANED_DATA.csv"]
-        C["CEM_DATA.csv"]
-        U["UNIVS.csv"]
-    end
+### Key transformations
 
-    subgraph T1["Key Transformations"]
-        A["Clean & Standardize<br/>Application Numbers<br/>- Digits-only join keys<br/>- Column name normalization"]
-        B["University Name<br/>Normalization<br/>- 4-tier matching cascade<br/>- 2,981 verified (68.3%)<br/>- 1,386 unmatched (31.7%)"]
-        C1["TRUE Raw Score<br/>Recalculation<br/>- Sum of 8 component scores<br/>- Stored totals wrong in 42.2%"]
-        D["PercentileDecile<br/>Binning<br/>- pd.cut(NMS_PER, 0-100)<br/>- D1=0-10 through D10=90-100"]
-        E["Course Group<br/>Classification<br/>- Keyword matching on course name<br/>- 6 groups including Medical & Allied"]
-    end
-
-    I1 --> A --> B --> C1 --> D --> E
-    E --> O["NMAT_FINAL.parquet<br/>178,927 x 101 cols"]
-```
-
-### The Score Corruption Problem (42.2% mismatch)
-
-The CEM data contained two raw score totals:
-- **`STU_RSCORE`** (Stored Total): Wrong in **107,422 of 254,308 rows (42.2%)**
-- **`STU_RSCORE_CALC`** (Calculated Total): **Always correct** (0 mismatches)
-
-**Root cause:** The stored totals appear to come from a legacy computation or data entry error. The individual component scores (CA01–CA08) are reliable, so the pipeline recomputes `TotalRawScoreTRUE` by summing the 8 components anew. Both the wrong stored total and the TRUE derived total are preserved in the output for downstream auditing.
-
-### University Normalization (4-Tier Matching Cascade)
-
-UNIVS.csv is the **sole source of truth** for university classification — no APIs, no web search.
-
-| Tier | Method | Matched | Cumulative |
-|:----:|--------|--------:|:----------:|
-| 1 | Exact primary key match (`NMA_College_norm`) | 2,674 | 61.2% |
-| 2 | Exact secondary key match (`COLLEGE_UNIV_norm`) | 72 | 62.9% |
-| 3 | Fuzzy match (rapidfuzz, score >= 88, gap >= 5) | 235 | 68.3% |
-| 4 | Unmatched → retains original, "Not Specified" | 1,386 | 100.0% |
+- **Application-number cleaning** to `APPNO_CLEAN` (the join key used by every later pipeline).
+- **University name normalization**, a 4-tier cascade against `UNIVS.csv` (exact primary key,
+  exact secondary key, `rapidfuzz` fuzzy match at score >= 88, else unmatched/"Not Specified").
+  2,981 of 4,367 raw college strings matched (68.3%); 235 of those matches came from the fuzzy
+  tier. This is the **only** fuzzy matching anywhere in the project — Pipeline 2's PLE matching
+  is deterministic-only (see below), and this document should not be read as implying otherwise.
+- **TRUE raw score recalculation.** The CEM data carries two raw-score totals: `STU_RSCORE`
+  (stored) and `STU_RSCORE_CALC` (calculated). The stored total disagrees with the recalculated
+  total (`TotalRawScoreTRUE`, the sum of 8 component subscores) in **56,065 of the 99,316 rows
+  that have a stored total at all — 56.45%** (31.33% of all 178,927 rows). **The figure "42.2%"
+  that appears throughout older project documentation is wrong**: it divided the mismatch count by
+  an examinee-level denominator rather than by 99,316, the population that actually has a stored
+  total to compare against. (56,065 / 133,558 gives 42.0%, near but not equal to the published
+  42.2%, so the exact original denominator is a reconstruction; what is certain is that it was
+  not 99,316.) If you have seen
+  "42.2%" cited elsewhere in this project's history, it has been superseded — use 56.45% (of
+  rows with a stored total) or 31.33% (of all rows), and always name the denominator.
+- **`PercentileBin`** created via `pd.cut()`, labels `B1`-`B10`, left-closed intervals. **`B1` is
+  the lowest decile, `B10` the highest** — confirmed monotonic against mean raw score.
+- **Course group classification** into 6 categories via keyword matching.
 
 ### Output
 
-| File | Rows | Cols | Notes |
-|------|-----:|-----:|-------|
-| `NMAT_FINAL.csv` | 178,927 | 101 | Full merged dataset (CSV) |
-| `output/NMAT_FINAL.parquet` | 178,927 | 101 | Parquet equivalent |
-| `DsPy_verified.csv` | 4,367 | 20 | University verification dimension |
-| `output/00_source_counts.csv` through `14_qa_*.csv` | ~15 files | — | Audit trail |
-
-**Key new columns created:**
-- `TotalRawScoreTRUE`, `PartIRawScoreTRUE`, `PartIIRawScoreTRUE`
-- `PercentileDecile` (D1–D10)
-- `CourseGroup` (6 categories)
-- `UNIVERSITY`, `UNI_TYPE`, `UNI_LOCATION` (from UNIVS)
-- `StoredVsDerivedMismatch`, `CalcVsDerivedMismatch`
+`NMAT_FINAL.csv`, 178,927 rows x 101 columns — the file Pipeline 2 actually reads. (A
+`dataset/output/NMAT_FINAL.parquet` twin used to exist; it had zero readers anywhere in the repo
+and was removed in dataset cleanup — do not document it as a live output.)
 
 ---
 
 ## 3. Pipeline 2: PLE Matching
 
-**File:** `2_PLE_Matching_Pipeline.ipynb`  
-**Status:** ✅ Working (after DE-FUZZY refactor)
+**File:** `2_PLE_Matching_Pipeline.ipynb`
 
 ### Inputs
 
-| File | Rows | Description |
-|------|-----:|-------------|
-| `NMAT_FINAL.csv` | 178,927 | Cleaned NMAT data from Pipeline 1 |
-| `PLE_DATA.csv` | 43,630 | PLE passer records (2011–2022) |
-| `PLE_UNMATCHED.csv` | 6,600 | PLE records without NMAT match |
-| `PLE_STILL_UNMATCHED.csv` | 7,207 | Second-round residual unmatched |
+| File | Description |
+|------|-------------|
+| `NMAT_FINAL.csv` | Cleaned NMAT data from Pipeline 1 |
+| `PLE_DATA.csv` | PLE passer records |
+| `PLE_UNMATCHED.csv`, `PLE_STILL_UNMATCHED.csv` | Residual unmatched PLE records for the AppNo-based stages |
 
-### The DE-FUZZY Refactor
+### Deterministic-only matching
 
-**Why fuzzy matching was removed:**
+No fuzzy/`rapidfuzz` matching anywhere in this pipeline (that refactor predates this document and
+remains true). A 3-stage cascade — Stage 0 manual AppNo recovery, Stage 1 exact name match, Stage
+2 deterministic AppNo — produces every candidate match. When a name resolves to more than one
+NMAT candidate, `disambiguate()` (cell 6) decides which one, if any, is accepted.
 
-1. **False positives at common names.** Filipino surnames concentrate in narrow lexical bands; "DELA CRUZ, JUAN" could match dozens of candidates.
-2. **Auditability.** Fuzzy outcomes were not reproducible across `rapidfuzz` versions and could not be traced to a source document.
-
-**What changed:**
-- `rapidfuzz` dependency removed entirely
-- 3 fuzzy-matching cells deleted, replaced with deterministic AppNo matching
-- Binary statuses only: `"Confirmed PLE passer"` / `"No confirmed PLE match"`
-- `AMBIGUOUS` category abolished
+### `disambiguate()` — the current, corrected logic
 
 ```mermaid
 flowchart TB
-    subgraph PLE_MATCH["3-Stage Deterministic Matching"]
-        direction TB
-        S0["Stage 0: Manual AppNo Recovery<br/>from PLE_UNMATCHED.csv<br/>2,331 FINAL_MATCH"]
-        S1["Stage 1: Exact Name Match<br/>via NAME_NORM dictionary<br/>33,970 FINAL_MATCH"]
-        S2["Stage 2: Deterministic AppNo<br/>from PLE_STILL_UNMATCHED.csv<br/>321 FINAL_MATCH"]
-        
-        subgraph DISAMBIG["5-Step Disambiguator<br/>(when multiple candidates)"]
-            DS1["1. Year-gap filter:<br/>PLE_YEAR - NMAT_YEAR >= 5"]
-            DS2["2. Identity filter:<br/>DOB + Sex match"]
-            DS3["3. Latest NMAT year:<br/>keep most recent"]
-            DS4["4. Percentile floor:<br/>NMS_PER_num >= 40"]
-            DS5["5. Tiebreak:<br/>highest percentile wins<br/>(gap >= 5 pts = FINAL_MATCH)"]
-            DS1 --> DS2 --> DS3 --> DS4 --> DS5
-        end
-        
-        S0 --> MASTER["Master Combine<br/>& Deduplication"]
-        S1 --> MASTER
-        S2 --> MASTER
-        S1 -.->|Multiple candidates| DISAMBIG
-        DISAMBIG --> MASTER
-    end
-
-    MASTER --> O1["PLE_MATCH_MASTER.csv<br/>43,601 match records"]
-    MASTER --> O2["NMAT_Ultima.parquet<br/>178,927 x 115 cols"]
-    MASTER --> O3["PLE_PASSERS_IN_NMAT.csv<br/>36,305 best-record passers"]
-    MASTER --> O4["PLE_STILL_UNMATCHED_v2.csv<br/>6,433 residuals"]
+    S0["Multiple NMAT candidates<br/>for one PLE name"] --> S1["1. Year-gap filter<br/>PLE_YEAR - NMAT_YEAR >= 5"]
+    S1 --> S2["2. Identity filter<br/>DOB + Sex match"]
+    S2 --> S3["3. Latest NMAT year<br/>keep most recent"]
+    S3 --> DECIDE{"How many candidates<br/>survive?"}
+    DECIDE -->|"exactly 1"| ACCEPT["Accept: FINAL_MATCH"]
+    DECIDE -->|"2+"| REJECT["Reject: AMBIGUOUS_NAME_COLLISION<br/>PLE_MATCH_OUTCOME = rejected_ambiguous_person<br/>NO score-based tie-break, no coin flip"]
 ```
 
-### Match Results
+Steps 1-3 are identity evidence; there is **no fourth or fifth step that decides on score**. This
+is a deliberate, hard-won property of the current pipeline — see §7 below for what used to be
+there and why it mattered.
 
-| Status | Count | % of PLE records |
-|--------|------:|:----------------:|
-| **FINAL_MATCH** (accepted) | **36,395** | **83.4%** |
-| AMBIGUOUS (manual review) | 772 | 1.8% |
-| NO_VALID_MATCH (failed checks) | 2,298 | 5.3% |
-| UNMATCHED_NO_APPNO | 4,135 | 9.5% |
+**Funnel over the 13,895 name-collision groups that reach `disambiguate()`:**
 
-### Observable Cohort
+```
+13,895 groups entering disambiguate()
+    1 rejected at Step 1 (all candidates fail the year-gap check)
+10,316 resolved to exactly one candidate by Steps 1-3
+ 3,578 still have 2+ survivors -> AMBIGUOUS_NAME_COLLISION, rejected
+```
 
-The **observable cohort** (`Year <= 2014`) ensures that PLE linkage analyses are fair:
-- NMAT 2006 → 16-year window to observe PLE outcome
-- NMAT 2014 → 8-year window (most have taken boards)
-- NMAT 2015+ → insufficient observation window → right-censoring bias
+Single exact-name matches (the majority of matches) never enter `disambiguate()` at all — they
+receive only the year-gap check.
 
-**Cohort sizes:** 64,501 best-observable rows, 29,269 confirmed PLE passers.
+### Match results (current, post-fix)
+
+| Status | Rows |
+|--------|-----:|
+| `IS_PLE_PASSER == True` (accepted) | **49,086** |
+| `rejected_ambiguous_person` (2+ survivors, no accept) | 8,216 |
+| `no_match` (no candidate at all) | 121,623 |
+| `rejected` | 2 |
+
+`PLE_MATCH_METHOD` breakdown among accepted+near-accepted rows: `EXACT` 54,437,
+`MANUAL_APPNO_MATCH` 2,775, `DETERMINISTIC_APPNO` 92.
+
+### Observable cohort
+
+`IS_OBSERVABLE_COHORT` = `Year <= 2014` — enough elapsed time for a plausible PLE attempt. Do not
+confuse this row-level flag with the person-level cohort; see `IS_BEST_OBSERVABLE_RECORD` in
+`data_dictionary.md` and §7 below.
+
+**Cohort sizes (current, post-fix):** 69,503 people in the observable cohort
+(`IS_BEST_OBSERVABLE_RECORD`), 45.44% observable linkage rate.
+
+### Output
+
+`NMAT_Ultima.parquet`, 178,927 rows x 119 columns; `PLE_MATCH_MASTER.csv`.
 
 ---
 
 ## 4. Pipeline 3: Statistical Analysis
 
-**File:** `3_NMAT_PLE_Analysis.ipynb`  
-**Status:** ✅ Working
+**File:** `3_NMAT_PLE_Analysis.ipynb`
 
-### Input
+Reads `NMAT_Ultima.parquet` and writes ~95 output files (CSV + PNG) to
+`dataset/analysis_output/` across 13 sections: yearly trends & stability (Kruskal-Wallis), bin
+distributions by background (Chi-square), Sankey flow pathways, PLE alignment (Mann-Whitney U),
+repeat-taker trajectories, subtest profiles, gender analysis, Dunn post-hoc tests, and policy
+summary tables.
 
-| File | Description |
-|------|-------------|
-| `NMAT_Ultima.parquet` | 178,927 rows × 115 columns |
+This pipeline is analysis-only — its outputs are not consumed by the shipped
+`NMAT_Exodus.parquet` and are not part of the data-production chain for the dashboards. It is
+independent of, and unaffected by, Pipelines 4 and 5.
 
-### Key Statistical Tests
+### Best-record filtering
 
-```mermaid
-flowchart LR
-    subgraph ANALYSES["13 Analysis Sections"]
-        T1["Yearly Trends<br/>& Stability"]
-        T2["Bin Distributions<br/>by Year & Background"]
-        T3["University Type<br/>& Location Analysis"]
-        T4["CourseGroup<br/>& College Analysis"]
-        T5["Sankey Flow<br/>Pathways"]
-        T6["PLE Status<br/>Performance Profile"]
-        T7["Repeat Taker<br/>Trajectories"]
-        T8["Subtest Profiles<br/>& Radar Charts"]
-        T9["Gender Analysis"]
-    end
-
-    subgraph STATS["Statistical Tests Used"]
-        S1["Kruskal-Wallis H-test<br/>+ eta-squared effect size<br/>6 applications"]
-        S2["Mann-Whitney U<br/>+ effect size r<br/>2 applications"]
-        S3["Chi-square test<br/>+ Cramer's V<br/>2 applications"]
-        S4["Dunn post-hoc<br/>Bonferroni-adjusted<br/>3 applications"]
-    end
-
-    ANALYSES --> STATS
-    STATS --> OUT["95 output files<br/>59 CSV + 36 PNG<br/>in analysis_output/"]
-```
-
-### Best-Record Filtering
-
-`IS_BEST_NMAT_RECORD` selects exactly one row per person (identified by `PERSON_KEY`):
-- For non-PLE persons: highest percentile, latest year
-- For PLE passers: the **specific NMAT attempt that matched** to the PLE record
-
-**Why:** 25.0% of examinees took NMAT 2+ times (max 9 attempts). Without deduplication, repeat takers violate independence assumptions of statistical tests.
-
-### Output
-
-| Metric | Count |
-|--------|------:|
-| CSV files | 59 |
-| PNG charts | 36 |
-| Total outputs | 95 |
-
-All saved to `dataset/analysis_output/`.
+`IS_BEST_NMAT_RECORD` selects exactly one row per person. As of this remediation it applies **one
+uniform rule to every person** — highest `NMS_PER_num` -> latest `Year` -> lowest `APPNO_CLEAN` —
+rather than an earlier version that used a different rule for PLE passers than for everyone else
+(which silently dropped 1,311 people from every person-level count and double-counted 246 more).
+25% of examinees took NMAT 2+ times (max 9 attempts) and would otherwise violate the independence
+assumptions of the statistical tests used here.
 
 ---
 
 ## 5. Pipeline 4: Citizenship Integration
 
-**File:** `4_Citizenship_Integration.py` (rewritten as `.py`, replaced original `.ipynb`)  
-**Status:** ✅ Working (after rewrite fixing REAL_FOREIGNERS.csv omission)
+**File:** `4_Citizenship_Integration.py`
 
 ### Inputs
 
@@ -323,182 +245,192 @@ All saved to `dataset/analysis_output/`.
 | `REAL_FOREIGNERS.csv` | 32,501 | Ground-truth citizenship records |
 | `pseudo_citizenship_profiling_FINAL.csv` | 871 | Name-based citizenship inference |
 
-### The Problem with the Original Implementation
-
-The original `4_Citizenship_Integration.ipynb` had a critical bug: it **never loaded `REAL_FOREIGNERS.csv`**. Despite the `CITIZENSHIP_REINTEGRATION_PLAN.md` explicitly specifying a 3-tier hierarchy with REAL_FOREIGNERS as Priority 1 ground truth, the code only used:
-1. `NAC_NATIONALITY` from the main parquet (already present for all rows)
-2. `pseudo_citizenship_profiling_FINAL.csv` (871 rows)
-
-This meant ~32,500 verified foreign records were **completely ignored**.
-
-### The 3-Tier Hierarchy (Fixed Implementation)
+### The 3-tier hierarchy
 
 ```mermaid
 flowchart TB
-    START["NMAT Examinee<br/>(APPNO_CLEAN)"] --> TIER1
-    
-    subgraph TIER1["Tier 1: REAL_FOREIGNERS.csv (Ground Truth)"]
-        direction TB
-        RF["32,501 records<br/>with explicit NAC_NATIONALITY"]
-        RF_CHECK{"Found in RF?"}
-        RF --> RF_CHECK
-        RF_CHECK -->|"YES + known nationality"| RF1a["CITIZENSHIP_FINAL = normalized nationality<br/>FOREIGNER_STATUS = 'Verified Foreigner'"]
-        RF_CHECK -->|"YES + ambiguous nationality<br/>(Others/Not Stated)"| RF1b["CITIZENSHIP_FINAL = School Type_rec2_FINAL<br/>FOREIGNER_STATUS = 'Verified Foreigner'"]
-    end
-
-    TIER1 -->|"32,501 matched"| VERIFIED["32,501 Verified Foreigners"]
-    TIER1 -->|"146,426 unmatched"| TIER2
-
-    subgraph TIER2["Tier 2: Pseudo-Citizenship (Inferred)"]
-        PC["871 profiling records<br/>317 FOREIGN overrides"]
-        PC_CHECK{"override_applied == FOREIGN<br/>AND not in Tier 1?"}
-        PC --> PC_CHECK
-        PC_CHECK -->|"YES"| PC2["CITIZENSHIP_FINAL = pseudo_citizenship<br/>FOREIGNER_STATUS = 'Likely Foreigner'"]
-    end
-
-    TIER2 -->|"13 matched"| LIKELY["13 Likely Foreigners"]
-    TIER2 -->|"146,413 unmatched"| TIER3
-
-    subgraph TIER3["Tier 3: Default"]
-        DEF["CITIZENSHIP_FINAL = 'Filipino'<br/>FOREIGNER_STATUS = 'Filipino'"]
-    end
-
-    TIER3 --> FILIPINO["146,413 Filipinos"]
-
-    VERIFIED & LIKELY & FILIPINO --> EXODUS["NMAT_Exodus.parquet<br/>178,927 x 118 cols<br/>(later reduced to 54)"]
+    START["NMAT Examinee"] --> T1{"In REAL_FOREIGNERS.csv?"}
+    T1 -->|"Yes, known nationality"| R1["CITIZENSHIP_FINAL = nationality<br/>FOREIGNER_STATUS = Verified Foreigner"]
+    T1 -->|"Yes, ambiguous"| R2["CITIZENSHIP_FINAL = 'Foreign (unspecified)'<br/>FOREIGNER_STATUS = Verified Foreigner"]
+    T1 -->|"No"| T2{"FOREIGN override in<br/>pseudo-citizenship file?"}
+    T2 -->|"Yes"| R3["CITIZENSHIP_FINAL = inferred nationality<br/>FOREIGNER_STATUS = Likely Foreigner"]
+    T2 -->|"No"| R4["CITIZENSHIP_FINAL = 'Filipino'<br/>FOREIGNER_STATUS = Filipino"]
 ```
 
-### Nationality Normalization
+| Tier | Records | `FOREIGNER_STATUS` |
+|:----:|--------:|---------------------|
+| 1 — REAL_FOREIGNERS (known nationality) | 32,345 | Verified Foreigner |
+| 1b — REAL_FOREIGNERS (ambiguous, labeled `Foreign (unspecified)`) | 156 | Verified Foreigner |
+| 2 — Pseudo-citizenship inference | 13 | Likely Foreigner |
+| 3 — Default | 146,413 | Filipino |
 
-REAL_FOREIGNERS.csv contained **129 unique nationality values** (e.g., "India" vs "Indian", "Nepal" vs "Nepali"). A normalization map was created to canonicalize these to ~96 country names.
-
-**Example normalizations:**
-| Raw | Canonical |
-|-----|-----------|
-| India, Indian | India |
-| Thailand, Thai | Thailand |
-| United States, American | United States |
-| Korea, Korean, R.O.C. | Korea (South) |
-| Vietnemese (typo) | Vietnam |
-| Camerdon (typo) | Cameroon |
-
-### Multicultural Verification
-
-Before building Pipeline 4, a **6-dimension cross-validation** was performed to confirm the join is safe:
-
-| Dimension | Match Rate | Verdict |
-|-----------|:----------:|:--------|
-| AppNo key overlap | **100.0%** | ✅ |
-| Name match | **100.0%** | ✅ |
-| Year match | **100.0%** | ✅ |
-| Percentile score | **100.0%** | ✅ |
-| Nationality | **99.94%** | ✅ |
-| College (format diff) | 89.4% | ✅ (format, not identity) |
+`name_based_assessment`, the free-text field from the pseudo-citizenship file, is dropped by this
+pipeline before writing its output — it was non-null for only 871/178,927 rows (0.5%), was never
+consulted by the tier decision above, and disagreed with the final label in 23 of those 871 rows.
+It never reaches `NMAT_Exodus.parquet`.
 
 ### Output
 
-| Column | Values | Description |
-|--------|--------|-------------|
-| `CITIZENSHIP_FINAL` | 108 unique | Final nationality label |
-| `FOREIGNER_STATUS` | 3 values | "Verified Foreigner" (32,501) / "Likely Foreigner" (13) / "Filipino" (146,413) |
-| `name_based_assessment` | String | Only populated for 871 pseudo-citizenship records |
+`NMAT_Exodus.parquet.bak`, 178,927 rows x 118 columns — the **wide** intermediate file. This is
+not the shipped file; Pipeline 5 reads it.
 
 ---
 
-## 6. Final Dataset: NMAT_Exodus.parquet
+## 6. Pipeline 5: Slim Exodus
 
-After all 4 pipelines, the original 118-column `NMAT_Ultima.parquet` was slimmed down to 54 columns by removing columns unused by both `dashboard.py` and `data_aggregator/`.
+**File:** `5_Slim_Exodus.py` — the pipeline this document's predecessor did not know existed.
 
-```mermaid
-flowchart LR
-    subgraph SHRINK["Column Reduction Audit"]
-        A["NMAT_Ultima.parquet<br/>118 columns<br/>27.9 MB"]
-        A --> B["dashboard.py audit:<br/>56 columns used<br/>62 columns unused"]
-        A --> C["data_aggregator audit:<br/>43 columns used<br/>75 columns unused"]
-        B & C --> D["Combined keep set:<br/>54 unique columns"]
-        D --> E["NMAT_Exodus_Lite.parquet<br/>54 columns<br/>10.5 MB"]
-        E --> F["Renamed to<br/>NMAT_Exodus.parquet<br/>(original deleted)"]
-        F --> G["NMAT_Exodus.parquet.bak<br/>Full 118-col backup<br/>27.9 MB"]
-    end
+Before this script existed, the shipped 54-column `dataset/NMAT_Exodus.parquet` had **no
+generating code at all**: someone had hand-selected 54 columns from Pipeline 4's wide output, and
+the selection existed only as prose in an earlier version of this document. `5_Slim_Exodus.py`
+makes that step explicit, deterministic, and asserted — reading `NMAT_Exodus.parquet.bak`,
+applying the column selection / rename / dtype-coercion contract, and writing the canonical
+`NMAT_Exodus.parquet` plus byte-identical copies into both dashboard folders.
+
+### What it does
+
+1. Selects the target 53 columns (removes 6, adds 5 — see `data_dictionary.md` for the full
+   list and rationale of each).
+2. Renames 4 columns to their `UNDERGRAD_*` form.
+3. Coerces `HasTRUErawScores` and `StoredVsDerivedMismatch` from `str` to nullable `boolean`.
+4. Runs two tiers of assertions:
+   - **Structural (`check_hard`)** — correctness that must hold regardless of today's data:
+     row/column counts, one best-record per person, `IS_OBSERVABLE_COHORT` correctness and
+     non-tautology, raw-score arithmetic identity, dropped columns actually absent, dtype
+     coercions actually landed, all 3 copies byte-identical. A failure here raises `SystemExit`
+     and blocks the chain.
+   - **Reference (`check_soft`)** — today's headline numbers (unique people, observable cohort
+     size, ambiguous-key count, passer count, linkage-rate band). A mismatch prints a loud
+     `WARNING` and is recorded in `dataset/EXODUS_MANIFEST.json`'s `reference_count_deltas`
+     block, but does **not** block the chain — an upstream fix that legitimately moves a
+     headline number (as happened here, see §7) must not be blocked by a stale reference value.
+5. Writes `dataset/EXODUS_MANIFEST.json`: row/column counts, md5, full column list, and any
+   reference-count deltas, so drift between the canonical file and its dashboard copies — or
+   between today's numbers and yesterday's — is always visible, never silent.
+
+### Output
+
+`dataset/NMAT_Exodus.parquet` + 2 dashboard-folder copies, 178,927 rows x 53 columns, all sharing
+md5 `28b85ac53af13b4a2ef3ee93527c97c1`.
+
+---
+
+## 7. The Two Defects That Mattered Most
+
+Both were found *during* this remediation, in code, not in the original 12-agent documentation
+audit that preceded it — both are worth understanding because they explain why several headline
+numbers in this project's history do not match the numbers in this document.
+
+### RC-0 — the matcher refused to match examinees below the 40th percentile
+
+`disambiguate()` used to have a **Step 4**, between the identity checks (Steps 1-3) and a
+score-based tie-break (the old Step 5):
+
+```python
+PERCENTILE_FLOOR = 40
+pct_pass = [r for r in latest_pass if r["NMS_PER_num"] >= PERCENTILE_FLOOR]
+if not pct_pass:
+    return {"status": "NO_VALID_MATCH", "reason": "Percentile < 40 for all candidates"}
 ```
 
-### 64 Columns Removed (Not Used by Any Consumer)
+This was a **hard filter, not a tie-break**: among name-collision groups it discarded every
+candidate scoring below the 40th percentile, and rejected the match outright when every candidate
+fell below 40. The constant is exactly the CMO cut-off percentile this project exists to evaluate
+— the policy under review was baked into the identity-resolution step that produces the evidence
+for evaluating it. It was found only because a remediation agent's passer counts would not
+reconcile and the underlying predicate was read directly rather than trusted from documentation.
 
-| Category | Columns Removed |
-|----------|----------------|
-| **CEM standard scores** | `Std_Verbal_CEM` through `Std_Chemistry_CEM` (8 cols) |
-| **Verification pipeline** | `draft_university`, `draft_uni_type`, `draft_uni_location`, `draft_hint_method`, `draft_hint_score`, `verification_method`, `verification_status`, `confidence`, `evidence_summary`, `final_value_source`, `merge_verified_university`, `merge_cem` (12 cols) |
-| **Medical school choices** | `MED_SCHOOL_CHOICE1`, `MED_SCHOOL_CHOICE2`, `MED_SCHOOL_CHOICE3` (3 cols) |
-| **Personal info** | `NMA_Name`, `NMA_Sex`, `NMA_BirthDate`, `BDATE`, `AGE`, `CIVIL_STATUS`, `NAC_NATIONALITY`, `BDATE_CLEAN` (8 cols) |
-| **Raw application fields** | `NMA_AppNo`, `NMA_AppNo_clean`, `NMA_TestDate`, `NMA_Graduating`, `NMA_YearGrad`, `NMA_Course`, `Course Classification`, `Course_recode` (8 cols) |
-| **College raw fields** | `NMA_College_RAW`, `COLLEGE_NAME`, `COURSE_DESC`, `School Type_rec2_FINAL`, `NMC_Center`, `STU_TESTDATE`, `NMAT_YEAR`, `KEY` (8 cols) |
-| **Location raw** | `NMAT Province local address`, `NMAT Region permanent address` (2 cols) |
-| **Verification fields** | `UNIVERSITY_VERIFIED`, `UNI_TYPE_VERIFIED`, `UNI_LOCATION_VERIFIED` (3 cols) |
-| **Raw score fields** | `NMS_PER`, `STU_RSCORE`, `STU_RSCORE_CALC`, `STU_RSCORE_VALID`, `STU_NO_clean`, `NAME_NORM`, `SOURCE_NMAT`, `raw_component_count` (8 cols) |
-| **PLE extended** | `PLE_MATCH_STATUS`, `PLE_MATCH_REASON` (2 cols) |
+**Fix:** Step 4 deleted outright. Identity now resolves purely on year-gap, DOB/sex, and latest
+year; ties are rejected as ambiguous, never decided by score.
 
-### Verification After Slimming
+**Measured effect** (person-level observable linkage rate by bin, before vs. after):
 
-- ✅ Row count preserved: 178,927
-- ✅ All `REQUIRED_PIPELINE_COLS` present
-- ✅ 0 nulls in `CITIZENSHIP_FINAL` and `FOREIGNER_STATUS`
-- ✅ All 38 columns needed by `data_aggregator/` present
-- ✅ `dashboard.py` syntax: PASSED
-- ✅ Size reduction: **27.9 MB → 10.5 MB (62.4% smaller)**
+| Bin | Before (biased matcher) | After (corrected) | Change |
+|---|---|---|---|
+| B1 | 8.1% | **11.6%** | +3.5 |
+| B2 | 16.0% | **22.7%** | +6.7 |
+| B3 | 21.1% | **29.3%** | +8.2 |
+| B4 | 25.9% | **36.0%** | +10.1 |
+| B5 | 46.8% | **45.6%** | -1.2 |
+| B6 | 52.9% | **50.4%** | -2.5 |
+| B7 | 58.0% | **53.6%** | -4.4 |
+| B8 | 61.3% | **55.0%** | -6.3 |
+| B9 | 68.0% | **61.6%** | -6.4 |
+| B10 | 76.6% | **71.0%** | -5.6 |
 
----
+Exactly the predicted two-directional movement: below-40 bins gained (they had been suppressed),
+above-40 bins lost (they had been absorbing collisions they had not earned).
 
-## 7. Key Decisions & Issues Faced
+**A previously-reported finding is withdrawn as a result.** Earlier project history described a
+sharp 21-point "policy discontinuity" between B4 and B5, and recommended a regression
+discontinuity design built on it. Corrected, that step is **9.6 points** — in line with B1->B2
+(+11.1) and B9->B10 (+9.4), not an outlier. The discontinuity was mostly an artefact of the
+matcher's own percentile floor, not of the admission policy it was thought to reveal. If you have
+seen the B4->B5 discontinuity or an RDD recommendation built on it cited elsewhere in this
+project's history, treat it as superseded.
 
-### Decision 1: Deterministic Over Fuzzy Matching
-**Problem:** Fuzzy name matching produced false positives and was not auditable.  
-**Solution:** Eliminated all `rapidfuzz` matching from Pipeline 2. Replaced with 3-stage deterministic AppNo matching using curated AppNo lists.
+**The current headline finding, which replaces it:** among the 25,596 observable-cohort people
+scoring below the 40th percentile at their best attempt, **6,173 (24.1%) are confirmed PLE
+passers** — 795 of them in the lowest decile (B1). This survives the obvious objections: the
+ambiguous-key rate among them (3.0%) is *below* the cohort base rate (3.5%), so it is not a
+collision artefact; 6,152 of 6,173 are Filipino, not a foreign-student exemption effect; and they
+are spread across all nine observable years, not concentrated in one anomalous year.
 
-### Decision 2: TRUE Raw Score Recalculation
-**Problem:** 42.2% of stored raw score totals in CEM data were incorrect.  
-**Solution:** Recalculated `TotalRawScoreTRUE` by summing 8 component scores from first principles. Preserved both stored and TRUE values for auditing.
+### O-24 — the documented DOB check was dead code
 
-### Decision 3: 4-Pipeline Separation
-**Problem:** Modifying earlier pipelines could break downstream consumers.  
-**Solution:** Added Pipeline 4 as a final enrichment step, keeping Pipelines 1-3 unchanged.
+Every version of this project's documentation, including earlier drafts of this file, described
+Step 2 of `disambiguate()` as a birthdate/sex identity check — "the backbone of the deterministic
+disambiguator." It never ran. `BDATE_CLEAN` was added to the working DataFrame **after** the
+row-dict snapshot that `disambiguate()`'s candidate lists are built from; a column added to a
+DataFrame after `.to_dict("records")` is called never appears in the already-created dicts. So
+`r.get("BDATE_CLEAN", "")` returned the default empty string for every candidate, in every call,
+in every historical run of this pipeline — Step 2 always fell through to "no DOB available, keep
+all candidates," regardless of whether real birthdate data existed for 85.91% of rows.
 
-### Decision 4: REAL_FOREIGNERS.csv Integration
-**Problem:** Original Pipeline 4 completely omitted the ground-truth citizenship data (32,501 records).  
-**Solution:** Rewrote `4_Citizenship_Integration.py` to implement the proper 3-tier hierarchy with REAL_FOREIGNERS as Priority 1.
+**Consequence:** with DOB dead, the percentile floor (RC-0, above) became the *de facto*
+discriminator wherever identity could not be resolved by year-gap alone. Two independent defects
+were both pushing identity resolution onto score.
 
-### Decision 5: Observable Cohort Restriction
-**Problem:** Including recent NMAT cohorts in PLE analyses falsely depresses confirmed-PLE rates (right-censoring).  
-**Solution:** All PLE-linked analyses use `Year <= 2014` (the "observable cohort"), giving examinees at least 8 years to take the boards.
+**Fix:** the `BDATE_CLEAN` assignment was moved before the row-dict snapshot, so Step 2 filters on
+real birthdate data for the first time in this pipeline's history.
 
-### Decision 6: Best-Record Deduplication
-**Problem:** 25% of examinees took NMAT multiple times, violating independence assumptions for statistical tests.  
-**Solution:** `IS_BEST_NMAT_RECORD` flag selects exactly one record per person (for PLE passers: the matched attempt; for others: highest percentile).
-
-### Decision 7: Column Slimming (Exodus Lite)
-**Problem:** The dataset had 118 columns, but only 54 were used by any consumer.  
-**Solution:** Audited both `dashboard.py` and `data_aggregator/`, removed 64 unused columns. Reduced file size by 62.4% (27.9 MB → 10.5 MB).
-
-### Decision 8: Emoji Handling
-**Problem:** A character-sanitization script replaced emojis in Streamlit tab labels with `?`.  
-**Solution:** Previous commit (632b5bd) restored emoji icons by selectively recovering non-ASCII characters from git history. All 12 tab icons now display correctly.
-
----
-
-## Record of Pipeline Output Files
-
-| Stage | Output File | Location | Rows | Cols | Notes |
-|-------|-------------|----------|-----:|-----:|-------|
-| P1 | `NMAT_FINAL.parquet` | `dataset/output/` | 178,927 | 101 | Intermediate |
-| P1 | `NMAT_FINAL.csv` | `dataset/` | 178,927 | 101 | Intermediate (CSV) |
-| P2 | `NMAT_Ultima.parquet` | `dataset/` | 178,927 | **115** | Superseded by Exodus |
-| P2 | `PLE_MATCH_MASTER.csv` | `dataset/output/` | 43,601 | — | One row per PLE passer |
-| P2 | `PLE_PASSERS_IN_NMAT.csv` | `dataset/output/` | 36,305 | — | Best-record passers |
-| P3 | Various CSV/PNG | `dataset/analysis_output/` | — | — | 95 files total |
-| P4 | **`NMAT_Exodus.parquet`** | `dataset/` | 178,927 | **54** | **Final output (active)** |
-| P4 | `NMAT_Exodus.parquet.bak` | `dataset/` | 178,927 | 118 | Full backup |
-| P4 | `NMAT_Exodus.csv` | `dataset/` | 178,927 | 54 | CSV for inspection |
+**Combined effect of both fixes:** `IS_PLE_PASSER` moved from 49,986 to **49,086** (net -900,
+-1.8% — the sum of several partially-offsetting movements: candidates newly resolved by Steps 1-3
+alone gained, candidates that used to be narrowed by the percentile floor before a tie-break now
+face a larger unresolved pool and are rejected as ambiguous instead). If you see 49,986 cited
+elsewhere in this project's history as the passer count, it predates this fix; **49,086 is
+current.**
 
 ---
 
-*Document generated from pipeline code, results documents, and wiki knowledge.*  
-*All 4 pipelines verified working. Final dataset: `dataset/NMAT_Exodus.parquet` (54 cols, 10.5 MB).*
+## 8. Key Decisions & Corrections
+
+| Decision / correction | Detail |
+|---|---|
+| Deterministic-only PLE matching | No fuzzy/`rapidfuzz` matching in Pipeline 2 (university-name matching in Pipeline 1 still uses it, disclosed above). |
+| No score-based identity resolution | RC-0's percentile floor removed; the old Step-5 score tie-break was already removed in an earlier refactor and was not reintroduced. `disambiguate()` now rejects ties rather than breaking them. |
+| DOB check fixed | O-24 — the check now actually runs. |
+| `IS_BEST_NMAT_RECORD` unified | One rule for every person, not a passer/non-passer split. |
+| `IS_BEST_OBSERVABLE_RECORD` added | The correct observable-cohort flag; do not substitute `IS_BEST_NMAT_RECORD & (Year<=2014)`, which drops 3,721 people. |
+| `PERSON_KEY_AMBIGUOUS` added | Exposes, rather than hides, ~4.56% (6,148) detectable name-collision risk in the underlying `PERSON_KEY`. |
+| Undergraduate-institution renames | `UNIVERSITY`/`UNI_TYPE`/`UNI_LOCATION`/`CourseGroup` -> `UNDERGRAD_*`, because this data has no medical-school identifier at all — see `data_dictionary.md`. |
+| Stored-total mismatch corrected | 56.45% of rows with a stored total (not "42.2%" of all records — see §2). |
+| Pipeline 5 added | The previously-undocumented, code-less slimming step now has a real, asserted script. |
+
+---
+
+## Live vs. legacy consumers
+
+`NMAT_Exodus.parquet` is consumed by:
+- **`streamlit_dashboard/main_dashboard/`** — live, maintained.
+- **`streamlit_dashboard/CHED_relevant_dashboard/`** — live, maintained.
+- **`data_aggregator/`** — live, maintained; produces static markdown reports.
+
+The following are **legacy** — retained for reference, not actively maintained, and should not be
+presented as reflecting the current schema or matching logic without independent verification:
+`RShiny_Dashboard/`, `reports/`, and the root `dashboard.py` / `dashboard.py.bak`.
+
+---
+
+*Pipeline architecture for `dataset/NMAT_Exodus.parquet` (53 columns, 178,927 rows), rewritten
+2026-08-14 against the live code and data as part of the post-remediation documentation pass.*
