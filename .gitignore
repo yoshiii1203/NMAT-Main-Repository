@@ -73,3 +73,7 @@ vault/
 ngrok*.zip
 ngrok_log.txt
 *_out.txt
+
+# Shipped dataset copies: contain PERSON_KEY (name + birthdate) for ~135k people.
+# Regenerate with: .venv/Scripts/python.exe 5_Slim_Exodus.py
+streamlit_dashboard/*/NMAT_Exodus.parquet
