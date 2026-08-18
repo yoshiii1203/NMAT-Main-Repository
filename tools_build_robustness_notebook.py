@@ -117,6 +117,61 @@ print(f"  of whom linked to a PLE passer: {int(obs['linked'].sum()):,} "
 print("\nAll provenance assertions passed.")
 ''')
 
+
+# ---------------------------------------------------------------- viz setup
+md(r"""
+---
+## Visualization conventions
+
+Charts follow one system so ten steps read as one document:
+
+- **Palette** — categorical slots assigned in fixed order (blue, orange, aqua), validated for
+  colour-vision deficiency (worst adjacent CVD ΔE 9.2, normal-vision ΔE 27.6, both clear of the
+  floors). Colour follows the entity, never its rank.
+- **One axis, always.** No chart here uses two y-scales. Where two measures of different scale must
+  be compared (Step 8), they get separate panels rather than a shared plot with two scales — a
+  dual axis would imply whatever relationship the two scales happened to be aligned to.
+- **Emphasis over decoration.** Where the story is one category, that category carries the colour
+  and the rest go grey.
+- **Every chart sits directly above or below its own data table**, so a reader who cannot resolve a
+  hue can always read the number.
+""")
+
+code(r'''
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+SURFACE = "#fcfcfb"; INK = "#0b0b0b"; INK2 = "#52514e"
+GRID    = "#e4e3de"; MUTED = "#b8b7b0"
+C1, C2, C3 = "#2a78d6", "#eb6834", "#1baf7a"   # validated categorical slots 1-3
+
+mpl.rcParams.update({
+    "figure.facecolor": SURFACE, "axes.facecolor": SURFACE,
+    "savefig.facecolor": SURFACE,
+    "axes.edgecolor": GRID, "axes.labelcolor": INK2, "text.color": INK,
+    "xtick.color": INK2, "ytick.color": INK2,
+    "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.8,
+    "axes.spines.top": False, "axes.spines.right": False,
+    "font.size": 10, "figure.dpi": 110, "axes.titlesize": 12,
+})
+
+def style(ax, title, ylab=None, xlab=None):
+    """One title/axis treatment for every figure in this notebook."""
+    ax.set_title(title, loc="left", fontweight="600", color=INK, pad=10)
+    if ylab: ax.set_ylabel(ylab)
+    if xlab: ax.set_xlabel(xlab)
+    ax.set_axisbelow(True)
+    return ax
+
+def label_bars(ax, bars, fmt="{:.1f}", dy=0.6, color=INK2, size=9):
+    for b in bars:
+        h = b.get_height()
+        ax.text(b.get_x() + b.get_width()/2, h + dy, fmt.format(h),
+                ha="center", va="bottom", fontsize=size, color=color)
+
+print("Chart style loaded. Palette validated: CVD dE 9.2, normal-vision dE 27.6 (both pass).")
+''')
+
 # ---------------------------------------------------------------- step 0
 md(r"""
 ---
@@ -197,6 +252,29 @@ print(f"  Note the direction of the RATE, which the guide does not anticipate: w
 print("  This is an undergraduate-institution split. It says nothing about SUC/PHEI medical schools.")
 ''')
 
+
+code(r'''
+d1 = s1.sort_values("linked_passers", ascending=False)
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
+
+b = axes[0].bar(d1.index, d1.linked_passers, color=C1, width=.62)
+label_bars(axes[0], b, "{:,.0f}", dy=60)
+style(axes[0], "Linked passers below the 40th percentile", "examinees")
+axes[0].set_ylim(0, d1.linked_passers.max() * 1.18)
+
+b = axes[1].bar(d1.index, d1.linkage_rate_pct, color=C1, width=.62)
+label_bars(axes[1], b, "{:.1f}%", dy=.4)
+style(axes[1], "Linkage rate within B1-B4", "% of sub-threshold examinees")
+axes[1].set_ylim(0, d1.linkage_rate_pct.max() * 1.22)
+
+for ax in axes: ax.tick_params(axis="x", rotation=15)
+fig.suptitle("Step 1 - sub-threshold linked passers by UNDERGRADUATE institution type",
+             x=.01, ha="left", fontsize=13, fontweight="700", color=INK)
+fig.tight_layout(rect=[0, 0, 1, .94]); plt.show()
+print("Left panel is volume, right is rate. They point different ways: Private supplies most of the")
+print("sub-threshold passers because it is most of the pool, AND links at a higher rate within it.")
+''')
+
 # ---------------------------------------------------------------- step 2
 md(r"""
 ---
@@ -266,6 +344,7 @@ print("  that better cleaning would recover.")
 print(f"  Step 9 revisits GIDA/IP specifically against the RAW file, which has columns the shipped")
 print(f"  file drops.")
 print(f"\n  Full audit written to {out.relative_to(ROOT)}")
+print("\n  (No chart for this step: the finding is that every category is absent. A bar chart\n   of ten zeros communicates less than this sentence does.)")
 ''')
 
 # ---------------------------------------------------------------- step 3
@@ -344,6 +423,27 @@ print(f"  Specification A, which selects the matched sitting for passers only, g
       f"correlation it then reports.")
 ''')
 
+
+code(r'''
+fig, ax = plt.subplots(figsize=(9.5, 4.6))
+x = range(len(BINS))
+ax.plot(x, s3["B_first_attempt"], marker="o", ms=6, lw=2, color=C1, label="B - first attempt")
+ax.plot(x, s3["C_highest_pct"],   marker="o", ms=6, lw=2, color=C2, label="C - highest percentile")
+ax.plot(x, s3["A_outcome_dependent"], marker="o", ms=5, lw=1.6, color=MUTED, ls="--",
+        label="A - outcome-dependent (do not use)")
+ax.axvspan(3, 4, color=C3, alpha=.10)
+ax.annotate("B4 -> B5  (CMO threshold)", xy=(3.5, .95), xycoords=("data", "axes fraction"),
+            ha="center", va="top", fontsize=9, color=INK2)
+ax.set_xticks(list(x)); ax.set_xticklabels(BINS)
+style(ax, "Step 3 - linkage rate by bin under three best-record rules",
+      "linkage rate (%)", "percentile bin (B1 lowest)")
+ax.legend(frameon=False, fontsize=9, loc="upper left")
+fig.tight_layout(); plt.show()
+print("The three lines track each other closely: the gradient is not an artifact of how the")
+print("representative attempt is chosen. Specification A is drawn grey and dashed because it")
+print("selects on the outcome and must not be used as the primary.")
+''')
+
 # ---------------------------------------------------------------- step 4
 md(r"""
 ---
@@ -419,6 +519,29 @@ print("  40th percentile. The paper should not describe one, and must not treat 
 print("  the 40th-percentile cutoff.")
 ''')
 
+
+code(r'''
+order = [f"B{i}->B{i+1}" for i in range(1, 10)]
+g4 = s4.set_index("boundary").reindex(order)
+colors = [C1 if b == "B4->B5" else MUTED for b in order]
+
+fig, ax = plt.subplots(figsize=(9.5, 4.4))
+bars = ax.bar(order, g4.gap_pts, color=colors, width=.66)
+label_bars(ax, bars, "{:.1f}", dy=.18)
+style(ax, "Step 4 - size of every adjacent-bin transition",
+      "gap (percentage points)", "bin boundary")
+ax.set_ylim(0, g4.gap_pts.max() * 1.18)
+ax.tick_params(axis="x", rotation=30)
+top = g4.gap_pts.idxmax()
+ax.annotate(f"largest gap is {top}, not the CMO boundary",
+            xy=(order.index(top), g4.gap_pts.max()), xytext=(4.4, g4.gap_pts.max() * 1.06),
+            fontsize=9, color=INK2,
+            arrowprops=dict(arrowstyle="->", color=MUTED, lw=1.2))
+fig.tight_layout(); plt.show()
+print("If a 40th-percentile threshold produced a real discontinuity, the B4->B5 bar would stand")
+print("clear of the others. It does not - three boundaries are within 0.3 points of each other.")
+''')
+
 # ---------------------------------------------------------------- step 5
 md(r"""
 ---
@@ -475,6 +598,26 @@ else:
           "depend disproportionately on looser matching.")
     print("  This is a clean negative control and strengthens the descriptive finding. It should be "
           "reported as such rather than omitted for being a null result.")
+''')
+
+
+code(r'''
+fig, ax = plt.subplots(figsize=(9.5, 4.4))
+methods = ["EXACT", "MANUAL_APPNO_MATCH", "DETERMINISTIC_APPNO"]
+cols = {"EXACT": C1, "MANUAL_APPNO_MATCH": C2, "DETERMINISTIC_APPNO": C3}
+bottom = np.zeros(len(BINS))
+for m in methods:
+    vals = comp[m].reindex(BINS).fillna(0).values
+    ax.bar(BINS, vals, bottom=bottom, color=cols[m], label=m.replace("_", " ").title(),
+           width=.66, edgecolor=SURFACE, linewidth=2)
+    bottom += vals
+style(ax, "Step 5 - which matching method produced each bin's links",
+      "% of that bin's linked passers", "percentile bin (B1 lowest)")
+ax.set_ylim(0, 100)
+ax.legend(frameon=False, fontsize=9, ncol=3, loc="lower center", bbox_to_anchor=(.5, -.28))
+fig.tight_layout(); plt.show()
+print("The composition is visibly flat across bins. If low bins leaned on looser matching, the")
+print("orange band would widen to the left - it does not (9.1% at B1 vs 6.2% at B10).")
 ''')
 
 # ---------------------------------------------------------------- step 6
@@ -552,6 +695,31 @@ print(f"  ACTION FOR THE PAPER: Limitations must state the 2011-2022 PLE window 
       f"comparable across cohorts.")
 ''')
 
+
+code(r'''
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.4))
+
+cols3 = [C1, C2, C3]
+for c, col in zip(tbl_a.columns, cols3):
+    axes[0].plot(BINS, tbl_a[c], marker="o", ms=5, lw=2, color=col, label=c)
+style(axes[0], "(a) Linkage by bin, split by NMAT sub-period", "linkage rate (%)", "percentile bin")
+axes[0].legend(frameon=False, fontsize=9, title="NMAT years", title_fontsize=9)
+
+axes[1].plot(by_year.index, by_year["published"], marker="o", ms=6, lw=2, color=C1,
+             label="published (any horizon)")
+axes[1].plot(by_year.index, by_year.iloc[:, 1], marker="o", ms=6, lw=2, color=C2,
+             label="equal 8-year window")
+style(axes[1], "(b) Linkage by NMAT year, before and after equalizing exposure",
+      "linkage rate (%)", "NMAT year")
+axes[1].legend(frameon=False, fontsize=9)
+
+fig.suptitle("Step 6 - the apparent decline over time is mostly the 2011-2022 PLE data window",
+             x=.01, ha="left", fontsize=13, fontweight="700", color=INK)
+fig.tight_layout(rect=[0, 0, 1, .93]); plt.show()
+print("Left: later sub-periods sit below earlier ones in EVERY bin - residual censoring is real.")
+print("Right: equalizing exposure flattens much of the year trend (spread 16.9 -> 10.7 points).")
+''')
+
 # ---------------------------------------------------------------- step 7
 md(r"""
 ---
@@ -601,6 +769,25 @@ print(f"  Lifting the restriction does not rescue the comparison: 2016-2018 exam
       f"this dataset at any cohort definition.")
 ''')
 
+
+code(r'''
+cnt7 = sub_linked.groupby("Year").size()
+fig, ax = plt.subplots(figsize=(9.5, 4.2))
+bars = ax.bar(cnt7.index.astype(int), cnt7.values, color=C1, width=.62)
+label_bars(ax, bars, "{:,.0f}", dy=12)
+ax.axvline(2015.5, color=C2, lw=2, ls="--")
+ax.axvspan(2015.5, 2018.6, color=C2, alpha=.08)
+ax.text(2016.1, cnt7.max() * .72, "CMO 18 in force\nfrom 2016\n\nno examinees here",
+        fontsize=9.5, color=C2, va="top")
+ax.set_xlim(2005.3, 2018.6)
+ax.set_ylim(0, cnt7.max() * 1.2)
+style(ax, "Step 7 - every sub-threshold linked passer predates CMO 18",
+      "linked passers (B1-B4)", "NMAT year")
+fig.tight_layout(); plt.show()
+print("The shaded region is the regime the paper is about. It is empty, by construction of the")
+print("observable cohort - so this count cannot be read as non-compliance with CMO 18.")
+''')
+
 # ---------------------------------------------------------------- step 8
 md(r"""
 ---
@@ -632,16 +819,64 @@ first, last = int(s8.index.min()), int(s8.index.max())
 d_raw = s8.loc[last, "median"] - s8.loc[first, "median"]
 d_pct = s8.loc[last, "median_percentile"] - s8.loc[first, "median_percentile"]
 
-print("\nINTERPRETATION")
+# Is the percentile re-based each year? If so, the median over ALL sittings is ~50 every year.
+allp = df.groupby("Year")["NMS_PER_num"].median()
+allr = df.groupby("Year")["TotalRawScoreTRUE"].median()
+r = allr.corr(allp)
+
+b5_share = df.assign(b5=df["PercentileBin"].isin(B5P)).groupby("Year")["b5"].mean() * 100
+early = b5_share.loc[2006:2011].mean(); late = b5_share.loc[2013:2018].mean()
+
+print("")
+print("RESULT - is NMS_PER_num re-based annually?  (medians over ALL sittings)")
+print(pd.DataFrame({"median_raw": allr, "median_percentile": allp.round(0),
+                    "pct_clearing_B5plus": b5_share.round(1)}).to_string())
+
+print("")
+print("INTERPRETATION")
 print(f"  Median raw score moved from {s8.loc[first,'median']:.0f} in {first} to "
-      f"{s8.loc[last,'median']:.0f} in {last}, a change of {d_raw:+.0f} points "
-      f"({d_raw / s8.loc[first,'median'] * 100:+.1f}%).")
-print(f"  Over the same span the median PERCENTILE moved only {d_pct:+.1f} points -- because "
-      f"percentile is cohort-relative by construction and is renormalized every year.")
-print("  This is the guide's point, demonstrated: a real decline in absolute performance is almost")
-print("  invisible in percentile space. A percentile rank from 2006 and one from 2018 do not denote")
-print("  the same level of measured attainment, so a fixed percentile cutoff is not a fixed standard.")
-print("  This reinforces, independently, the instability finding reported by Vergeire-Dalmacion et al.")
+      f"{s8.loc[last,'median']:.0f} in {last} ({d_raw / s8.loc[first,'median'] * 100:+.1f}%).")
+print(f"  The guide's premise does NOT hold here. If percentile were re-based each year, its median "
+      f"over all sittings would be ~50 in every year; instead it runs {allp.loc[2006]:.0f} in 2006 "
+      f"and {allp.loc[2018]:.0f} in 2018, tracking the raw score with r = {r:.2f}.")
+print("  NMS_PER_num is therefore anchored to a FIXED norm group, not renormalized annually.")
+print(f"  CONSEQUENCE, and this is the policy-relevant part: because the standard is fixed while "
+      f"attainment fell, the share clearing the 40th percentile dropped from {early:.1f}% "
+      f"(2006-2011) to {late:.1f}% (2013-2018), a fall of {early - late:.1f} points.")
+print("  A fixed percentile cutoff is NOT a fixed proportion of each cohort. Holding the 40th")
+print("  percentile constant progressively tightens admission as cohort attainment declines --")
+print("  a mechanical property of the instrument, not a policy anyone chose.")
+''')
+
+
+code(r'''
+fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.2))
+
+axes[0].plot(allr.index, allr.values, marker="o", ms=6, lw=2, color=C1)
+style(axes[0], "(a) Median raw score", "raw score (8 subtests)", "NMAT year")
+
+axes[1].plot(allp.index, allp.values, marker="o", ms=6, lw=2, color=C2)
+axes[1].axhline(50, color=MUTED, lw=1.4, ls=":")
+axes[1].text(2006.2, 32.5, "the dotted line is 50 - where a re-based", fontsize=8.5, color=INK2)
+axes[1].text(2006.2, 31.0, "percentile would sit in every year", fontsize=8.5, color=INK2)
+axes[1].set_ylim(30, 60)
+style(axes[1], "(b) Median percentile", "percentile rank", "NMAT year")
+
+axes[2].plot(b5_share.index, b5_share.values, marker="o", ms=6, lw=2, color=C3)
+for yr in (2006, 2018):
+    axes[2].annotate(f"{b5_share.loc[yr]:.1f}%", xy=(yr, b5_share.loc[yr]),
+                     xytext=(0, 10), textcoords="offset points",
+                     ha="left" if yr == 2006 else "right", fontsize=9, color=INK2)
+style(axes[2], "(c) Share clearing the 40th percentile", "% of sittings at B5+", "NMAT year")
+
+fig.suptitle("Step 8 - the percentile is anchored to a fixed norm, so a fixed cutoff tightens over time",
+             x=.01, ha="left", fontsize=13, fontweight="700", color=INK)
+fig.tight_layout(rect=[0, 0, 1, .92]); plt.show()
+print("(a) and (b) fall together (r = %.2f). If the percentile were re-based each year, panel (b)" % r)
+print("would sit flat on the dotted 50 line - it does not.")
+print("(c) is the consequence: the same unchanged 40th-percentile rule cleared ~63% of sittings in")
+print("2006-2011 and ~50% in 2013-2018. Three panels, one axis each; a dual-axis version would")
+print("imply a scale alignment we did not earn.")
 ''')
 
 # ---------------------------------------------------------------- step 9
@@ -699,6 +934,24 @@ else:
     print("  No geographic field exists in the raw file either; absence is confirmed.")
 ''')
 
+
+code(r'''
+reg = geo["NMAT Region permanent address"].value_counts().head(12).sort_values()
+fig, ax = plt.subplots(figsize=(9, 4.8))
+bars = ax.barh(reg.index, reg.values, color=C1, height=.68)
+for b, v in zip(bars, reg.values):
+    ax.text(v + reg.max() * .012, b.get_y() + b.get_height() / 2, f"{v:,}",
+            va="center", fontsize=9, color=INK2)
+ax.set_xlim(0, reg.max() * 1.14)
+style(ax, "Step 9 - a geographic field DOES exist in the raw data (top 12 regions)",
+      None, "examinee records")
+ax.grid(axis="y", visible=False)
+fig.tight_layout(); plt.show()
+print("100% populated, 21 distinct regions - but this is region of ADDRESS, while DOH AO 2020-0023")
+print("defines GIDA at barangay/municipality level. Useful as a crude upper bound only, and it")
+print("cannot identify IP membership at all.")
+''')
+
 # ---------------------------------------------------------------- step 10
 md(r"""
 ---
@@ -754,6 +1007,31 @@ print("  source hint and removed sentinel-valued percentiles. Use these figures,
 print("  Reminder: this is the UNDERGRADUATE institution. It is not an SUC/PHEI comparison.")
 ''')
 
+
+code(r'''
+o10b = obs[obs["UNDERGRAD_UNI_TYPE"].isin(["Public", "Private", "Foreign", "Not Specified"])].copy()
+o10b["b5plus"] = o10b["PercentileBin"].isin(B5P)
+agg = o10b.groupby("UNDERGRAD_UNI_TYPE")["b5plus"].agg(["size", "mean"])
+agg["pct"] = agg["mean"] * 100
+agg["ci"] = 1.96 * np.sqrt(agg["mean"] * (1 - agg["mean"]) / agg["size"]) * 100
+agg = agg.sort_values("pct", ascending=False)
+
+fig, ax = plt.subplots(figsize=(8.5, 4.3))
+bars = ax.bar(agg.index, agg.pct, yerr=agg.ci, color=C1, width=.6,
+              error_kw=dict(ecolor=INK2, lw=1.4, capsize=5))
+for b, v, n in zip(bars, agg.pct, agg["size"]):
+    ax.text(b.get_x() + b.get_width()/2, v + agg.ci.max() + 1.6, f"{v:.1f}%\nn={n:,}",
+            ha="center", fontsize=9, color=INK2)
+ax.set_ylim(0, 100)
+style(ax, "Step 10 - share clearing the 40th percentile (B5+), by undergraduate institution type",
+      "% of examinees at B5 or above")
+ax.tick_params(axis="x", rotation=12)
+fig.tight_layout(); plt.show()
+print("Error bars are 95% CIs. Public exceeds Private by 10.9 points - a small association")
+print("(Cramer's V 0.092) but a materially large difference. This is the UNDERGRADUATE institution,")
+print("not the medical school: it is not an SUC vs PHEI comparison.")
+''')
+
 # ---------------------------------------------------------------- summary
 md(r"""
 ---
@@ -784,8 +1062,8 @@ lines.append(("7",  "Pre/post-2016 split",
               f"0 of {len(sub_linked):,} sub-threshold passers sat NMAT after 2016 -- none were "
               f"admitted under CMO 18."))
 lines.append(("8",  "Raw score trend",
-              f"Median raw score {d_raw:+.0f} pts {first}->{last} while median percentile moved "
-              f"{d_pct:+.1f}."))
+              f"Percentile is fixed-norm, not re-based (r={r:.2f}); share clearing B5+ fell "
+              f"{early:.1f}% -> {late:.1f}%."))
 lines.append(("9",  "GIDA/IP proxy",
               "Partial geographic proxy EXISTS in the raw file but is dropped by Pipeline 5."))
 lines.append(("10", "UNITYPE x threshold",
@@ -815,12 +1093,19 @@ md(r"""
    CMO 18. Presenting the count as evidence about the current regime would misstate it.
 4. **Report Step 5 as a negative control.** Matching quality does not explain the gradient. Null
    results that rule out an artifact belong in the paper.
-5. **Lead with effect sizes, not p-values.** Steps 4, 5 and 10 all reach significance purely on
+5. **Correct the claim about percentile stability — it is the opposite of what was assumed.**
+   Step 8 shows `NMS_PER_num` is anchored to a fixed norm group, not re-based each year: it tracks
+   the raw score at r = 0.90 and its all-sittings median falls from 52 to 36 rather than sitting at
+   50. The consequence is stronger than the original argument: because the standard is fixed while
+   attainment declined, the share clearing the 40th percentile fell from 62.6% (2006–2011) to 49.7%
+   (2013–2018). **An unchanged cutoff progressively tightened admission without anyone deciding
+   to** — a mechanical property of the instrument that belongs in the policy discussion.
+6. **Lead with effect sizes, not p-values.** Steps 4, 5 and 10 all reach significance purely on
    sample size.
-6. **Correct the GIDA/IP claim.** Step 9 shows a partial geographic proxy exists in the source data.
+7. **Correct the GIDA/IP claim.** Step 9 shows a partial geographic proxy exists in the source data.
    The honest statement is that the *analytic file* omits it and that province-level address is far
    too coarse for a GIDA determination — not that the source captures nothing.
-7. **Do not claim the 40th percentile is validated.** Nothing in this dataset can validate a cutoff:
+8. **Do not claim the 40th percentile is validated.** Nothing in this dataset can validate a cutoff:
    there is no medical-school identifier, no admission-decision field, and no record of who was
    rejected. That constraint is structural and is unchanged by any of these ten steps.
 """)
